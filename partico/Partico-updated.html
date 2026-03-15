@@ -1265,6 +1265,8 @@ const SignupScreen = () => {
   const [verificationCode, setVerificationCode] = useState("");
   const [showVerification, setShowVerification] = useState(false);
   const [tempUserId, setTempUserId] = useState("");
+  const [verificationEmail, setVerificationEmail] = useState("");
+  const [verificationPassword, setVerificationPassword] = useState("");
   const fileRef = useRef(null);
   const firstNameRef = useRef(null);
   const lastNameRef = useRef(null);
@@ -1328,6 +1330,8 @@ const SignupScreen = () => {
           setErr(data.error);
         } else {
           setTempUserId(data.tempUserId);
+          setVerificationEmail(email);
+          setVerificationPassword(password);
           setShowVerification(true);
           setErr("");
         }
@@ -1347,10 +1351,9 @@ const SignupScreen = () => {
     setLoading(true);
     setErr("");
 
-    // Query DOM directly for email and password values
-    const inputs = document.querySelectorAll('.input-field');
-    const email = inputs[2]?.value?.trim();
-    const password = inputs[4]?.value?.trim();
+    // Use stored email and password from signup
+    const email = verificationEmail;
+    const password = verificationPassword;
 
     fetch("https://partico-backend-production.up.railway.app/api/auth/verify-signup", {
       method: "POST",
