@@ -2447,16 +2447,43 @@ const FriendsScreen = () => {
   const [showQR, setShowQR] = useState(false);
   const [tab, setTab] = useState("friends");
   const [searchQ, setSearchQ] = useState("");
+  const [backendResults, setBackendResults] = useState([]);
+  const [searching, setSearching] = useState(false);
   const friends = getFriends();
   const requests = getFriendRequests();
   const myId = currentUser?.id || "";
   const myFriends = currentUser?.friends || [];
   const myRequests = currentUser?.friendRequests || [];
   const myQRValue = buildWebLink('add-friend?id=' + myId + '&name=' + encodeURIComponent((currentUser?.firstName||'') + ' ' + (currentUser?.lastName||'')));
+
+  // Search backend when available, fallback to localStorage
+  useEffect(() => {
+    if (!searchQ) {
+      setBackendResults([]);
+      return;
+    }
+    setSearching(true);
+    const token = ls.get("partico_auth_token");
+    if (token) {
+      fetch(`https://partico-backend-production.up.railway.app/api/users/search?q=${encodeURIComponent(searchQ)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(r => r.json())
+        .then(data => {
+          setBackendResults((data.users || []).filter(u => !myFriends.includes(u.id) && !myRequests.some((r) => r && r.from === u.id)));
+          setSearching(false);
+        })
+        .catch(err => {
+          setSearching(false);
+        });
+    }
+  }, [searchQ]);
+
   const allOtherUsers = users.filter(
     (u) => u.id !== myId && !myFriends.includes(u.id) && !myRequests.some((r) => r && r.from === u.id)
   );
-  const filtered = searchQ ? allOtherUsers.filter((u) => `${u.firstName} ${u.lastName} ${u.email} ${u.phone || ""}`.toLowerCase().includes(searchQ.toLowerCase())) : allOtherUsers;
+  // Use backend results if available, otherwise filter localStorage
+  const filtered = searchQ ? (backendResults.length > 0 ? backendResults : allOtherUsers.filter((u) => `${u.firstName} ${u.lastName} ${u.email} ${u.phone || ""}`.toLowerCase().includes(searchQ.toLowerCase()))) : allOtherUsers;
   const handleSend = (userId, name) => {
     sendFriendRequest(userId);
     showToast(`Friend request sent to ${name}! \u{1F4E8}`);
@@ -2763,7 +2790,8 @@ const App = () => {
       const name = params.get('name');
       const avatar = params.get('avatar');
       if (userId && currentUser.id !== userId) {
-        addFriend(userId, name, avatar);
+        sendFriendRequest(userId, name, avatar);
+        showToast(`Friend request sent to ${name}! 📨`, 'success');
         navigate('friends');
       }
       window.location.hash = '';
