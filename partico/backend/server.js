@@ -179,6 +179,7 @@ app.post('/api/auth/verify-signup', async (req, res) => {
     );
 
     res.json({
+      success: true,
       token,
       user: {
         id: userId,
@@ -186,6 +187,7 @@ app.post('/api/auth/verify-signup', async (req, res) => {
         firstName: verifyRequest.firstName,
         lastName: verifyRequest.lastName,
         phone: verifyRequest.phone,
+        password: hashedPassword,
       },
     });
   } catch (error) {
