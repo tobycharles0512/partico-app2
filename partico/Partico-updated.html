@@ -1262,7 +1262,7 @@ const SignupScreen = () => {
   const [showVerification, setShowVerification] = useState(false);
   const [tempUserId, setTempUserId] = useState("");
   const fileRef = useRef(null);
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k, v) => { console.log(`State update: ${k} = ${v}`); setForm((f) => ({ ...f, [k]: v })); };
   const pickPhoto = () => fileRef.current?.click();
   const onFile = (e) => {
     const file = e.target.files[0];
