@@ -55,25 +55,42 @@ async function sendEmail(to, subject, html) {
 // Signup: Send verification email
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { email, firstName, lastName, phone, password } = req.body;
+    const { email, username, firstName, lastName, phone, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
+    if (!email || !password || !username) {
+      return res.status(400).json({ error: 'Email, username, and password required' });
     }
 
-    // Check if user already exists
-    const { data: existingUser } = await supabase
+    // Check if email already exists
+    const { data: existingEmail } = await supabase
       .from('users')
       .select('id')
       .eq('email', email.toLowerCase())
       .single();
 
-    if (existingUser) {
+    if (existingEmail) {
       return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    // Check if username already exists
+    const { data: existingUsername } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', username.toLowerCase())
+      .single();
+
+    if (existingUsername) {
+      return res.status(400).json({ error: 'Username already taken' });
     }
 
     // Generate verification code
     const code = generateVerificationCode();
+
+    // Delete any existing verification requests for this email (to allow resend)
+    await supabase
+      .from('verification_requests')
+      .delete()
+      .eq('email', email.toLowerCase());
 
     // Store verification request
     const { error: verifyError } = await supabase
@@ -81,11 +98,12 @@ app.post('/api/auth/signup', async (req, res) => {
       .insert([
         {
           email: email.toLowerCase(),
+          username: username.toLowerCase(),
           code,
           firstName,
           lastName,
           phone,
-          password, // Store hashed password after verify
+          password,
           type: 'signup',
           expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min expiry
         },
@@ -135,6 +153,7 @@ app.post('/api/auth/verify-signup', async (req, res) => {
       .single();
 
     if (queryError || !verifyRequest) {
+      console.error('Query error or request not found:', queryError);
       return res.status(400).json({ error: 'Invalid or expired verification code' });
     }
 
@@ -154,6 +173,7 @@ app.post('/api/auth/verify-signup', async (req, res) => {
         {
           id: userId,
           email: email.toLowerCase(),
+          username: verifyRequest.username,
           password: hashedPassword,
           firstName: verifyRequest.firstName,
           lastName: verifyRequest.lastName,
@@ -176,7 +196,7 @@ app.post('/api/auth/verify-signup', async (req, res) => {
 
     // Generate JWT
     const token = jwt.sign(
-      { userId, email: email.toLowerCase() },
+      { userId, email: email.toLowerCase(), username: verifyRequest.username },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -187,10 +207,10 @@ app.post('/api/auth/verify-signup', async (req, res) => {
       user: {
         id: userId,
         email: email.toLowerCase(),
+        username: verifyRequest.username,
         firstName: verifyRequest.firstName,
         lastName: verifyRequest.lastName,
         phone: verifyRequest.phone,
-        password: hashedPassword,
       },
     });
   } catch (error) {
@@ -199,44 +219,49 @@ app.post('/api/auth/verify-signup', async (req, res) => {
   }
 });
 
-// Login
+// Login (with username or email)
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { emailOrUsername, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
+    if (!emailOrUsername || !password) {
+      return res.status(400).json({ error: 'Email/username and password required' });
     }
 
-    // Get user
+    // Try to find user by email or username
+    const normalizedInput = emailOrUsername.toLowerCase();
+
     const { data: user, error: queryError } = await supabase
       .from('users')
       .select('*')
-      .eq('email', email.toLowerCase())
+      .or(`email.eq.${normalizedInput},username.eq.${normalizedInput}`)
       .single();
 
     if (queryError || !user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      console.error('User query error:', queryError);
+      return res.status(401).json({ error: 'Invalid email/username or password' });
     }
 
     // Compare password
     const passwordMatch = await bcryptjs.compare(password, user.password);
     if (!passwordMatch) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid email/username or password' });
     }
 
     // Generate JWT
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, username: user.username },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
 
     res.json({
+      success: true,
       token,
       user: {
         id: user.id,
         email: user.email,
+        username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
         phone: user.phone,
@@ -260,7 +285,7 @@ app.get('/api/auth/me', async (req, res) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, email, firstName, lastName, phone, createdAt')
+      .select('id, email, username, firstName, lastName, phone, createdAt')
       .eq('id', decoded.userId)
       .single();
 
@@ -272,6 +297,65 @@ app.get('/api/auth/me', async (req, res) => {
   } catch (error) {
     console.error('Get user error:', error);
     res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+// Resend verification code
+app.post('/api/auth/resend-code', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email required' });
+    }
+
+    // Get existing verification request
+    const { data: verifyRequest, error: queryError } = await supabase
+      .from('verification_requests')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .eq('type', 'signup')
+      .single();
+
+    if (queryError || !verifyRequest) {
+      return res.status(400).json({ error: 'No pending verification for this email' });
+    }
+
+    // Generate new verification code
+    const code = generateVerificationCode();
+
+    // Update verification request with new code
+    const { error: updateError } = await supabase
+      .from('verification_requests')
+      .update({
+        code,
+        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      })
+      .eq('email', email.toLowerCase())
+      .eq('type', 'signup');
+
+    if (updateError) {
+      console.error('Verification update error:', updateError);
+      return res.status(500).json({ error: 'Failed to resend code' });
+    }
+
+    // Send new verification email
+    const emailHtml = `
+      <div style="text-align: center; background: #0d0d0d; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #fff;">
+        <img src="https://res.cloudinary.com/dvrrwjm9f/image/upload/v1773603152/final_logo_myxdg2.png" alt="Partico" style="width: 100px; height: 100px; margin-bottom: 20px;">
+        <h2 style="color: #00ff41; margin: 20px 0;">Your new verification code</h2>
+        <p style="color: rgba(255,255,255,0.7); margin: 15px 0;">Your verification code is:</p>
+        <h1 style="font-size: 48px; font-weight: bold; color: #00ff41; letter-spacing: 4px; margin: 30px 0;">${code}</h1>
+        <p style="color: rgba(255,255,255,0.5); margin: 15px 0;">This code expires in 15 minutes.</p>
+      </div>
+    `;
+
+    await sendEmail(email, 'Your new verification code', emailHtml);
+
+    res.json({ message: 'Verification code resent', email });
+  } catch (error) {
+    console.error('Resend code error:', error);
+    res.status(500).json({ error: 'Failed to resend code' });
   }
 });
 
