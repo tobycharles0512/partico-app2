@@ -1296,6 +1296,9 @@ const SignupScreen = () => {
     const password = passwordRef.current?.value?.trim();
     const confirm = confirmRef.current?.value?.trim();
 
+    console.log("Signup attempt:", { firstName, lastName, email, username, phone, password, confirm });
+    console.log("Refs:", { firstNameRef: firstNameRef.current, emailRef: emailRef.current, usernameRef: usernameRef.current });
+
     if (!firstName || !lastName || !email || !username || !password) {
       setErr("Please fill in: First Name, Last Name, Email, Username, and Password");
       return;
