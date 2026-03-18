@@ -1328,6 +1328,7 @@ const SignupScreen = () => {
 
     setLoading(true);
     setErr("");
+    console.log('All validations passed, calling backend');
 
     // Call backend signup endpoint
     fetch("https://partico-backend-production.up.railway.app/api/auth/signup", {
@@ -1342,10 +1343,15 @@ const SignupScreen = () => {
         password
       })
     })
-      .then(r => r.json())
+      .then(r => {
+        console.log('Backend response status:', r.status);
+        return r.json();
+      })
       .then(data => {
         setLoading(false);
+        console.log('Backend response data:', data);
         if (data.error) {
+          console.log('Backend returned error:', data.error);
           setErr(data.error);
         } else {
           setTempUserId(data.tempUserId);
