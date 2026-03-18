@@ -1270,6 +1270,12 @@ const SignupScreen = () => {
   const [verificationEmail, setVerificationEmail] = useState("");
   const [verificationPassword, setVerificationPassword] = useState("");
   const fileRef = useRef(null);
+
+  // Clear error on component mount
+  React.useEffect(() => {
+    setErr("");
+    console.log('SignupScreen mounted - error cleared');
+  }, []);
   const set = (k, v) => { console.log(`State update: ${k} = ${v}`); setForm((f) => ({ ...f, [k]: v })); };
   const pickPhoto = () => fileRef.current?.click();
   const onFile = (e) => {
