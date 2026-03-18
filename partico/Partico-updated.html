@@ -1287,14 +1287,17 @@ const SignupScreen = () => {
   };
 
   const handleSignup = () => {
-    // Get values directly from refs
-    const firstName = firstNameRef.current?.value?.trim() || '';
-    const lastName = lastNameRef.current?.value?.trim() || '';
-    const email = emailRef.current?.value?.trim() || '';
-    const username = usernameRef.current?.value?.trim() || '';
-    const phone = phoneRef.current?.value?.trim() || '';
-    const password = passwordRef.current?.value?.trim() || '';
-    const confirm = confirmRef.current?.value?.trim() || '';
+    // Get values directly from DOM using data attributes (more reliable than refs)
+    const firstName = document.querySelector('[data-signup="firstName"]')?.value?.trim() || '';
+    const lastName = document.querySelector('[data-signup="lastName"]')?.value?.trim() || '';
+    const email = document.querySelector('[data-signup="email"]')?.value?.trim() || '';
+    const username = document.querySelector('[data-signup="username"]')?.value?.trim() || '';
+    const phone = document.querySelector('[data-signup="phone"]')?.value?.trim() || '';
+    const password = document.querySelector('[data-signup="password"]')?.value?.trim() || '';
+    const confirm = document.querySelector('[data-signup="confirm"]')?.value?.trim() || '';
+
+    // Debug logging
+    console.log('Form values:', { firstName, lastName, email, username, phone, password, confirm });
 
     // Validate all fields are filled
     if (!firstName) { setErr("First Name required"); return; }
