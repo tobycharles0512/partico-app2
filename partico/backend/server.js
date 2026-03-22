@@ -112,8 +112,8 @@ app.post('/api/auth/signup', async (req, res) => {
       .insert([verificationData]);
 
     if (verifyError) {
-      console.error('Verification insert error:', verifyError);
-      return res.status(500).json({ error: 'Failed to create verification request' });
+      console.error('Verification insert error:', JSON.stringify(verifyError));
+      return res.status(400).json({ error: verifyError.message || 'Failed to create verification request' });
     }
 
     // Send verification email
