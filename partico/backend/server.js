@@ -93,7 +93,7 @@ app.post('/api/auth/signup', async (req, res) => {
       .delete()
       .eq('email', email.toLowerCase());
 
-    // Store verification request (only required fields)
+    // Store verification request
     const { error: verifyError } = await supabase
       .from('verification_requests')
       .insert([
@@ -101,6 +101,9 @@ app.post('/api/auth/signup', async (req, res) => {
           email: email.toLowerCase(),
           username: username.toLowerCase(),
           code,
+          firstname: firstName || null,
+          lastname: lastName || null,
+          phone: phone || null,
           password,
           type: 'signup',
           expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min expiry
@@ -177,8 +180,8 @@ app.post('/api/auth/verify-signup', async (req, res) => {
           email: email.toLowerCase(),
           username: verifyRequest.username,
           password: hashedPassword,
-          firstName: verifyRequest.firstName || null,
-          lastName: verifyRequest.lastName || null,
+          firstname: verifyRequest.firstname || null,
+          lastname: verifyRequest.lastname || null,
           phone: verifyRequest.phone || null,
           createdAt: new Date().toISOString(),
         },
