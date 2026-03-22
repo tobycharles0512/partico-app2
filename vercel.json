@@ -1,6 +1,9 @@
 {
     "buildCommand": "",
     "outputDirectory": ".",
+    "env": {
+        "FORCE_REDEPLOY": "true"
+    },
     "headers": [
           {
                   "source": "/partico/Partico-updated.html",
