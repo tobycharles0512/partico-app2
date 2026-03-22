@@ -55,7 +55,8 @@ async function sendEmail(to, subject, html) {
 // Signup: Send verification email
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    console.log('Signup request received:', { email: req.body.email, username: req.body.username });
+    console.log('=== SIGNUP REQUEST ===');
+    console.log('Body:', JSON.stringify(req.body));
     const { email, username, firstName, lastName, phone, password } = req.body;
 
     if (!email || !password || !username) {
@@ -94,21 +95,22 @@ app.post('/api/auth/signup', async (req, res) => {
       .eq('email', email.toLowerCase());
 
     // Store verification request
+    const insertData = {
+      email: email.toLowerCase(),
+      username: username.toLowerCase(),
+      code,
+      firstname: firstName || null,
+      lastname: lastName || null,
+      phone: phone || null,
+      password,
+      type: 'signup',
+      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min expiry
+    };
+    console.log('Inserting verification request:', JSON.stringify(insertData));
+
     const { error: verifyError } = await supabase
       .from('verification_requests')
-      .insert([
-        {
-          email: email.toLowerCase(),
-          username: username.toLowerCase(),
-          code,
-          firstname: firstName || null,
-          lastname: lastName || null,
-          phone: phone || null,
-          password,
-          type: 'signup',
-          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min expiry
-        },
-      ]);
+      .insert([insertData]);
 
     if (verifyError) {
       console.error('Verification insert error:', JSON.stringify(verifyError, null, 2));
