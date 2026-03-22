@@ -93,23 +93,21 @@ app.post('/api/auth/signup', async (req, res) => {
       .eq('email', email.toLowerCase());
 
     // Store verification request
-    const verificationData = {
-      email: email.toLowerCase(),
-      username: username.toLowerCase(),
-      code,
-      password,
-      type: 'signup',
-      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min expiry
-    };
-
-    // Only include optional fields if provided
-    if (firstName) verificationData.firstName = firstName;
-    if (lastName) verificationData.lastName = lastName;
-    if (phone) verificationData.phone = phone;
-
     const { error: verifyError } = await supabase
       .from('verification_requests')
-      .insert([verificationData]);
+      .insert([
+        {
+          email: email.toLowerCase(),
+          username: username.toLowerCase(),
+          code,
+          firstName: firstName || null,
+          lastName: lastName || null,
+          phone: phone || null,
+          password,
+          type: 'signup',
+          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min expiry
+        },
+      ]);
 
     if (verifyError) {
       console.error('Verification insert error:', JSON.stringify(verifyError));
