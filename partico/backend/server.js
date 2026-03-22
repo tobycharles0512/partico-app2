@@ -93,21 +93,23 @@ app.post('/api/auth/signup', async (req, res) => {
       .eq('email', email.toLowerCase());
 
     // Store verification request
+    const verificationData = {
+      email: email.toLowerCase(),
+      username: username.toLowerCase(),
+      code,
+      password,
+      type: 'signup',
+      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min expiry
+    };
+
+    // Only include optional fields if provided
+    if (firstName) verificationData.firstName = firstName;
+    if (lastName) verificationData.lastName = lastName;
+    if (phone) verificationData.phone = phone;
+
     const { error: verifyError } = await supabase
       .from('verification_requests')
-      .insert([
-        {
-          email: email.toLowerCase(),
-          username: username.toLowerCase(),
-          code,
-          firstName,
-          lastName,
-          phone,
-          password,
-          type: 'signup',
-          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min expiry
-        },
-      ]);
+      .insert([verificationData]);
 
     if (verifyError) {
       console.error('Verification insert error:', verifyError);
@@ -167,20 +169,22 @@ app.post('/api/auth/verify-signup', async (req, res) => {
 
     // Create user
     const userId = Math.random().toString(36).substring(7); // Simple ID generation
+    const userData = {
+      id: userId,
+      email: email.toLowerCase(),
+      username: verifyRequest.username,
+      password: hashedPassword,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Only include optional fields if they exist
+    if (verifyRequest.firstName) userData.firstName = verifyRequest.firstName;
+    if (verifyRequest.lastName) userData.lastName = verifyRequest.lastName;
+    if (verifyRequest.phone) userData.phone = verifyRequest.phone;
+
     const { error: createError } = await supabase
       .from('users')
-      .insert([
-        {
-          id: userId,
-          email: email.toLowerCase(),
-          username: verifyRequest.username,
-          password: hashedPassword,
-          firstName: verifyRequest.firstName,
-          lastName: verifyRequest.lastName,
-          phone: verifyRequest.phone,
-          createdAt: new Date().toISOString(),
-        },
-      ]);
+      .insert([userData]);
 
     if (createError) {
       console.error('User creation error:', createError);
