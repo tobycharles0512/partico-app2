@@ -1287,34 +1287,24 @@ const SignupScreen = () => {
   };
 
   const handleSignup = () => {
-    // Get values directly from DOM - most reliable method
+    // Get values directly from DOM - extract email, username, password, confirm in order
     const inputs = document.querySelectorAll('.input-field');
     console.log('Total inputs found:', inputs.length);
-    inputs.forEach((inp, i) => {
-      console.log(`Input ${i}: value="${inp.value}", placeholder="${inp.placeholder}"`);
-    });
 
-    const firstName = (inputs[0]?.value?.trim() || '').toString();
-    const lastName = (inputs[1]?.value?.trim() || '').toString();
+    // Extract only the 4 required fields (skip firstName, lastName, phone)
     const email = (inputs[2]?.value?.trim() || '').toString();
     const username = (inputs[3]?.value?.trim() || '').toString();
-    const phone = (inputs[4]?.value?.trim() || '').toString();
     const password = (inputs[5]?.value?.trim() || '').toString();
     const confirm = (inputs[6]?.value?.trim() || '').toString();
 
-    // Debug logging
-    console.log('Extracted values:', { firstName: `[${firstName}]`, lastName: `[${lastName}]`, email: `[${email}]`, username: `[${username}]`, phone: `[${phone}]`, password: `[${password}]`, confirm: `[${confirm}]` });
-    console.log('Validation checks - firstName:', !firstName, 'lastName:', !lastName, 'email:', !email, 'username:', !username, 'phone:', !phone, 'password:', !password, 'confirm:', !confirm);
+    console.log('Extracted values:', { email: `[${email}]`, username: `[${username}]`, password: `[${password}]`, confirm: `[${confirm}]` });
 
-    // Validate all fields are filled
-    if (!firstName) { console.log('ERROR: First Name required'); setErr("First Name required"); return; }
-    if (!lastName) { console.log('ERROR: Last Name required'); setErr("Last Name required"); return; }
+    // Validate required fields
     if (!email) { console.log('ERROR: Email required'); setErr("Email required"); return; }
     if (!username) { console.log('ERROR: Username required'); setErr("Username required"); return; }
-    if (!phone) { console.log('ERROR: Phone required'); setErr("Phone required"); return; }
     if (!password) { console.log('ERROR: Password required'); setErr("Password required"); return; }
     if (!confirm) { console.log('ERROR: Confirm Password required'); setErr("Confirm Password required"); return; }
-    console.log('All field validations passed!'); // Trigger redeploy
+    console.log('All field validations passed!');
 
     if (username.length < 3) {
       setErr("Username must be at least 3 characters");
@@ -1342,11 +1332,8 @@ const SignupScreen = () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        firstName,
-        lastName,
         email,
         username,
-        phone,
         password
       })
     })
@@ -1419,7 +1406,7 @@ const SignupScreen = () => {
     return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: "linear-gradient(180deg,#0d0d0d 0%,#0d0d0d 100%)" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "50px 24px 24px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 28, fontWeight: 900, background: "linear-gradient(135deg,#00ff41,#00d944)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 4 } }, "Verify Email \u{1F512}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "rgba(255,255,255,0.5)" } }, "Check your inbox for a code")), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 24px 100px", display: "flex", flexDirection: "column", justifyContent: "center", flex: 1 } }, /* @__PURE__ */ React.createElement("div", { className: "card" }, err && /* @__PURE__ */ React.createElement("div", { style: { background: "rgba(220,38,38,0.15)", border: "1px solid rgba(220,38,38,0.4)", borderRadius: 10, padding: "10px 14px", fontSize: 14, color: "#f87171", marginBottom: 14 } }, err), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 16, textAlign: "center" } }, "We sent a verification code to your email. Enter it below:"), /* @__PURE__ */ React.createElement(Input, { label: "Verification Code", placeholder: "000000", value: verificationCode, onChange: (e) => setVerificationCode(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", onClick: handleVerify, disabled: loading, style: { marginTop: 16 } }, loading ? "Verifying..." : "Verify & Complete Signup \u{2705}")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", fontSize: 13, color: "rgba(255,255,255,0.4)", marginTop: 16 } }, /* @__PURE__ */ React.createElement("span", { onClick: () => { setShowVerification(false); setErr(""); }, style: { cursor: "pointer", textDecoration: "underline" } }, "Back to signup"))));
   }
 
-  return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: "linear-gradient(180deg,#0d0d0d 0%,#0d0d0d 100%)" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "50px 24px 24px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 28, fontWeight: 900, background: "linear-gradient(135deg,#00ff41,#00d944)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 4 } }, "Create Account \u{1F389}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "rgba(255,255,255,0.5)" } }, "Join the Partico community")), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 24px 100px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "center", marginBottom: 24 } }, /* @__PURE__ */ React.createElement("div", { onClick: pickPhoto, style: { width: 90, height: 90, borderRadius: "50%", background: "rgba(0,255,65,0.2)", border: "2px dashed rgba(0,255,65,0.5)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden" } }, form.profilePic ? /* @__PURE__ */ React.createElement("img", { src: form.profilePic, style: { width: "100%", height: "100%", objectFit: "cover" } }) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 28 } }, "\u{1F4F7}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 } }, "Add photo"))), /* @__PURE__ */ React.createElement("input", { ref: fileRef, type: "file", accept: "image/*", style: { display: "none" }, onChange: onFile })), /* @__PURE__ */ React.createElement("div", { className: "card" }, err && /* @__PURE__ */ React.createElement("div", { style: { background: "rgba(220,38,38,0.15)", border: "1px solid rgba(220,38,38,0.4)", borderRadius: 10, padding: "10px 14px", fontSize: 14, color: "#f87171", marginBottom: 14 } }, err), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 0 } }, /* @__PURE__ */ React.createElement(Input, { label: "First Name", placeholder: "Jane", "data-signup": "firstName" }), /* @__PURE__ */ React.createElement(Input, { label: "Last Name", placeholder: "Smith", "data-signup": "lastName" })), /* @__PURE__ */ React.createElement(Input, { label: "Email Address", type: "email", placeholder: "jane@email.com", "data-signup": "email" }), /* @__PURE__ */ React.createElement(Input, { label: "Username", placeholder: "john_doe", "data-signup": "username" }), /* @__PURE__ */ React.createElement(Input, { label: "Phone Number", type: "tel", placeholder: "+44 7700 000000", "data-signup": "phone" }), /* @__PURE__ */ React.createElement(Input, { label: "Password", type: "password", placeholder: "Min. 6 characters", "data-signup": "password" }), /* @__PURE__ */ React.createElement(Input, { label: "Confirm Password", type: "password", placeholder: "Repeat password", "data-signup": "confirm" }), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", onClick: handleSignup, disabled: loading, style: { marginTop: 8 } }, loading ? "Creating account..." : "Create Account \u{1F38A}")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", fontSize: 14, color: "rgba(255,255,255,0.5)", marginTop: 16 } }, "Already have an account?", " ", /* @__PURE__ */ React.createElement("span", { onClick: () => navigate("login"), style: { color: "#00ff41", fontWeight: 600, cursor: "pointer" } }, "Sign In"))));
+  return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: "linear-gradient(180deg,#0d0d0d 0%,#0d0d0d 100%)" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "50px 24px 24px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 28, fontWeight: 900, background: "linear-gradient(135deg,#00ff41,#00d944)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 4 } }, "Create Account \u{1F389}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "rgba(255,255,255,0.5)" } }, "Join the Partico community")), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 24px 100px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "center", marginBottom: 24 } }, /* @__PURE__ */ React.createElement("div", { onClick: pickPhoto, style: { width: 90, height: 90, borderRadius: "50%", background: "rgba(0,255,65,0.2)", border: "2px dashed rgba(0,255,65,0.5)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden" } }, form.profilePic ? /* @__PURE__ */ React.createElement("img", { src: form.profilePic, style: { width: "100%", height: "100%", objectFit: "cover" } }) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 28 } }, "\u{1F4F7}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 4 } }, "Add photo"))), /* @__PURE__ */ React.createElement("input", { ref: fileRef, type: "file", accept: "image/*", style: { display: "none" }, onChange: onFile })), /* @__PURE__ */ React.createElement("div", { className: "card" }, err && /* @__PURE__ */ React.createElement("div", { style: { background: "rgba(220,38,38,0.15)", border: "1px solid rgba(220,38,38,0.4)", borderRadius: 10, padding: "10px 14px", fontSize: 14, color: "#f87171", marginBottom: 14 } }, err), /* @__PURE__ */ React.createElement(Input, { label: "Email Address", type: "email", placeholder: "jane@email.com", "data-signup": "email" }), /* @__PURE__ */ React.createElement(Input, { label: "Username", placeholder: "john_doe", "data-signup": "username" }), /* @__PURE__ */ React.createElement(Input, { label: "Password", type: "password", placeholder: "Min. 6 characters", "data-signup": "password" }), /* @__PURE__ */ React.createElement(Input, { label: "Confirm Password", type: "password", placeholder: "Repeat password", "data-signup": "confirm" }), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", onClick: handleSignup, disabled: loading, style: { marginTop: 8 } }, loading ? "Creating account..." : "Create Account \u{1F38A}")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", fontSize: 14, color: "rgba(255,255,255,0.5)", marginTop: 16 } }, "Already have an account?", " ", /* @__PURE__ */ React.createElement("span", { onClick: () => navigate("login"), style: { color: "#00ff41", fontWeight: 600, cursor: "pointer" } }, "Sign In"))));
 };
 const HomeScreen = () => {
   const { currentUser, navigate, screenData, getHostedParties, getPendingInvites, getUpcomingParties, getUser, parties, users, getUnreadPops, getMutualFriendSuggestions, sendFriendRequest } = useApp();
