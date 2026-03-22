@@ -93,7 +93,7 @@ app.post('/api/auth/signup', async (req, res) => {
       .delete()
       .eq('email', email.toLowerCase());
 
-    // Store verification request
+    // Store verification request (only required fields)
     const { error: verifyError } = await supabase
       .from('verification_requests')
       .insert([
@@ -101,9 +101,6 @@ app.post('/api/auth/signup', async (req, res) => {
           email: email.toLowerCase(),
           username: username.toLowerCase(),
           code,
-          firstName: firstName || null,
-          lastName: lastName || null,
-          phone: phone || null,
           password,
           type: 'signup',
           expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min expiry
@@ -172,22 +169,20 @@ app.post('/api/auth/verify-signup', async (req, res) => {
 
     // Create user
     const userId = Math.random().toString(36).substring(7); // Simple ID generation
-    const userData = {
-      id: userId,
-      email: email.toLowerCase(),
-      username: verifyRequest.username,
-      password: hashedPassword,
-      createdAt: new Date().toISOString(),
-    };
-
-    // Only include optional fields if they exist
-    if (verifyRequest.firstName) userData.firstName = verifyRequest.firstName;
-    if (verifyRequest.lastName) userData.lastName = verifyRequest.lastName;
-    if (verifyRequest.phone) userData.phone = verifyRequest.phone;
-
     const { error: createError } = await supabase
       .from('users')
-      .insert([userData]);
+      .insert([
+        {
+          id: userId,
+          email: email.toLowerCase(),
+          username: verifyRequest.username,
+          password: hashedPassword,
+          firstName: verifyRequest.firstName || null,
+          lastName: verifyRequest.lastName || null,
+          phone: verifyRequest.phone || null,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
 
     if (createError) {
       console.error('User creation error:', createError);
