@@ -55,6 +55,7 @@ async function sendEmail(to, subject, html) {
 // Signup: Send verification email
 app.post('/api/auth/signup', async (req, res) => {
   try {
+    console.log('Signup request received:', { email: req.body.email, username: req.body.username });
     const { email, username, firstName, lastName, phone, password } = req.body;
 
     if (!email || !password || !username) {
@@ -110,8 +111,12 @@ app.post('/api/auth/signup', async (req, res) => {
       ]);
 
     if (verifyError) {
-      console.error('Verification insert error:', JSON.stringify(verifyError));
-      return res.status(400).json({ error: verifyError.message || 'Failed to create verification request' });
+      console.error('Verification insert error:', JSON.stringify(verifyError, null, 2));
+      return res.status(400).json({
+        error: 'Verification request failed',
+        details: verifyError.message || 'Unknown error',
+        code: verifyError.code || 'UNKNOWN'
+      });
     }
 
     // Send verification email
