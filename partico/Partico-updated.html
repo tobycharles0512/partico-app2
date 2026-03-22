@@ -1291,11 +1291,11 @@ const SignupScreen = () => {
     const inputs = document.querySelectorAll('.input-field');
     console.log('Total inputs found:', inputs.length);
 
-    // Extract only the 4 required fields (skip firstName, lastName, phone)
-    const email = (inputs[2]?.value?.trim() || '').toString();
-    const username = (inputs[3]?.value?.trim() || '').toString();
-    const password = (inputs[5]?.value?.trim() || '').toString();
-    const confirm = (inputs[6]?.value?.trim() || '').toString();
+    // Extract only the 4 required fields
+    const email = (inputs[0]?.value?.trim() || '').toString();
+    const username = (inputs[1]?.value?.trim() || '').toString();
+    const password = (inputs[2]?.value?.trim() || '').toString();
+    const confirm = (inputs[3]?.value?.trim() || '').toString();
 
     console.log('Extracted values:', { email: `[${email}]`, username: `[${username}]`, password: `[${password}]`, confirm: `[${confirm}]` });
 
