@@ -306,9 +306,13 @@ const AppProvider = ({ children }) => {
     setUsers(u);
     setParties(p);
     if (cu) {
+      // First, try to find user in local users array
       const found = u.find((x) => x.id === cu.id);
       if (found) {
         setCurrentUser(found);
+      } else {
+        // If not in users array, still set them as currentUser (they may have just signed up via backend)
+        setCurrentUser(cu);
       }
     }
   }, []);
