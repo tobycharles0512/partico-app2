@@ -254,19 +254,24 @@ app.post('/api/auth/login', async (req, res) => {
     console.log('=== LOGIN ATTEMPT ===');
     console.log('Input:', normalizedInput);
 
-    const { data: user, error: queryError } = await supabase
+    const { data: users, error: queryError } = await supabase
       .from('users')
-      .select('*')
-      .or(`email.eq.${normalizedInput},username.eq.${normalizedInput}`)
-      .single();
+      .select('id, email, username, password')
+      .or(`email.eq.${normalizedInput},username.eq.${normalizedInput}`);
 
-    console.log('Query result - User found:', !!user, 'Error:', queryError);
+    console.log('Query result - Users found:', users?.length, 'Error:', queryError);
 
-    if (queryError || !user) {
-      console.error('User query error:', queryError);
+    if (queryError) {
+      console.error('=== USER QUERY ERROR ===');
+      console.error('Error:', JSON.stringify(queryError, null, 2));
+      return res.status(401).json({ error: 'Invalid email/username or password' });
+    }
+
+    const user = users && users.length > 0 ? users[0] : null;
+
+    if (!user) {
       console.error('=== USER NOT FOUND ===');
       console.error('Searched for email or username:', normalizedInput);
-      console.error('Error details:', queryError ? JSON.stringify(queryError, null, 2) : 'No error, just not found');
       return res.status(401).json({ error: 'Invalid email/username or password' });
     }
 
