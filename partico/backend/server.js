@@ -398,6 +398,51 @@ app.post('/api/auth/resend-code', async (req, res) => {
   }
 });
 
+// Diagnostic endpoint - check if a user exists in Supabase
+app.get('/api/diag/user/:emailOrUsername', async (req, res) => {
+  try {
+    const input = req.params.emailOrUsername.toLowerCase();
+    console.log('=== DIAGNOSTIC: Checking for user:', input);
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email, username, password')
+      .or(`email.eq.${input},username.eq.${input}`)
+      .single();
+
+    if (error) {
+      console.error('Query error:', error);
+      return res.json({
+        found: false,
+        error: error.message,
+        code: error.code
+      });
+    }
+
+    if (!user) {
+      console.error('User not found');
+      return res.json({
+        found: false,
+        message: 'User not found in database'
+      });
+    }
+
+    console.log('User found:', { id: user.id, email: user.email, username: user.username, hasPassword: !!user.password });
+    res.json({
+      found: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        hasPassword: !!user.password
+      }
+    });
+  } catch (error) {
+    console.error('Diagnostic error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
