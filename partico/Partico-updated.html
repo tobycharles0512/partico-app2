@@ -368,6 +368,11 @@ const AppProvider = ({ children }) => {
     ls.del("partico_current_user");
     navigate("login");
   };
+  const loginWithBackendUser = (user) => {
+    if (!user) return;
+    setCurrentUser(user);
+    ls.set("partico_current_user", user);
+  };
   const updateCurrentUser = (updates) => {
     if (!currentUser) return;
     const updated = { ...currentUser, ...updates };
@@ -705,6 +710,7 @@ const AppProvider = ({ children }) => {
     register,
     login,
     logout,
+    loginWithBackendUser,
     updateCurrentUser,
     sendFriendRequest,
     acceptFriendRequest,
@@ -1266,7 +1272,7 @@ const LoginScreen = () => {
   return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: "linear-gradient(180deg,#0d0d0d 0%,#0d0d0d 100%)", display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "60px 24px 30px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 50, marginBottom: 12, filter: "drop-shadow(0 0 20px rgba(0,255,65,0.6))" } }, "\u{1F389}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 36, fontWeight: 900, background: "linear-gradient(135deg,#00ff41,#00d944)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" } }, "Welcome Back"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, color: "rgba(255,255,255,0.5)", marginTop: 6 } }, "Sign in to Partico")), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 24px", flex: 1 } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 16 } }, err && /* @__PURE__ */ React.createElement("div", { style: { background: "rgba(220,38,38,0.15)", border: "1px solid rgba(220,38,38,0.4)", borderRadius: 10, padding: "10px 14px", fontSize: 14, color: "#f87171", marginBottom: 14 } }, err), /* @__PURE__ */ React.createElement(Input, { label: "Email or Username", placeholder: "your@email.com or username", ref: emailRef, autoComplete: "email" }), /* @__PURE__ */ React.createElement(Input, { label: "Password", type: "password", placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", ref: passwordRef, autoComplete: "current-password" }), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", onClick: handleLogin, disabled: loading, style: { marginTop: 8 } }, loading ? "Signing in..." : "Sign In \u{1F38A}")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", fontSize: 14, color: "rgba(255,255,255,0.5)", marginBottom: 8 } }, "Don't have an account?", " ", /* @__PURE__ */ React.createElement("span", { onClick: () => navigate("signup"), style: { color: "#00ff41", fontWeight: 600, cursor: "pointer" } }, "Sign Up")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", fontSize: 13, color: "rgba(255,255,255,0.3)" } }, /* @__PURE__ */ React.createElement("span", { onClick: () => navigate("landing"), style: { cursor: "pointer" } }, "\u2190 Back to welcome page")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginTop: 20, background: "rgba(124,58,237,0.1)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: "#00d944", marginBottom: 8 } }, "\u{1F4F1} Add Partico to your Home Screen"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 } }, /* @__PURE__ */ React.createElement("b", { style: { color: "rgba(255,255,255,0.7)" } }, "iPhone:"), ' Tap Share \u2192 "Add to Home Screen"', /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("b", { style: { color: "rgba(255,255,255,0.7)" } }, "Android:"), ' Tap Menu \u2192 "Add to Home Screen"'))));
 };
 const SignupScreen = () => {
-  const { navigate, login } = useApp();
+  const { navigate, login, loginWithBackendUser } = useApp();
   const [form, setForm] = useState({ profilePic: null });
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1396,9 +1402,9 @@ const SignupScreen = () => {
           // Store the auth token from the backend
           ls.set("partico_auth_token", data.token);
 
-          // Create a minimal user object for local state
+          // Create a user object with all required fields for the app
           const newUser = {
-            id: data.user.email, // Use email as ID
+            id: data.user.id,
             email: data.user.email,
             username: data.user.username,
             password: "",
@@ -1409,10 +1415,13 @@ const SignupScreen = () => {
             friendRequests: [],
             parties: [],
             notifs: [],
+            bio: "",
+            profilePic: null,
             createdAt: Date.now()
           };
 
-          ls.set("partico_current_user", newUser);
+          // Use the context function to properly set current user in state AND localStorage
+          loginWithBackendUser(newUser);
           navigate("home");
         } else {
           setErr("Invalid response from server");
