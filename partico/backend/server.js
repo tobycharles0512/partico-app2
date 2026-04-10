@@ -193,17 +193,6 @@ app.post('/api/auth/verify-signup', async (req, res) => {
           email: email.toLowerCase(),
           username: verifyRequest.username,
           password: hashedPassword,
-          firstName: verifyRequest.firstName || '',
-          lastName: verifyRequest.lastName || '',
-          phone: verifyRequest.phone || '',
-          bio: '',
-          profilePic: null,
-          friends: [],
-          friendRequests: [],
-          parties: [],
-          notifs: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
         },
       ])
       .select();
