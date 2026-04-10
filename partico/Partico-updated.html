@@ -1371,9 +1371,7 @@ const SignupScreen = () => {
     setLoading(true);
     setErr("");
 
-    // Use stored email and password from signup
     const email = verificationEmail;
-    const password = verificationPassword;
 
     fetch("https://partico-backend-production.up.railway.app/api/auth/verify-signup", {
       method: "POST",
@@ -1388,14 +1386,35 @@ const SignupScreen = () => {
         setLoading(false);
         if (data.error) {
           setErr(data.error);
+        } else if (data.token && data.user) {
+          // Create a user object from the API response
+          const newUser = {
+            id: uid(),
+            email: data.user.email,
+            username: data.user.username,
+            password: "",
+            firstName: data.user.firstName || "",
+            lastName: data.user.lastName || "",
+            phone: data.user.phone || "",
+            friends: [],
+            friendRequests: [],
+            parties: [],
+            notifs: [],
+            createdAt: Date.now()
+          };
+
+          // Add user to local users array
+          const newUsers = [...users, newUser];
+          saveUsers(newUsers);
+
+          // Set as current user
+          setCurrentUser(newUser);
+          ls.set("partico_current_user", newUser);
+          ls.set("partico_auth_token", data.token);
+
+          navigate("home");
         } else {
-          // Login with the verified credentials
-          const loginRes = login(email, password);
-          if (loginRes.error) {
-            setErr(loginRes.error);
-          } else {
-            navigate("home");
-          }
+          setErr("Invalid response from server");
         }
       })
       .catch(e => {
