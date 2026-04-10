@@ -191,10 +191,6 @@ app.post('/api/auth/verify-signup', async (req, res) => {
           email: email.toLowerCase(),
           username: verifyRequest.username,
           password: hashedPassword,
-          firstName: verifyRequest.firstName || null,
-          lastName: verifyRequest.lastName || null,
-          phone: verifyRequest.phone || null,
-          createdAt: new Date().toISOString(),
         },
       ]);
 
