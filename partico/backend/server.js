@@ -185,7 +185,7 @@ app.post('/api/auth/verify-signup', async (req, res) => {
     const userId = Math.random().toString(36).substring(7); // Simple ID generation
     console.log('Attempting to create user with:', { userId, email: email.toLowerCase(), username: verifyRequest.username });
 
-    const { data: createdUser, error: createError } = await supabase
+    const { error: createError } = await supabase
       .from('users')
       .insert([
         {
@@ -194,8 +194,7 @@ app.post('/api/auth/verify-signup', async (req, res) => {
           username: verifyRequest.username,
           password: hashedPassword,
         },
-      ])
-      .select();
+      ]);
 
     if (createError) {
       console.error('=== USER CREATION FAILED ===');
@@ -206,7 +205,7 @@ app.post('/api/auth/verify-signup', async (req, res) => {
       return res.status(500).json({ error: 'Failed to create account', details: createError.message });
     }
 
-    console.log('User created successfully:', createdUser);
+    console.log('User created successfully with userId:', userId);
 
     // Delete verification request
     await supabase
