@@ -183,7 +183,9 @@ app.post('/api/auth/verify-signup', async (req, res) => {
 
     // Create user
     const userId = Math.random().toString(36).substring(7); // Simple ID generation
-    const { error: createError } = await supabase
+    console.log('Attempting to create user with:', { userId, email: email.toLowerCase(), username: verifyRequest.username });
+
+    const { data: createdUser, error: createError } = await supabase
       .from('users')
       .insert([
         {
@@ -192,12 +194,19 @@ app.post('/api/auth/verify-signup', async (req, res) => {
           username: verifyRequest.username,
           password: hashedPassword,
         },
-      ]);
+      ])
+      .select();
 
     if (createError) {
-      console.error('User creation error:', createError);
-      return res.status(500).json({ error: 'Failed to create account' });
+      console.error('=== USER CREATION FAILED ===');
+      console.error('Error code:', createError.code);
+      console.error('Error message:', createError.message);
+      console.error('Error details:', createError.details);
+      console.error('Full error:', JSON.stringify(createError, null, 2));
+      return res.status(500).json({ error: 'Failed to create account', details: createError.message });
     }
+
+    console.log('User created successfully:', createdUser);
 
     // Delete verification request
     await supabase
@@ -243,22 +252,40 @@ app.post('/api/auth/login', async (req, res) => {
     // Try to find user by email or username
     const normalizedInput = emailOrUsername.toLowerCase();
 
+    console.log('=== LOGIN ATTEMPT ===');
+    console.log('Input:', normalizedInput);
+
     const { data: user, error: queryError } = await supabase
       .from('users')
       .select('*')
       .or(`email.eq.${normalizedInput},username.eq.${normalizedInput}`)
       .single();
 
+    console.log('Query result - User found:', !!user, 'Error:', queryError);
+
     if (queryError || !user) {
       console.error('User query error:', queryError);
+      console.error('=== USER NOT FOUND ===');
+      console.error('Searched for email or username:', normalizedInput);
+      console.error('Error details:', queryError ? JSON.stringify(queryError, null, 2) : 'No error, just not found');
       return res.status(401).json({ error: 'Invalid email/username or password' });
     }
 
     // Compare password
+    console.log('User found. Comparing password...');
+    console.log('User password hash exists:', !!user.password);
+
     const passwordMatch = await bcryptjs.compare(password, user.password);
+
+    console.log('Password match result:', passwordMatch);
     if (!passwordMatch) {
+      console.error('=== PASSWORD MISMATCH ===');
+      console.error('Email/Username:', normalizedInput);
+      console.error('User ID:', user.id);
       return res.status(401).json({ error: 'Invalid email/username or password' });
     }
+
+    console.log('Password verified successfully');
 
     // Generate JWT
     const token = jwt.sign(
