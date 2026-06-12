@@ -129,7 +129,7 @@ app.post('/api/auth/signup', async (req, res) => {
 
     if (usernameCheckError && usernameCheckError.code !== 'PGRST116') {
       console.error('Username check error (code !== PGRST116):', usernameCheckError);
-      return res.status(500).json({ error: 'Database error' });
+      return res.status(500).json({ error: 'Database error', detail: usernameCheckError.message, code: usernameCheckError.code });
     }
 
     if (existingUsername) {
