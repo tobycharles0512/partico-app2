@@ -1,12 +1,3 @@
-// Polyfill for Node.js environments without fetch
-if (!globalThis.fetch) {
-  const fetch = require('node-fetch');
-  globalThis.fetch = fetch;
-  globalThis.Headers = fetch.Headers;
-  globalThis.Request = fetch.Request;
-  globalThis.Response = fetch.Response;
-}
-
 const express = require('express');
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -19,10 +10,21 @@ app.use(cors());
 app.use(express.json());
 
 // Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL || 'https://placeholder.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-key'
-);
+let supabase = null;
+try {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('WARNING: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set');
+  } else {
+    supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+    console.log('Supabase client initialized, URL:', process.env.SUPABASE_URL.substring(0, 40));
+  }
+} catch (err) {
+  console.error('Supabase init error:', err.message);
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -34,12 +36,15 @@ function generateVerificationCode() {
 
 // Helper: Send email via Resend
 async function sendEmail(to, subject, html) {
+  console.log('[sendEmail] Resend API key configured:', !!RESEND_API_KEY);
+
   if (!RESEND_API_KEY) {
     console.log(`[Mock Email] To: ${to}, Subject: ${subject}`);
     return true;
   }
 
   try {
+    console.log('[sendEmail] Sending email via Resend to:', to);
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -54,9 +59,14 @@ async function sendEmail(to, subject, html) {
       }),
     });
 
+    console.log('[sendEmail] Resend response status:', response.status);
+    const resendData = await response.json();
+    console.log('[sendEmail] Resend response:', JSON.stringify(resendData));
+
     return response.ok;
   } catch (error) {
-    console.error('Email send error:', error);
+    console.error('[sendEmail] Email send error:', error.message);
+    console.error('[sendEmail] Error details:', error);
     return false;
   }
 }
@@ -64,31 +74,59 @@ async function sendEmail(to, subject, html) {
 // Signup: Send verification email
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    console.log('=== SIGNUP REQUEST ===');
-    console.log('Body:', JSON.stringify(req.body));
+    console.log('=== SIGNUP REQUEST RECEIVED ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Request body keys:', Object.keys(req.body));
+
+    // Check if Supabase is configured
+    console.log('SUPABASE_URL configured:', !!process.env.SUPABASE_URL);
+    console.log('SUPABASE_URL value:', process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 20) + '...' : 'NOT SET');
+
+    if (!process.env.SUPABASE_URL || process.env.SUPABASE_URL.includes('placeholder')) {
+      console.error('Supabase not configured - SUPABASE_URL missing or placeholder');
+      return res.status(500).json({ error: 'Server configuration error. Please contact support.' });
+    }
+
     const { email, username, firstName, lastName, phone, password } = req.body;
+    console.log('Received:', { email, username, passwordLength: password ? password.length : 0, firstName, lastName, phone });
 
     if (!email || !password || !username) {
       return res.status(400).json({ error: 'Email, username, and password required' });
     }
 
     // Check if email already exists
-    const { data: existingEmail } = await supabase
+    console.log('Checking if email already exists:', email.toLowerCase());
+    const { data: existingEmail, error: emailCheckError } = await supabase
       .from('users')
       .select('id')
       .eq('email', email.toLowerCase())
       .single();
+
+    console.log('Email check result:', { existingEmail: !!existingEmail, errorCode: emailCheckError?.code, errorMessage: emailCheckError?.message });
+
+    if (emailCheckError && emailCheckError.code !== 'PGRST116') {
+      console.error('Email check error (code !== PGRST116):', emailCheckError);
+      return res.status(500).json({ error: 'Database error' });
+    }
 
     if (existingEmail) {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
     // Check if username already exists
-    const { data: existingUsername } = await supabase
+    console.log('Checking if username already exists:', username.toLowerCase());
+    const { data: existingUsername, error: usernameCheckError } = await supabase
       .from('users')
       .select('id')
       .eq('username', username.toLowerCase())
       .single();
+
+    console.log('Username check result:', { existingUsername: !!existingUsername, errorCode: usernameCheckError?.code, errorMessage: usernameCheckError?.message });
+
+    if (usernameCheckError && usernameCheckError.code !== 'PGRST116') {
+      console.error('Username check error (code !== PGRST116):', usernameCheckError);
+      return res.status(500).json({ error: 'Database error' });
+    }
 
     if (existingUsername) {
       return res.status(400).json({ error: 'Username already taken' });
@@ -96,39 +134,52 @@ app.post('/api/auth/signup', async (req, res) => {
 
     // Generate verification code
     const code = generateVerificationCode();
+    console.log('Generated verification code');
 
     // Delete any existing verification requests for this email (to allow resend)
-    await supabase
+    console.log('Deleting existing verification requests for email');
+    const { error: deleteError } = await supabase
       .from('verification_requests')
       .delete()
       .eq('email', email.toLowerCase());
 
+    if (deleteError) {
+      console.error('Error deleting old requests:', deleteError);
+    } else {
+      console.log('Successfully deleted old requests');
+    }
+
     // Store verification request
-    const insertData = {
+    const verificationData = {
       email: email.toLowerCase(),
       username: username.toLowerCase(),
       code,
-      firstName: firstName || null,
-      lastName: lastName || null,
-      phone: phone || null,
       password,
       type: 'signup',
       expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min expiry
     };
-    console.log('Inserting verification request:', JSON.stringify(insertData));
+
+    // Only include optional fields if provided
+    if (firstName) verificationData.firstName = firstName;
+    if (lastName) verificationData.lastName = lastName;
+    if (phone) verificationData.phone = phone;
+
+    console.log('Attempting to insert verification request');
+    console.log('Verification data keys:', Object.keys(verificationData));
 
     const { error: verifyError } = await supabase
       .from('verification_requests')
-      .insert([insertData]);
+      .insert([verificationData]);
 
     if (verifyError) {
       console.error('Verification insert error:', JSON.stringify(verifyError, null, 2));
-      return res.status(400).json({
-        error: 'Verification request failed',
-        details: verifyError.message || 'Unknown error',
-        code: verifyError.code || 'UNKNOWN'
-      });
+      console.error('Error code:', verifyError?.code);
+      console.error('Error message:', verifyError?.message);
+      console.error('Error details:', verifyError?.details);
+      return res.status(500).json({ error: 'Failed to create verification request. Please try again later.' });
     }
+
+    console.log('Successfully inserted verification request');
 
     // Send verification email
     const emailHtml = `
@@ -141,12 +192,21 @@ app.post('/api/auth/signup', async (req, res) => {
       </div>
     `;
 
-    await sendEmail(email, 'Verify your Partico account', emailHtml);
+    console.log('Attempting to send verification email to:', email);
+    const emailSent = await sendEmail(email, 'Verify your Partico account', emailHtml);
+    console.log('Email send result:', emailSent);
 
     res.json({ message: 'Verification email sent', email });
   } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ error: 'Signup failed' });
+    console.error('=== SIGNUP ERROR ===');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Full error:', JSON.stringify(error, null, 2));
+    if (error.message && error.message.includes('ENOTFOUND')) {
+      res.status(500).json({ error: 'Server connection error. Please try again later.' });
+    } else {
+      res.status(500).json({ error: 'Signup failed. Please try again later.' });
+    }
   }
 });
 
@@ -182,10 +242,10 @@ app.post('/api/auth/verify-signup', async (req, res) => {
     const hashedPassword = await bcryptjs.hash(verifyRequest.password, 10);
 
     // Create user
-    const userId = Math.random().toString(36).substring(7); // Simple ID generation
-    console.log('Attempting to create user with:', { userId, email: email.toLowerCase(), username: verifyRequest.username });
+    const userId = Math.random().toString(36).substring(7); // Generate simple ID
+    console.log('Attempting to create user:', { userId, email: email.toLowerCase(), username: verifyRequest.username, timestamp: new Date().toISOString() });
 
-    const { error: createError } = await supabase
+    const insertResponse = await supabase
       .from('users')
       .insert([
         {
@@ -196,16 +256,40 @@ app.post('/api/auth/verify-signup', async (req, res) => {
         },
       ]);
 
+    const { error: createError, data: insertData } = insertResponse;
+
+    console.log('=== INSERT RESPONSE ===');
+    console.log('Error:', createError ? JSON.stringify(createError, null, 2) : 'null');
+    console.log('Data:', JSON.stringify(insertData, null, 2));
+
     if (createError) {
-      console.error('=== USER CREATION FAILED ===');
-      console.error('Error code:', createError.code);
-      console.error('Error message:', createError.message);
-      console.error('Error details:', createError.details);
+      console.error('=== USER CREATION ERROR ===');
+      console.error('Error code:', createError?.code);
+      console.error('Error message:', createError?.message);
+      console.error('Error details:', createError?.details);
       console.error('Full error:', JSON.stringify(createError, null, 2));
-      return res.status(500).json({ error: 'Failed to create account', details: createError.message });
+      return res.status(500).json({ error: 'Failed to create account' });
     }
 
-    console.log('User created successfully with userId:', userId);
+    // CRITICAL: Verify the insert actually persisted to database
+    console.log('=== VERIFYING USER PERSISTED TO DATABASE ===');
+    const { data: verifyUser, error: verifyError } = await supabase
+      .from('users')
+      .select('id, email, username')
+      .eq('id', userId)
+      .single();
+
+    console.log('Verification query - Error:', verifyError ? JSON.stringify(verifyError, null, 2) : 'null');
+    console.log('Verification query - User found:', verifyUser ? JSON.stringify(verifyUser, null, 2) : 'null');
+
+    if (verifyError || !verifyUser) {
+      console.error('=== CRITICAL: USER NOT FOUND AFTER INSERT ===');
+      console.error('Attempted to create user with ID:', userId);
+      console.error('But could not read it back from database');
+      console.error('Verify error:', verifyError);
+    } else {
+      console.log('User created successfully and verified in database');
+    }
 
     // Delete verification request
     await supabase
@@ -216,7 +300,7 @@ app.post('/api/auth/verify-signup', async (req, res) => {
 
     // Generate JWT
     const token = jwt.sign(
-      { userId, email: email.toLowerCase(), username: verifyRequest.username },
+      { email: email.toLowerCase(), username: verifyRequest.username },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -225,12 +309,8 @@ app.post('/api/auth/verify-signup', async (req, res) => {
       success: true,
       token,
       user: {
-        id: userId,
         email: email.toLowerCase(),
         username: verifyRequest.username,
-        firstName: verifyRequest.firstName,
-        lastName: verifyRequest.lastName,
-        phone: verifyRequest.phone,
       },
     });
   } catch (error) {
@@ -251,49 +331,26 @@ app.post('/api/auth/login', async (req, res) => {
     // Try to find user by email or username
     const normalizedInput = emailOrUsername.toLowerCase();
 
-    console.log('=== LOGIN ATTEMPT ===');
-    console.log('Input:', normalizedInput);
-
-    const { data: users, error: queryError } = await supabase
+    const { data: user, error: queryError } = await supabase
       .from('users')
-      .select('id, email, username, password')
-      .or(`email.eq.${normalizedInput},username.eq.${normalizedInput}`);
+      .select('*')
+      .or(`email.eq.${normalizedInput},username.eq.${normalizedInput}`)
+      .single();
 
-    console.log('Query result - Users found:', users?.length, 'Error:', queryError);
-
-    if (queryError) {
-      console.error('=== USER QUERY ERROR ===');
-      console.error('Error:', JSON.stringify(queryError, null, 2));
-      return res.status(401).json({ error: 'Invalid email/username or password' });
-    }
-
-    const user = users && users.length > 0 ? users[0] : null;
-
-    if (!user) {
-      console.error('=== USER NOT FOUND ===');
-      console.error('Searched for email or username:', normalizedInput);
+    if (queryError || !user) {
+      console.error('User query error:', queryError);
       return res.status(401).json({ error: 'Invalid email/username or password' });
     }
 
     // Compare password
-    console.log('User found. Comparing password...');
-    console.log('User password hash exists:', !!user.password);
-
     const passwordMatch = await bcryptjs.compare(password, user.password);
-
-    console.log('Password match result:', passwordMatch);
     if (!passwordMatch) {
-      console.error('=== PASSWORD MISMATCH ===');
-      console.error('Email/Username:', normalizedInput);
-      console.error('User ID:', user.id);
       return res.status(401).json({ error: 'Invalid email/username or password' });
     }
 
-    console.log('Password verified successfully');
-
     // Generate JWT
     const token = jwt.sign(
-      { userId: user.id, email: user.email, username: user.username },
+      { email: user.email, username: user.username },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -302,12 +359,8 @@ app.post('/api/auth/login', async (req, res) => {
       success: true,
       token,
       user: {
-        id: user.id,
         email: user.email,
         username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
       },
     });
   } catch (error) {
@@ -328,8 +381,8 @@ app.get('/api/auth/me', async (req, res) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, email, username, firstName, lastName, phone, createdAt')
-      .eq('id', decoded.userId)
+      .select('email, username')
+      .eq('email', decoded.email)
       .single();
 
     if (error || !user) {
@@ -402,58 +455,34 @@ app.post('/api/auth/resend-code', async (req, res) => {
   }
 });
 
-// Diagnostic endpoint - check if a user exists in Supabase
-app.get('/api/diag/user/:emailOrUsername', async (req, res) => {
-  try {
-    const input = req.params.emailOrUsername.toLowerCase();
-    console.log('=== DIAGNOSTIC: Checking for user:', input);
-
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, email, username, password')
-      .or(`email.eq.${input},username.eq.${input}`)
-      .single();
-
-    if (error) {
-      console.error('Query error:', error);
-      return res.json({
-        found: false,
-        error: error.message,
-        code: error.code
-      });
-    }
-
-    if (!user) {
-      console.error('User not found');
-      return res.json({
-        found: false,
-        message: 'User not found in database'
-      });
-    }
-
-    console.log('User found:', { id: user.id, email: user.email, username: user.username, hasPassword: !!user.password });
-    res.json({
-      found: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        hasPassword: !!user.password
-      }
-    });
-  } catch (error) {
-    console.error('Diagnostic error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({
+    status: 'ok',
+    supabaseClientReady: !!supabase,
+    supabaseUrlSet: !!process.env.SUPABASE_URL,
+    supabaseUrlPreview: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 40) : 'NOT SET',
+    supabaseKeySet: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    resendKeySet: !!process.env.RESEND_API_KEY,
+    jwtSecretSet: !!process.env.JWT_SECRET,
+  });
+});
+
+// Diagnostic endpoint - shows configuration status (safe for production)
+app.get('/api/diag/config', (req, res) => {
+  res.json({
+    timestamp: new Date().toISOString(),
+    nodeEnv: process.env.NODE_ENV,
+    supabaseUrl: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 30) + '...' : 'NOT SET',
+    supabaseUrlSet: !!process.env.SUPABASE_URL,
+    supabaseKeySet: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    jwtSecretSet: !!process.env.JWT_SECRET,
+    resendApiKeySet: !!process.env.RESEND_API_KEY,
+    port: process.env.PORT || 3001,
+  });
 });
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-// Force redeploy Sun 22 Mar 2026 14:00:03 GMT
