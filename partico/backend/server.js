@@ -2,6 +2,7 @@ const express = require('express');
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
+const WebSocket = require('ws');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -20,7 +21,7 @@ try {
     supabase = createClient(
       process.env.SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY,
-      { auth: { persistSession: false, autoRefreshToken: false } }
+      { auth: { persistSession: false, autoRefreshToken: false }, realtime: { transport: WebSocket } }
     );
     console.log('Supabase client initialized, URL:', process.env.SUPABASE_URL.substring(0, 40));
   }
