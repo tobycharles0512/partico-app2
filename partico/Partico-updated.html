@@ -226,6 +226,7 @@ if(typeof React==='undefined'||typeof ReactDOM==='undefined'){var _m=document.ge
 const { useState, useEffect, useRef, useContext, createContext, useCallback, useMemo } = React;
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 const PARTICO_APP_URL = 'https://partico.app/';
+const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:3002' : 'https://partico-backend-production.up.railway.app';
 const getBaseUrl = () => { const p = window.location.origin + window.location.pathname; if (!p || p === 'null' || p.startsWith('file:') || p.startsWith('applewebdata:') || p.startsWith('about:')) return PARTICO_APP_URL; return p.endsWith('index.html') ? p.slice(0, p.lastIndexOf('/') + 1) : (p.endsWith('/') ? p : p + '/'); };
 const buildWebLink = (hash) => getBaseUrl() + '#' + hash;
 const ls = {
@@ -250,6 +251,26 @@ const ls = {
     }
   }
 };
+// Authenticated fetch wrapper for the Partico backend
+const apiFetch = (path, opts = {}) => {
+  const token = ls.get("partico_auth_token");
+  return fetch(`${API_BASE}${path}`, {
+    ...opts,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      ...(opts.headers || {})
+    }
+  }).then((r) => r.json().then((data) => ({ ok: r.ok, status: r.status, data })));
+};
+// Normalise a server user row into the shape the UI expects
+const toLocalProfile = (p, local = {}) => ({
+  friends: [], friendRequests: [], parties: [], notifs: [],
+  ...local,
+  ...p,
+  firstName: p.firstName || local.firstName || p.username || "",
+  lastName: p.lastName || local.lastName || ""
+});
 const fmtDate = (d) => {
   if (!d) return "TBD";
   const dt = new Date(d);
@@ -261,9 +282,7 @@ const fmtTime = (t) => {
 };
 const initials = (u) => {
   if (!u) return "?";
-  const first = String(u.firstName || "")[0] || "";
-  const last = String(u.lastName || "")[0] || "";
-  return (first + last).toUpperCase() || "?";
+  return ((u.firstName || "")[0] + (u.lastName || "")[0]).toUpperCase() || "?";
 };
 const avatarColor = (id) => {
   const colors = ["#00ff41", "#00d944", "#00cc44", "#ea580c", "#16a34a", "#0284c7", "#dc2626"];
@@ -301,23 +320,6 @@ const AppProvider = ({ children }) => {
     ls.set("partico_dark_mode", newValue);
   };
 
-  useEffect(() => {
-    const u = ls.get("partico_users", []);
-    const p = ls.get("partico_parties", []);
-    const cu = ls.get("partico_current_user", null);
-    setUsers(u);
-    setParties(p);
-    if (cu) {
-      // First, try to find user in local users array
-      const found = u.find((x) => x.id === cu.id);
-      if (found) {
-        setCurrentUser(found);
-      } else {
-        // If not in users array, still set them as currentUser (they may have just signed up via backend)
-        setCurrentUser(cu);
-      }
-    }
-  }, []);
   const saveUsers = (u) => {
     setUsers(u);
     ls.set("partico_users", u);
@@ -326,6 +328,57 @@ const AppProvider = ({ children }) => {
     setParties(p);
     ls.set("partico_parties", p);
   };
+  // Pull the logged-in user's friends + parties from the backend and replace
+  // local state with it (local data is only a cache of the server now)
+  const syncFromServer = () => {
+    const token = ls.get("partico_auth_token");
+    if (!token) return Promise.resolve(false);
+    return apiFetch("/api/state").then(({ ok, status, data }) => {
+      if (!ok || !data.user) {
+        if (status === 401) {
+          // Token expired or invalid — require a fresh login
+          ls.del("partico_auth_token");
+          ls.del("partico_current_user");
+          setCurrentUser(null);
+        }
+        return false;
+      }
+      const localUsers = ls.get("partico_users", []);
+      let profiles = (data.profiles || []).map((p) => toLocalProfile(p, localUsers.find((u) => u.id === p.id) || {}));
+      profiles = profiles.map((p) => {
+        if (p.id === data.user.id) {
+          return { ...p, friends: data.friends || [], friendRequests: data.friendRequests || [] };
+        }
+        if ((data.outgoingRequests || []).includes(p.id)) {
+          return { ...p, friendRequests: [...(p.friendRequests || []).filter((r) => r.from !== data.user.id), { from: data.user.id, status: "pending" }] };
+        }
+        return p;
+      });
+      saveUsers(profiles);
+      saveParties(data.parties || []);
+      const me = profiles.find((u) => u.id === data.user.id);
+      if (me) {
+        setCurrentUser(me);
+        ls.set("partico_current_user", me);
+      }
+      return true;
+    }).catch(() => false);
+  };
+  useEffect(() => {
+    const u = ls.get("partico_users", []);
+    const p = ls.get("partico_parties", []);
+    const cu = ls.get("partico_current_user", null);
+    setUsers(u);
+    setParties(p);
+    if (cu) {
+      const found = u.find((x) => x.id === cu.id);
+      if (found) {
+        setCurrentUser(found);
+      }
+    }
+    // Refresh from the server if we have a saved session
+    syncFromServer();
+  }, []);
   const navigate = (s, data = {}) => {
     setScreen(s);
     setScreenData(data);
@@ -354,44 +407,71 @@ const AppProvider = ({ children }) => {
     ls.set("partico_current_user", newUser);
     return { success: true, user: newUser };
   };
+  // Login against the backend — accounts live in the database, not this device
   const login = (emailOrUsername, password) => {
-    const normalizedInput = emailOrUsername.toLowerCase();
-    const u = users.find((x) => (x.email.toLowerCase() === normalizedInput || (x.username && x.username.toLowerCase() === normalizedInput)) && x.password === password);
-    if (!u) return { error: "Invalid email/username or password" };
-    setCurrentUser(u);
-    ls.set("partico_current_user", u);
-    return { success: true, user: u };
+    return apiFetch("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ emailOrUsername, password })
+    }).then(({ ok, data }) => {
+      if (!ok || !data.token || !data.user) {
+        return { error: data.error || "Invalid email/username or password" };
+      }
+      ls.set("partico_auth_token", data.token);
+      const localUsers = ls.get("partico_users", []);
+      const user = toLocalProfile(data.user, localUsers.find((x) => x.id === data.user.id) || {});
+      const newUsers = localUsers.find((x) => x.id === user.id)
+        ? localUsers.map((x) => x.id === user.id ? user : x)
+        : [...localUsers, user];
+      saveUsers(newUsers);
+      setCurrentUser(user);
+      ls.set("partico_current_user", user);
+      // Clear the previous account's parties, then load this account's data
+      saveParties([]);
+      syncFromServer();
+      return { success: true, user };
+    }).catch((e) => ({ error: "Network error: " + e.message }));
   };
 
   const logout = () => {
     setCurrentUser(null);
     ls.del("partico_current_user");
+    ls.del("partico_auth_token");
+    // Don't leave this account's parties visible to the next account on this device
+    saveParties([]);
     navigate("login");
-  };
-  const loginWithBackendUser = (user) => {
-    if (!user) return;
-    setCurrentUser(user);
-    ls.set("partico_current_user", user);
   };
   const updateCurrentUser = (updates) => {
     if (!currentUser) return;
+    const profileFields = {};
+    ["firstName", "lastName", "phone", "bio"].forEach((k) => {
+      if (updates[k] !== undefined) profileFields[k] = updates[k];
+    });
+    if (Object.keys(profileFields).length > 0) {
+      apiFetch("/api/users/me", { method: "PUT", body: JSON.stringify(profileFields) }).catch(() => {});
+    }
     const updated = { ...currentUser, ...updates };
     const newUsers = users.map((u) => u.id === currentUser.id ? updated : u);
     saveUsers(newUsers);
     setCurrentUser(updated);
     ls.set("partico_current_user", updated);
   };
-  const sendFriendRequest = (toUserId) => {
+  const sendFriendRequest = (toUserId, profile) => {
     if (!currentUser) return;
     if ((currentUser.friends || []).includes(toUserId)) return;
-    const toUser = users.find((u) => u.id === toUserId);
-    if (!toUser) return;
-    const updatedRequests = [...toUser.friendRequests, { from: currentUser.id, status: "pending" }];
-    const newUsers = users.map((u) => u.id === toUserId ? { ...u, friendRequests: updatedRequests } : u);
+    apiFetch("/api/friends/request", { method: "POST", body: JSON.stringify({ toUserId }) }).catch(() => {});
+    let newUsers = users;
+    if (!users.find((u) => u.id === toUserId)) {
+      // Cache a stub profile so the UI can render this person (e.g. from search)
+      const p = (profile && typeof profile === "object") ? profile : {};
+      const name = typeof profile === "string" ? profile : "";
+      newUsers = [...users, toLocalProfile({ id: toUserId, email: p.email || "", username: p.username || name, firstName: p.firstName || name, lastName: p.lastName || "" })];
+    }
+    newUsers = newUsers.map((u) => u.id === toUserId ? { ...u, friendRequests: [...(u.friendRequests || []).filter((r) => r.from !== currentUser.id), { from: currentUser.id, status: "pending" }] } : u);
     saveUsers(newUsers);
   };
   const acceptFriendRequest = (fromUserId) => {
     if (!currentUser) return;
+    apiFetch("/api/friends/respond", { method: "POST", body: JSON.stringify({ fromUserId, accept: true }) }).catch(() => {});
     const newUsers = users.map((u) => {
       if (u.id === currentUser.id) {
         return { ...u, friends: [...(u.friends || []).filter((f) => f !== fromUserId), fromUserId], friendRequests: (u.friendRequests || []).filter((r) => r.from !== fromUserId) };
@@ -408,11 +488,17 @@ const AppProvider = ({ children }) => {
   };
   const declineFriendRequest = (fromUserId) => {
     if (!currentUser) return;
+    apiFetch("/api/friends/respond", { method: "POST", body: JSON.stringify({ fromUserId, accept: false }) }).catch(() => {});
     const updated = { ...currentUser, friendRequests: (currentUser.friendRequests || []).filter((r) => r.from !== fromUserId) };
     const newUsers = users.map((u) => u.id === currentUser.id ? updated : u);
     saveUsers(newUsers);
     setCurrentUser(updated);
     ls.set("partico_current_user", updated);
+  };
+  // Push a party to the backend so guests on other devices can see it
+  const syncPartyToServer = (party) => {
+    if (!party) return;
+    apiFetch("/api/parties/sync", { method: "POST", body: JSON.stringify({ party }) }).catch(() => {});
   };
   const createParty = (data) => {
     if (!currentUser) return null;
@@ -466,15 +552,18 @@ const AppProvider = ({ children }) => {
     }
     const newParties = [...parties, party];
     saveParties(newParties);
+    syncPartyToServer(party);
     return party;
   };
   const updateParty = (partyId, updates) => {
     const newParties = parties.map((p) => p.id === partyId ? { ...p, ...updates } : p);
     saveParties(newParties);
+    syncPartyToServer(newParties.find((p) => p.id === partyId));
   };
   const deleteParty = (partyId) => {
     const newParties = parties.filter((p) => p.id !== partyId);
     saveParties(newParties);
+    apiFetch(`/api/parties/${partyId}`, { method: "DELETE" }).catch(() => {});
   };
   const respondToInvite = (partyId, response) => {
     if (!currentUser) return;
@@ -490,6 +579,7 @@ const AppProvider = ({ children }) => {
       return { ...p, invites: newInvites };
     });
     saveParties(newParties);
+    apiFetch(`/api/parties/${partyId}/rsvp`, { method: "POST", body: JSON.stringify({ response }) }).catch(() => {});
   };
   const addPhoto = (partyId, photoData) => {
     if (!currentUser) return;
@@ -499,6 +589,7 @@ const AppProvider = ({ children }) => {
       return { ...p, photos: [...p.photos, photo] };
     });
     saveParties(newParties);
+    syncPartyToServer(newParties.find((p) => p.id === partyId));
   };
   const removePhoto = (partyId, photoId) => {
     const newParties = parties.map((p) => {
@@ -506,6 +597,7 @@ const AppProvider = ({ children }) => {
       return { ...p, photos: p.photos.filter((ph) => ph.id !== photoId) };
     });
     saveParties(newParties);
+    syncPartyToServer(newParties.find((p) => p.id === partyId));
   };
   const inviteToParty = (partyId, userId) => {
     const newParties = parties.map((p) => {
@@ -514,6 +606,7 @@ const AppProvider = ({ children }) => {
       return { ...p, invites: [...p.invites, { userId, status: "pending", dateVotes: [], drinkPref: "", dietary: "", answers: {}, plusOneRequested: false, plusOneApproved: false, plusOneName: "", costumeTheme: "", dressCodeStyle: "", drinkPreferences: [], expectedDrinks: 1, questions: [], respondedAt: null }] };
     });
     saveParties(newParties);
+    syncPartyToServer(newParties.find((p) => p.id === partyId));
   };
   const getUser = (id) => users.find((u) => u.id === id) || null;
   const getParty = (id) => parties.find((p) => p.id === id) || null;
@@ -536,28 +629,46 @@ const AppProvider = ({ children }) => {
   };
   
   const addFriend = (userId, userName, userAvatar) => {
-    if (!currentUser || currentUser.friends.includes(userId)) return;
-    const newUsers = users.map((u) => u.id === currentUser.id ? { ...u, friends: [...(u.friends || []), userId] } : u);
-    saveUsers(newUsers);
-    const updated = newUsers.find((u) => u.id === currentUser.id);
-    setCurrentUser(updated);
-    ls.set("partico_current_user", updated);
+    // Used by QR/link adds — goes through the server as a friend request
+    if (!currentUser || (currentUser.friends || []).includes(userId)) return;
+    sendFriendRequest(userId, userName || "");
   };
   const removeFriend = (userId) => {
     if (!currentUser) return;
+    apiFetch("/api/friends/remove", { method: "POST", body: JSON.stringify({ userId }) }).catch(() => {});
     const newUsers = users.map((u) => u.id === currentUser.id ? { ...u, friends: (u.friends || []).filter((f) => f !== userId) } : u);
     saveUsers(newUsers);
     const updated = newUsers.find((u) => u.id === currentUser.id);
     setCurrentUser(updated);
     ls.set("partico_current_user", updated);
   };
+  // Join a party from an invite link. The party usually only exists on the
+  // server (it was created on the host's device), so fetch it if needed.
+  // Returns a promise resolving true when the party is available locally.
   const joinPartyFromInvite = (partyId) => {
+    if (!currentUser) return Promise.resolve(false);
     const party = parties.find((p) => p.id === partyId);
-    if (!party || !currentUser) return;
-    const existingInvite = party.invites.find((i) => i.userId === currentUser.id);
-    if (!existingInvite) {
-      inviteToParty(partyId, currentUser.id);
+    if (party) {
+      if (!party.invites.find((i) => i.userId === currentUser.id)) {
+        inviteToParty(partyId, currentUser.id);
+        apiFetch(`/api/parties/${partyId}/join`, { method: "POST" }).catch(() => {});
+      }
+      return Promise.resolve(true);
     }
+    return apiFetch(`/api/parties/${partyId}/join`, { method: "POST" }).then(({ ok, data }) => {
+      if (!ok || !data.party) return false;
+      const next = [...parties.filter((p) => p.id !== partyId), data.party];
+      saveParties(next);
+      if (data.users) {
+        const localUsers = ls.get("partico_users", []);
+        const merged = [...localUsers];
+        data.users.forEach((p) => {
+          if (!merged.find((u) => u.id === p.id)) merged.push(toLocalProfile(p));
+        });
+        saveUsers(merged);
+      }
+      return true;
+    }).catch(() => false);
   };
 
   const getPartyAttendees = (partyId) => {
@@ -602,9 +713,10 @@ const AppProvider = ({ children }) => {
       return { ...p, invites: newInvites };
     });
     saveParties(newParties);
+    apiFetch(`/api/parties/${partyId}/rsvp`, { method: "POST", body: JSON.stringify({ response }) }).catch(() => {});
   };
 
-  
+
   const getRSVPStats = (partyId) => {
     const party = parties.find((p) => p.id === partyId);
     if (!party) return null;
@@ -646,6 +758,7 @@ const AppProvider = ({ children }) => {
     const pop = { id: uid(), message: message.trim(), timestamp: Date.now(), readBy: [currentUser.id] };
     const newParties = parties.map((p) => p.id === partyId ? { ...p, pops: [...(p.pops || []), pop] } : p);
     saveParties(newParties);
+    syncPartyToServer(newParties.find((p) => p.id === partyId));
   };
   const getPartyPops = (partyId) => {
     const p = parties.find((x) => x.id === partyId);
@@ -664,6 +777,7 @@ const AppProvider = ({ children }) => {
       return { ...p, pops: (p.pops || []).map((b) => b.id === popId ? { ...b, readBy: [...new Set([...(b.readBy || []), currentUser.id])] } : b) };
     });
     saveParties(newParties);
+    syncPartyToServer(newParties.find((p) => p.id === partyId));
   };
   const getMutualFriendSuggestions = () => {
     if (!currentUser) return [];
@@ -696,6 +810,7 @@ const AppProvider = ({ children }) => {
     const newInvite = { userId: currentUser.id, status: "accepted", dateVotes: [], drinkPref: "", dietary: "", answers: {}, plusOneRequested: false, plusOneApproved: false, plusOneName: "", respondedAt: Date.now() };
     const newParties = parties.map(p => p.id === partyId ? { ...p, invites: [...(p.invites || []), newInvite] } : p);
     saveParties(newParties);
+    apiFetch(`/api/parties/${partyId}/rsvp`, { method: "POST", body: JSON.stringify({ response: newInvite }) }).catch(() => {});
     return { success: true };
   };
   const ctx = {
@@ -710,7 +825,6 @@ const AppProvider = ({ children }) => {
     register,
     login,
     logout,
-    loginWithBackendUser,
     updateCurrentUser,
     sendFriendRequest,
     acceptFriendRequest,
@@ -762,6 +876,7 @@ const AppProvider = ({ children }) => {
       // Track nudge timestamp on the invite so host can't spam
       const newParties = parties.map((p) => p.id !== partyId ? p : { ...p, invites: p.invites.map((i) => i.userId === guestId ? { ...i, lastNudged: Date.now() } : i) });
       saveParties(newParties);
+      syncPartyToServer(newParties.find((p) => p.id === partyId));
     },
     trackInviteView: (partyId) => {
       const newParties = parties.map((p) => p.id === partyId ? { ...p, inviteViews: (p.inviteViews || 0) + 1 } : p);
@@ -1259,20 +1374,19 @@ const LoginScreen = () => {
     }
     setLoading(true);
     setErr("");
-    setTimeout(() => {
-      const res = login(email, password);
+    login(email, password).then((res) => {
       setLoading(false);
       if (res.error) {
         setErr(res.error);
       } else {
         navigate("home");
       }
-    }, 400);
+    });
   };
   return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: "linear-gradient(180deg,#0d0d0d 0%,#0d0d0d 100%)", display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "60px 24px 30px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 50, marginBottom: 12, filter: "drop-shadow(0 0 20px rgba(0,255,65,0.6))" } }, "\u{1F389}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 36, fontWeight: 900, background: "linear-gradient(135deg,#00ff41,#00d944)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" } }, "Welcome Back"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, color: "rgba(255,255,255,0.5)", marginTop: 6 } }, "Sign in to Partico")), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 24px", flex: 1 } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 16 } }, err && /* @__PURE__ */ React.createElement("div", { style: { background: "rgba(220,38,38,0.15)", border: "1px solid rgba(220,38,38,0.4)", borderRadius: 10, padding: "10px 14px", fontSize: 14, color: "#f87171", marginBottom: 14 } }, err), /* @__PURE__ */ React.createElement(Input, { label: "Email or Username", placeholder: "your@email.com or username", ref: emailRef, autoComplete: "email" }), /* @__PURE__ */ React.createElement(Input, { label: "Password", type: "password", placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022", ref: passwordRef, autoComplete: "current-password" }), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", onClick: handleLogin, disabled: loading, style: { marginTop: 8 } }, loading ? "Signing in..." : "Sign In \u{1F38A}")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", fontSize: 14, color: "rgba(255,255,255,0.5)", marginBottom: 8 } }, "Don't have an account?", " ", /* @__PURE__ */ React.createElement("span", { onClick: () => navigate("signup"), style: { color: "#00ff41", fontWeight: 600, cursor: "pointer" } }, "Sign Up")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", fontSize: 13, color: "rgba(255,255,255,0.3)" } }, /* @__PURE__ */ React.createElement("span", { onClick: () => navigate("landing"), style: { cursor: "pointer" } }, "\u2190 Back to welcome page")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginTop: 20, background: "rgba(124,58,237,0.1)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: "#00d944", marginBottom: 8 } }, "\u{1F4F1} Add Partico to your Home Screen"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 } }, /* @__PURE__ */ React.createElement("b", { style: { color: "rgba(255,255,255,0.7)" } }, "iPhone:"), ' Tap Share \u2192 "Add to Home Screen"', /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("b", { style: { color: "rgba(255,255,255,0.7)" } }, "Android:"), ' Tap Menu \u2192 "Add to Home Screen"'))));
 };
 const SignupScreen = () => {
-  const { navigate, login, loginWithBackendUser } = useApp();
+  const { navigate, login } = useApp();
   const [form, setForm] = useState({ profilePic: null });
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1299,25 +1413,24 @@ const SignupScreen = () => {
   };
 
   const handleSignup = () => {
-    // Get values directly from DOM - extract email, username, password, confirm in order
-    // Updated: 2026-03-22 13:16 - Form validation simplified
+    // Get values directly from DOM - most reliable method
     const inputs = document.querySelectorAll('.input-field');
     console.log('Total inputs found:', inputs.length);
+    inputs.forEach((inp, i) => {
+      console.log(`Input ${i}: value="${inp.value}", placeholder="${inp.placeholder}"`);
+    });
 
-    // Extract only the 4 required fields
     const email = (inputs[0]?.value?.trim() || '').toString();
     const username = (inputs[1]?.value?.trim() || '').toString();
     const password = (inputs[2]?.value?.trim() || '').toString();
     const confirm = (inputs[3]?.value?.trim() || '').toString();
-
-    console.log('Extracted values:', { email: `[${email}]`, username: `[${username}]`, password: `[${password}]`, confirm: `[${confirm}]` });
 
     // Validate required fields
     if (!email) { console.log('ERROR: Email required'); setErr("Email required"); return; }
     if (!username) { console.log('ERROR: Username required'); setErr("Username required"); return; }
     if (!password) { console.log('ERROR: Password required'); setErr("Password required"); return; }
     if (!confirm) { console.log('ERROR: Confirm Password required'); setErr("Confirm Password required"); return; }
-    console.log('All field validations passed!');
+    console.log('All field validations passed!'); // Trigger redeploy
 
     if (username.length < 3) {
       setErr("Username must be at least 3 characters");
@@ -1341,7 +1454,7 @@ const SignupScreen = () => {
     console.log('All validations passed, calling backend');
 
     // Call backend signup endpoint
-    fetch("https://partico-backend-production.up.railway.app/api/auth/signup", {
+    fetch(`${API_BASE}/api/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1385,7 +1498,7 @@ const SignupScreen = () => {
 
     const email = verificationEmail;
 
-    fetch("https://partico-backend-production.up.railway.app/api/auth/verify-signup", {
+    fetch(`${API_BASE}/api/auth/verify-signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1399,29 +1512,33 @@ const SignupScreen = () => {
         if (data.error) {
           setErr(data.error);
         } else if (data.token && data.user) {
-          // Store the auth token from the backend
-          ls.set("partico_auth_token", data.token);
-
-          // Create a user object with all required fields for the app
+          // Create a user object from the API response.
+          // IMPORTANT: use the server's user id so this account is the same
+          // on every device.
           const newUser = {
-            id: data.user.id,
+            id: data.user.id || uid(),
             email: data.user.email,
             username: data.user.username,
             password: "",
-            firstName: data.user.firstName || "",
+            firstName: data.user.firstName || data.user.username || "",
             lastName: data.user.lastName || "",
             phone: data.user.phone || "",
             friends: [],
             friendRequests: [],
             parties: [],
             notifs: [],
-            bio: "",
-            profilePic: null,
             createdAt: Date.now()
           };
 
-          // Use the context function to properly set current user in state AND localStorage
-          loginWithBackendUser(newUser);
+          // Add user to local users array
+          const newUsers = [...users, newUser];
+          saveUsers(newUsers);
+
+          // Set as current user
+          setCurrentUser(newUser);
+          ls.set("partico_current_user", newUser);
+          ls.set("partico_auth_token", data.token);
+
           navigate("home");
         } else {
           setErr("Invalid response from server");
@@ -2608,12 +2725,14 @@ const FriendsScreen = () => {
     setSearching(true);
     const token = ls.get("partico_auth_token");
     if (token) {
-      fetch(`https://partico-backend-production.up.railway.app/api/users/search?q=${encodeURIComponent(searchQ)}`, {
+      fetch(`${API_BASE}/api/users/search?q=${encodeURIComponent(searchQ)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(r => r.json())
         .then(data => {
-          setBackendResults((data.users || []).filter(u => !myFriends.includes(u.id) && !myRequests.some((r) => r && r.from === u.id)));
+          setBackendResults((data.users || [])
+            .filter(u => u.id !== myId && !myFriends.includes(u.id) && !myRequests.some((r) => r && r.from === u.id))
+            .map(u => ({ ...u, firstName: u.firstName || u.username || "", lastName: u.lastName || "" })));
           setSearching(false);
         })
         .catch(err => {
@@ -2628,7 +2747,8 @@ const FriendsScreen = () => {
   // Use backend results if available, otherwise filter localStorage
   const filtered = searchQ ? (backendResults.length > 0 ? backendResults : allOtherUsers.filter((u) => `${u.firstName} ${u.lastName} ${u.email} ${u.phone || ""}`.toLowerCase().includes(searchQ.toLowerCase()))) : allOtherUsers;
   const handleSend = (userId, name) => {
-    sendFriendRequest(userId);
+    const profile = filtered.find((u) => u.id === userId);
+    sendFriendRequest(userId, profile || name);
     showToast(`Friend request sent to ${name}! \u{1F4E8}`);
   };
   return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: "linear-gradient(180deg,#0d0d0d 0%,#0d0d0d 100%)", paddingBottom: 80 } }, toast && /* @__PURE__ */ React.createElement(Toast, { msg: toast.msg, type: toast.type }), showQR && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 300, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }, onClick: () => setShowQR(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: 28, textAlign: "center", maxWidth: 280 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 700, marginBottom: 4 } }, "Your Partico QR"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 16 } }, "Friends scan this to add you instantly"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "center", marginBottom: 16 } }, /* @__PURE__ */ React.createElement(QRCode, { value: myQRValue, size: 200 })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 12 } }, currentUser?.firstName, " ", currentUser?.lastName), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowQR(false), className: "btn-secondary", style: { fontSize: 14 } }, "Close"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "50px 20px 0", background: "rgba(0,0,0,0.92)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.08)", position: "sticky", top: 0, zIndex: 50 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, fontWeight: 900 } }, "\u{1F465} Friends"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 1 } }, friends.length, " friend", friends.length !== 1 ? "s" : "", " \xB7 ", requests.length, " request", requests.length !== 1 ? "s" : "")), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowQR(true), style: { background: "linear-gradient(135deg,#00ff41,#00d944)", border: "none", color: "#fff", borderRadius: 12, padding: "9px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "My QR \u{1F4F1}")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0, marginBottom: 0, borderBottom: "1px solid rgba(255,255,255,0.06)" } }, [{ id: "friends", l: `Friends${friends.length > 0 ? ` (${friends.length})` : ""}` }, { id: "requests", l: `Requests${requests.length > 0 ? ` (${requests.length})` : ""}` }, { id: "find", l: "Find People \u{1F50D}" }].map((t) => /* @__PURE__ */ React.createElement("button", { key: t.id, onClick: () => setTab(t.id), style: { flex: 1, background: "none", color: tab === t.id ? "#00ff41" : "rgba(255,255,255,0.45)", border: "none", borderBottom: `2px solid ${tab === t.id ? "#00ff41" : "transparent"}`, padding: "11px 4px", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" } }, t.l)))), /* @__PURE__ */ React.createElement("div", { style: { padding: "16px 16px 24px" } }, tab === "friends" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 14, background: "linear-gradient(135deg,rgba(0,255,65,0.12),rgba(124,58,237,0.12))", border: "1px solid rgba(0,255,65,0.25)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 28 } }, "\u{1F517}"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, marginBottom: 2 } }, "Your invite link"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.4)", wordBreak: "break-all" } }, myQRValue.length > 50 ? myQRValue.slice(0, 50) + "..." : myQRValue)), /* @__PURE__ */ React.createElement("button", { onClick: () => {
@@ -2933,8 +3053,7 @@ const App = () => {
       const name = params.get('name');
       const avatar = params.get('avatar');
       if (userId && currentUser.id !== userId) {
-        sendFriendRequest(userId, name, avatar);
-        showToast(`Friend request sent to ${name}! 📨`, 'success');
+        addFriend(userId, name, avatar);
         navigate('friends');
       }
       window.location.hash = '';
@@ -2942,8 +3061,10 @@ const App = () => {
       const params = new URLSearchParams(hashPart.split('?')[1]);
       const partyId = params.get('partyId');
       if (partyId) {
-        joinPartyFromInvite(partyId);
-        navigate('partyDetail', { partyId });
+        // Fetch the party from the server first, then open the RSVP flow
+        joinPartyFromInvite(partyId).then((found) => {
+          if (found) navigate('partyDetail', { partyId });
+        });
       }
       window.location.hash = '';
     }
