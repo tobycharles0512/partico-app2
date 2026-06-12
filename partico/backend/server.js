@@ -11,8 +11,10 @@ app.use(express.json());
 
 // Supabase client
 let supabase = null;
+let supabaseInitError = null;
 try {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    supabaseInitError = 'Env vars not set';
     console.error('WARNING: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set');
   } else {
     supabase = createClient(
@@ -23,6 +25,7 @@ try {
     console.log('Supabase client initialized, URL:', process.env.SUPABASE_URL.substring(0, 40));
   }
 } catch (err) {
+  supabaseInitError = err.message;
   console.error('Supabase init error:', err.message);
 }
 
@@ -460,6 +463,7 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     supabaseClientReady: !!supabase,
+    supabaseInitError: supabaseInitError,
     supabaseUrlSet: !!process.env.SUPABASE_URL,
     supabaseUrlPreview: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 40) : 'NOT SET',
     supabaseKeySet: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
