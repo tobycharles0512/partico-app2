@@ -101,7 +101,7 @@ app.post('/api/auth/signup', async (req, res) => {
     // Check if email already exists
     console.log('Checking if email already exists:', email.toLowerCase());
     const { data: existingEmail, error: emailCheckError } = await supabase
-      .from('users')
+      .from('partico_users')
       .select('id')
       .eq('email', email.toLowerCase())
       .single();
@@ -120,7 +120,7 @@ app.post('/api/auth/signup', async (req, res) => {
     // Check if username already exists
     console.log('Checking if username already exists:', username.toLowerCase());
     const { data: existingUsername, error: usernameCheckError } = await supabase
-      .from('users')
+      .from('partico_users')
       .select('id')
       .eq('username', username.toLowerCase())
       .single();
@@ -143,7 +143,7 @@ app.post('/api/auth/signup', async (req, res) => {
     // Delete any existing verification requests for this email (to allow resend)
     console.log('Deleting existing verification requests for email');
     const { error: deleteError } = await supabase
-      .from('verification_requests')
+      .from('partico_verification_requests')
       .delete()
       .eq('email', email.toLowerCase());
 
@@ -172,7 +172,7 @@ app.post('/api/auth/signup', async (req, res) => {
     console.log('Verification data keys:', Object.keys(verificationData));
 
     const { error: verifyError } = await supabase
-      .from('verification_requests')
+      .from('partico_verification_requests')
       .insert([verificationData]);
 
     if (verifyError) {
@@ -225,7 +225,7 @@ app.post('/api/auth/verify-signup', async (req, res) => {
 
     // Get verification request
     const { data: verifyRequest, error: queryError } = await supabase
-      .from('verification_requests')
+      .from('partico_verification_requests')
       .select('*')
       .eq('email', email.toLowerCase())
       .eq('code', code)
@@ -250,7 +250,7 @@ app.post('/api/auth/verify-signup', async (req, res) => {
     console.log('Attempting to create user:', { userId, email: email.toLowerCase(), username: verifyRequest.username, timestamp: new Date().toISOString() });
 
     const insertResponse = await supabase
-      .from('users')
+      .from('partico_users')
       .insert([
         {
           id: userId,
@@ -278,7 +278,7 @@ app.post('/api/auth/verify-signup', async (req, res) => {
     // CRITICAL: Verify the insert actually persisted to database
     console.log('=== VERIFYING USER PERSISTED TO DATABASE ===');
     const { data: verifyUser, error: verifyError } = await supabase
-      .from('users')
+      .from('partico_users')
       .select('id, email, username')
       .eq('id', userId)
       .single();
@@ -297,7 +297,7 @@ app.post('/api/auth/verify-signup', async (req, res) => {
 
     // Delete verification request
     await supabase
-      .from('verification_requests')
+      .from('partico_verification_requests')
       .delete()
       .eq('email', email.toLowerCase())
       .eq('code', code);
@@ -336,7 +336,7 @@ app.post('/api/auth/login', async (req, res) => {
     const normalizedInput = emailOrUsername.toLowerCase();
 
     const { data: user, error: queryError } = await supabase
-      .from('users')
+      .from('partico_users')
       .select('*')
       .or(`email.eq.${normalizedInput},username.eq.${normalizedInput}`)
       .single();
@@ -384,7 +384,7 @@ app.get('/api/auth/me', async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     const { data: user, error } = await supabase
-      .from('users')
+      .from('partico_users')
       .select('email, username')
       .eq('email', decoded.email)
       .single();
@@ -411,7 +411,7 @@ app.post('/api/auth/resend-code', async (req, res) => {
 
     // Get existing verification request
     const { data: verifyRequest, error: queryError } = await supabase
-      .from('verification_requests')
+      .from('partico_verification_requests')
       .select('*')
       .eq('email', email.toLowerCase())
       .eq('type', 'signup')
@@ -426,7 +426,7 @@ app.post('/api/auth/resend-code', async (req, res) => {
 
     // Update verification request with new code
     const { error: updateError } = await supabase
-      .from('verification_requests')
+      .from('partico_verification_requests')
       .update({
         code,
         expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
@@ -463,7 +463,7 @@ app.post('/api/auth/resend-code', async (req, res) => {
 app.get('/health', async (req, res) => {
   let dbTest = null;
   if (supabase) {
-    const { error } = await supabase.from('users').select('id').limit(1);
+    const { error } = await supabase.from('partico_users').select('id').limit(1);
     dbTest = error ? { code: error.code, message: error.message } : 'ok';
   }
   res.json({
