@@ -7,8 +7,45 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+// Only allow the Partico frontend (plus local dev) to call this API
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || origin === 'null') return cb(null, true); // curl, native apps, local file previews
+    try {
+      const { hostname } = new URL(origin);
+      if (
+        hostname === 'partico.app' ||
+        hostname.endsWith('.partico.app') ||
+        hostname.endsWith('.vercel.app') ||
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1'
+      ) return cb(null, true);
+    } catch (e) {}
+    return cb(null, false);
+  }
+}));
+app.use(express.json({ limit: '5mb' }));
+
+// Simple in-memory rate limiter for auth endpoints (per IP per path)
+const rateBuckets = new Map();
+function rateLimit(max, windowMs) {
+  return (req, res, next) => {
+    if (rateBuckets.size > 10000) rateBuckets.clear();
+    const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim();
+    const key = `${req.path}:${ip}`;
+    const now = Date.now();
+    let bucket = rateBuckets.get(key);
+    if (!bucket || now - bucket.start > windowMs) {
+      bucket = { start: now, count: 0 };
+      rateBuckets.set(key, bucket);
+    }
+    bucket.count++;
+    if (bucket.count > max) {
+      return res.status(429).json({ error: 'Too many attempts. Please wait a few minutes and try again.' });
+    }
+    next();
+  };
+}
 
 // Supabase client
 let supabase = null;
@@ -76,7 +113,7 @@ async function sendEmail(to, subject, html) {
 }
 
 // Signup: Send verification email
-app.post('/api/auth/signup', async (req, res) => {
+app.post('/api/auth/signup', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
   try {
     console.log('=== SIGNUP REQUEST RECEIVED ===');
     console.log('Timestamp:', new Date().toISOString());
@@ -110,7 +147,7 @@ app.post('/api/auth/signup', async (req, res) => {
 
     if (emailCheckError && emailCheckError.code !== 'PGRST116') {
       console.error('Email check error (code !== PGRST116):', emailCheckError);
-      return res.status(500).json({ error: 'Database error', detail: emailCheckError.message, code: emailCheckError.code });
+      return res.status(500).json({ error: 'Database error. Please try again later.' });
     }
 
     if (existingEmail) {
@@ -129,7 +166,7 @@ app.post('/api/auth/signup', async (req, res) => {
 
     if (usernameCheckError && usernameCheckError.code !== 'PGRST116') {
       console.error('Username check error (code !== PGRST116):', usernameCheckError);
-      return res.status(500).json({ error: 'Database error', detail: usernameCheckError.message, code: usernameCheckError.code });
+      return res.status(500).json({ error: 'Database error. Please try again later.' });
     }
 
     if (existingUsername) {
@@ -154,11 +191,12 @@ app.post('/api/auth/signup', async (req, res) => {
     }
 
     // Store verification request
+    const hashedPassword = await bcryptjs.hash(password, 10);
     const verificationData = {
       email: email.toLowerCase(),
       username: username.toLowerCase(),
       code,
-      password,
+      password: hashedPassword,
       type: 'signup',
       expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 min expiry
     };
@@ -215,7 +253,7 @@ app.post('/api/auth/signup', async (req, res) => {
 });
 
 // Verify signup: Confirm code and create account
-app.post('/api/auth/verify-signup', async (req, res) => {
+app.post('/api/auth/verify-signup', rateLimit(20, 15 * 60 * 1000), async (req, res) => {
   try {
     const { email, code } = req.body;
 
@@ -242,8 +280,8 @@ app.post('/api/auth/verify-signup', async (req, res) => {
       return res.status(400).json({ error: 'Verification code expired' });
     }
 
-    // Hash password
-    const hashedPassword = await bcryptjs.hash(verifyRequest.password, 10);
+    // Password was already hashed at signup time (never stored in plaintext)
+    const hashedPassword = verifyRequest.password;
 
     // Create user
     const userId = Math.random().toString(36).substring(7); // Generate simple ID
@@ -331,7 +369,7 @@ app.post('/api/auth/verify-signup', async (req, res) => {
 });
 
 // Login (with username or email)
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', rateLimit(20, 15 * 60 * 1000), async (req, res) => {
   try {
     const { emailOrUsername, password } = req.body;
 
@@ -411,7 +449,7 @@ app.get('/api/auth/me', async (req, res) => {
 });
 
 // Resend verification code
-app.post('/api/auth/resend-code', async (req, res) => {
+app.post('/api/auth/resend-code', rateLimit(5, 15 * 60 * 1000), async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -481,6 +519,33 @@ function sanitizeUser(u) {
   return safe;
 }
 
+// Mask an email for display to other users, e.g. tob*****s11@ic***d.com
+function maskEmail(email) {
+  if (!email || !email.includes('@')) return '';
+  const [local, domain] = email.split('@');
+  const maskedLocal = local.length <= 4
+    ? (local[0] || '') + '***'
+    : local.slice(0, 3) + '*****' + local.slice(-3);
+  const dot = domain.lastIndexOf('.');
+  const name = dot > 0 ? domain.slice(0, dot) : domain;
+  const tld = dot > 0 ? domain.slice(dot) : '';
+  const maskedName = name.length <= 3 ? (name[0] || '') + '***' : name.slice(0, 2) + '***' + name.slice(-1);
+  return maskedLocal + '@' + maskedName + tld;
+}
+
+// What other users are allowed to see about someone (no phone, no internals)
+function publicUser(u) {
+  if (!u) return null;
+  return {
+    id: u.id,
+    username: u.username,
+    email: maskEmail(u.email),
+    firstName: u.firstName || '',
+    lastName: u.lastName || '',
+    bio: u.bio || '',
+  };
+}
+
 // Auth middleware: verifies JWT and loads the user row onto req.user
 async function requireAuth(req, res, next) {
   try {
@@ -529,7 +594,7 @@ app.get('/api/users/search', requireAuth, async (req, res) => {
       console.error('User search error:', error);
       return res.status(500).json({ error: 'Search failed' });
     }
-    res.json({ users: (data || []).map(sanitizeUser) });
+    res.json({ users: (data || []).map(publicUser) });
   } catch (e) {
     console.error('Search error:', e);
     res.status(500).json({ error: 'Search failed' });
@@ -576,7 +641,7 @@ app.get('/api/state', requireAuth, async (req, res) => {
       .or(`requester_id.eq.${me.id},addressee_id.eq.${me.id}`);
     if (fErr) {
       console.error('Friendships query error:', fErr);
-      return res.status(500).json({ error: 'State load failed', detail: fErr.message });
+      return res.status(500).json({ error: 'State load failed' });
     }
 
     const friends = [];
@@ -607,7 +672,7 @@ app.get('/api/state', requireAuth, async (req, res) => {
     const { data: partyRows, error: pErr } = await partyQuery;
     if (pErr) {
       console.error('Parties query error:', pErr);
-      return res.status(500).json({ error: 'State load failed', detail: pErr.message });
+      return res.status(500).json({ error: 'State load failed' });
     }
 
     const partyIds = (partyRows || []).map((p) => p.id);
@@ -636,7 +701,7 @@ app.get('/api/state', requireAuth, async (req, res) => {
         .from('partico_users')
         .select('*')
         .in('id', [...profileIds]);
-      profiles = (profRows || []).map(sanitizeUser);
+      profiles = (profRows || []).map((u) => u.id === me.id ? sanitizeUser(u) : publicUser(u));
     }
 
     res.json({
@@ -834,7 +899,7 @@ app.get('/api/parties/:id', requireAuth, async (req, res) => {
       .from('partico_users')
       .select('*')
       .in('id', [...new Set(userIds)]);
-    res.json({ party: composeParty(row, inviteRows), users: (profRows || []).map(sanitizeUser) });
+    res.json({ party: composeParty(row, inviteRows), users: (profRows || []).map(publicUser) });
   } catch (e) {
     res.status(500).json({ error: 'Failed to load party' });
   }
@@ -879,7 +944,7 @@ app.post('/api/parties/:id/join', requireAuth, async (req, res) => {
       .from('partico_users')
       .select('*')
       .in('id', [...new Set(userIds)]);
-    res.json({ party: composeParty(row, inviteRows), users: (profRows || []).map(sanitizeUser) });
+    res.json({ party: composeParty(row, inviteRows), users: (profRows || []).map(publicUser) });
   } catch (e) {
     console.error('Join error:', e);
     res.status(500).json({ error: 'Failed to join party' });
@@ -952,19 +1017,6 @@ app.get('/health', async (req, res) => {
     resendKeySet: !!process.env.RESEND_API_KEY,
     jwtSecretSet: !!process.env.JWT_SECRET,
   });
-});
-
-// Raw Supabase API test - bypasses supabase-js to test connection directly
-app.get('/api/diag/raw-db', async (req, res) => {
-  const url = `${process.env.SUPABASE_URL}/rest/v1/partico_users?select=id&limit=1`;
-  const resp = await fetch(url, {
-    headers: {
-      'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY,
-      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-    }
-  });
-  const body = await resp.json();
-  res.json({ httpStatus: resp.status, body, url: url.substring(0, 60) });
 });
 
 // Diagnostic endpoint - shows configuration status (safe for production)
