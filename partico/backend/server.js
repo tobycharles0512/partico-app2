@@ -460,14 +460,19 @@ app.post('/api/auth/resend-code', async (req, res) => {
 });
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  let dbTest = null;
+  if (supabase) {
+    const { error } = await supabase.from('users').select('id').limit(1);
+    dbTest = error ? { code: error.code, message: error.message } : 'ok';
+  }
   res.json({
     status: 'ok',
+    nodeVersion: process.version,
     supabaseClientReady: !!supabase,
     supabaseInitError: supabaseInitError,
-    supabaseUrlSet: !!process.env.SUPABASE_URL,
+    dbTest,
     supabaseUrlPreview: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 40) : 'NOT SET',
-    supabaseKeySet: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     resendKeySet: !!process.env.RESEND_API_KEY,
     jwtSecretSet: !!process.env.JWT_SECRET,
   });
