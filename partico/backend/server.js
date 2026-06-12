@@ -478,6 +478,19 @@ app.get('/health', async (req, res) => {
   });
 });
 
+// Raw Supabase API test - bypasses supabase-js to test connection directly
+app.get('/api/diag/raw-db', async (req, res) => {
+  const url = `${process.env.SUPABASE_URL}/rest/v1/partico_users?select=id&limit=1`;
+  const resp = await fetch(url, {
+    headers: {
+      'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY,
+      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+    }
+  });
+  const body = await resp.json();
+  res.json({ httpStatus: resp.status, body, url: url.substring(0, 60) });
+});
+
 // Diagnostic endpoint - shows configuration status (safe for production)
 app.get('/api/diag/config', (req, res) => {
   res.json({
