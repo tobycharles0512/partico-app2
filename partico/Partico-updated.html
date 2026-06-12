@@ -263,6 +263,18 @@ const apiFetch = (path, opts = {}) => {
     }
   }).then((r) => r.json().then((data) => ({ ok: r.ok, status: r.status, data })));
 };
+// Mask an email for display, e.g. tob*****s11@ic***d.com — protects other
+// people's data while still being recognisable
+const maskEmail = (email) => {
+  if (!email || !email.includes("@") || email.includes("*")) return email || "";
+  const [local, domain] = email.split("@");
+  const maskedLocal = local.length <= 4 ? (local[0] || "") + "***" : local.slice(0, 3) + "*****" + local.slice(-3);
+  const dot = domain.lastIndexOf(".");
+  const name = dot > 0 ? domain.slice(0, dot) : domain;
+  const tld = dot > 0 ? domain.slice(dot) : "";
+  const maskedName = name.length <= 3 ? (name[0] || "") + "***" : name.slice(0, 2) + "***" + name.slice(-1);
+  return maskedLocal + "@" + maskedName + tld;
+};
 // Normalise a server user row into the shape the UI expects
 const toLocalProfile = (p, local = {}) => ({
   friends: [], friendRequests: [], parties: [], notifs: [],
@@ -495,6 +507,19 @@ const AppProvider = ({ children }) => {
     setCurrentUser(updated);
     ls.set("partico_current_user", updated);
   };
+  // Cache user profiles fetched from the server so the UI can render them
+  const cacheProfiles = (list) => {
+    if (!list || !list.length) return;
+    const merged = [...users];
+    let added = false;
+    list.forEach((p) => {
+      if (p && p.id && !merged.find((u) => u.id === p.id)) {
+        merged.push(toLocalProfile(p));
+        added = true;
+      }
+    });
+    if (added) saveUsers(merged);
+  };
   // Push a party to the backend so guests on other devices can see it
   const syncPartyToServer = (party) => {
     if (!party) return;
@@ -522,6 +547,7 @@ const AppProvider = ({ children }) => {
       photos: [],
       fireworks: { enabled: data.fireworksEnabled !== false, colors: data.fireworksColors || ["#00ff41", "#00d944", "#00cc44", "#1eff00", "#34d399", "#60a5fa"], style: data.fireworksStyle || "classic" },
       eventType: data.eventType || "party",
+      eventSize: data.eventSize || "big",
       coverImage: data.coverImage || null,
       playlistUrl: data.playlistUrl || "",
       moodBoard: data.moodBoard || [],
@@ -846,6 +872,7 @@ const AppProvider = ({ children }) => {
     getUpcomingParties,
     getFriends,
     getFriendRequests,
+    cacheProfiles,
     getPartyAttendees,
     getPartyShareLink,
     getRSVPStats,
@@ -1885,8 +1912,9 @@ const SMART_SECTION_LABELS = {
 };
 const getEventTheme = (id) => EVENT_TYPES.find((t) => t.id === id) || EVENT_TYPES[0];
 const CreatePartyScreen = () => {
-  const { navigate, createParty, currentUser, users } = useApp();
+  const { navigate, createParty, currentUser, users, cacheProfiles } = useApp();
   const [step, setStep] = useState(0);
+  const [mode, setMode] = useState(null); // null = picker, "casual" = quick flow, "big" = full flow
   const [toast, setToast] = useState(null);
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -1989,8 +2017,11 @@ const CreatePartyScreen = () => {
   };
   const currentEventType = EVENT_TYPES.find(t => t.id === form.eventType) || EVENT_TYPES[0];
   const suggestedSections = currentEventType.smartSections || [];
-  const totalSteps = 9;
   const stepLabels = ["Basics", "Invite Card", "Dates", "Location", "Dress Code", "Menu", "Drinks", "Questions", "Invite"];
+  // Casual events only need the essentials; big events get the full flow
+  const stepOrder = mode === "casual" ? [0, 2, 3, 8] : [0, 1, 2, 3, 4, 5, 6, 7, 8];
+  const totalSteps = stepOrder.length;
+  const stepIdx = stepOrder[step] !== undefined ? stepOrder[step] : 0;
   const addDate = () => {
     if (!form.dateInput) return;
     const newDate = { id: uid(), date: form.dateInput, time: form.timeInput, votes: [] };
@@ -2058,8 +2089,20 @@ const CreatePartyScreen = () => {
     });
   };
   const [searchQ, setSearchQ] = useState("");
+  // Search ALL Partico users on the server so non-friends can be invited too
+  useEffect(() => {
+    if (!searchQ || searchQ.length < 2) return;
+    const token = ls.get("partico_auth_token");
+    if (!token) return;
+    const t = setTimeout(() => {
+      apiFetch(`/api/users/search?q=${encodeURIComponent(searchQ)}`).then(({ ok, data }) => {
+        if (ok && data.users) cacheProfiles(data.users);
+      }).catch(() => {});
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchQ]);
   const allOtherUsers = users.filter((u) => u.id !== currentUser?.id);
-  const filteredUsers = searchQ ? allOtherUsers.filter((u) => `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(searchQ.toLowerCase())) : allOtherUsers;
+  const filteredUsers = searchQ ? allOtherUsers.filter((u) => `${u.username || ""} ${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(searchQ.toLowerCase())) : allOtherUsers;
   const friends = (currentUser?.friends || []).map((fid) => users.find((u) => u.id === fid)).filter(Boolean);
   const handleCreate = () => {
     if (!form.title.trim()) {
@@ -2068,6 +2111,7 @@ const CreatePartyScreen = () => {
     }
     const party = createParty({
       ...form,
+      eventSize: mode || "big",
       confirmedDate: form.useSingleDate && form.dates.length > 0 ? form.dates[0] : null,
       dates: form.useSingleDate ? [] : [...form.dates]
     });
@@ -2082,24 +2126,6 @@ const CreatePartyScreen = () => {
     /* @__PURE__ */ React.createElement("div", { key: "invitecard" },
       React.createElement("div", { style: { fontSize: 22, fontWeight: 800, marginBottom: 4 } }, "\u{1F3A8} Invite Card"),
       React.createElement("div", { style: { fontSize: 14, color: "rgba(255,255,255,0.5)", marginBottom: 20 } }, "Customise how your invite looks and feels"),
-      // Playlist
-      React.createElement("div", { style: { marginBottom: 18 } },
-        React.createElement(Input, { label: "\u{1F3B5} Playlist Link (optional)", placeholder: "Paste Spotify or Apple Music link...", value: form.playlistUrl, onChange: (e) => set("playlistUrl", e.target.value) }),
-        React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.35)" } }, "Guests will see an embedded player on your invite")
-      ),
-      // Mood Board
-      React.createElement("div", { style: { marginBottom: 18 } },
-        React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.6)", marginBottom: 8 } }, "\u{1F4F7} Mood Board (optional)"),
-        React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 8 } }, "Add inspo photos \u2014 venue shots, decor ideas, vibe references"),
-        React.createElement("input", { ref: moodRef, type: "file", accept: "image/*", multiple: true, style: { display: "none" }, onChange: onMoodImg }),
-        React.createElement("button", { className: "btn-secondary", onClick: () => moodRef.current?.click(), style: { fontSize: 13, marginBottom: 10 } }, "\u{1F5BC}\uFE0F Upload Mood Board Images"),
-        form.moodBoard.length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 } },
-          form.moodBoard.map((img, i) => React.createElement("div", { key: i, style: { position: "relative", paddingTop: "100%", borderRadius: 8, overflow: "hidden" } },
-            React.createElement("img", { src: img, style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }, alt: "" }),
-            React.createElement("button", { onClick: () => set("moodBoard", form.moodBoard.filter((_, ii) => ii !== i)), style: { position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.7)", color: "#fff", border: "none", borderRadius: "50%", width: 22, height: 22, fontSize: 12, cursor: "pointer" } }, "\u2715")
-          ))
-        )
-      ),
       // Invite Effect
       React.createElement("div", { style: { marginBottom: 18 } },
         React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.6)", marginBottom: 8 } }, "\u2728 Invite Effect"),
@@ -2172,14 +2198,14 @@ const CreatePartyScreen = () => {
       return u ? /* @__PURE__ */ React.createElement("div", { key: uid2, style: { width: 28, height: 28, borderRadius: "50%", background: avatarColor(u.id), border: "2px solid #0d0d0d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, marginLeft: -6 } }, initials(u)) : null;
     }))), /* @__PURE__ */ React.createElement("input", { className: "input-field", style: { marginBottom: 12 }, placeholder: "\u{1F50D} Search all users by name, email...", value: searchQ, onChange: (e) => setSearchQ(e.target.value) }), !searchQ && /* @__PURE__ */ React.createElement(React.Fragment, null, friends.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "rgba(0,255,65,0.8)", letterSpacing: 1, marginBottom: 8 } }, "YOUR FRIENDS (", friends.length, ")"), friends.map((u) => {
       const selected = form.invitedUsers.includes(u.id);
-      return /* @__PURE__ */ React.createElement("div", { key: u.id, onClick: () => toggleInvite(u.id), style: { display: "flex", alignItems: "center", gap: 12, padding: "11px 12px", background: selected ? "rgba(0,255,65,0.15)" : "rgba(0,255,65,0.06)", borderRadius: 12, marginBottom: 6, cursor: "pointer", border: `2px solid ${selected ? "#00ff41" : "rgba(0,255,65,0.2)"}`, transition: "all 0.2s" } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 40 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.4)" } }, u.email)), /* @__PURE__ */ React.createElement("div", { style: { width: 26, height: 26, borderRadius: "50%", border: `2px solid ${selected ? "#00ff41" : "rgba(255,255,255,0.25)"}`, background: selected ? "#00ff41" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0, transition: "all 0.2s", fontWeight: 700 } }, selected ? "\u2713" : ""));
+      return /* @__PURE__ */ React.createElement("div", { key: u.id, onClick: () => toggleInvite(u.id), style: { display: "flex", alignItems: "center", gap: 12, padding: "11px 12px", background: selected ? "rgba(0,255,65,0.15)" : "rgba(0,255,65,0.06)", borderRadius: 12, marginBottom: 6, cursor: "pointer", border: `2px solid ${selected ? "#00ff41" : "rgba(0,255,65,0.2)"}`, transition: "all 0.2s" } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 40 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.4)" } }, maskEmail(u.email))), /* @__PURE__ */ React.createElement("div", { style: { width: 26, height: 26, borderRadius: "50%", border: `2px solid ${selected ? "#00ff41" : "rgba(255,255,255,0.25)"}`, background: selected ? "#00ff41" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0, transition: "all 0.2s", fontWeight: 700 } }, selected ? "\u2713" : ""));
     })), friends.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 14, textAlign: "center", padding: "20px", background: "rgba(0,255,65,0.06)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 24, marginBottom: 6 } }, "\u{1F465}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 600, marginBottom: 4 } }, "No friends yet"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 10 } }, "Add friends first to invite them quickly"), /* @__PURE__ */ React.createElement("button", { onClick: () => navigate("friends"), style: { background: "rgba(0,255,65,0.2)", border: "1px solid rgba(0,255,65,0.4)", color: "#00ff41", borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "Go to Friends \u2192")), allOtherUsers.filter((u) => !friends.find((f) => f.id === u.id)).length > 0 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 } }, "OTHER USERS ON PARTICO"), allOtherUsers.filter((u) => !friends.find((f) => f.id === u.id)).slice(0, 8).map((u) => {
       const selected = form.invitedUsers.includes(u.id);
-      return /* @__PURE__ */ React.createElement("div", { key: u.id, onClick: () => toggleInvite(u.id), style: { display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: selected ? "rgba(0,255,65,0.1)" : "rgba(255,255,255,0.04)", borderRadius: 12, marginBottom: 6, cursor: "pointer", border: `2px solid ${selected ? "#00ff41" : "transparent"}`, transition: "all 0.2s" } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 38 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 14 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.4)" } }, u.email)), /* @__PURE__ */ React.createElement("div", { style: { width: 24, height: 24, borderRadius: "50%", border: `2px solid ${selected ? "#00ff41" : "rgba(255,255,255,0.2)"}`, background: selected ? "#00ff41" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0, transition: "all 0.2s" } }, selected ? "\u2713" : ""));
+      return /* @__PURE__ */ React.createElement("div", { key: u.id, onClick: () => toggleInvite(u.id), style: { display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: selected ? "rgba(0,255,65,0.1)" : "rgba(255,255,255,0.04)", borderRadius: 12, marginBottom: 6, cursor: "pointer", border: `2px solid ${selected ? "#00ff41" : "transparent"}`, transition: "all 0.2s" } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 38 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 14 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.4)" } }, maskEmail(u.email))), /* @__PURE__ */ React.createElement("div", { style: { width: 24, height: 24, borderRadius: "50%", border: `2px solid ${selected ? "#00ff41" : "rgba(255,255,255,0.2)"}`, background: selected ? "#00ff41" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0, transition: "all 0.2s" } }, selected ? "\u2713" : ""));
     }))), searchQ && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 } }, "SEARCH RESULTS"), filteredUsers.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { color: "rgba(255,255,255,0.3)", textAlign: "center", padding: 24, fontSize: 14 } }, 'No users found for "', searchQ, '"') : filteredUsers.map((u) => {
       const selected = form.invitedUsers.includes(u.id);
       const isFriend = friends.find((f) => f.id === u.id);
-      return /* @__PURE__ */ React.createElement("div", { key: u.id, onClick: () => toggleInvite(u.id), style: { display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: selected ? "rgba(0,255,65,0.12)" : "rgba(255,255,255,0.04)", borderRadius: 12, marginBottom: 6, cursor: "pointer", border: `2px solid ${selected ? "#00ff41" : "transparent"}`, transition: "all 0.2s" } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 38 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 14 } }, u.firstName, " ", u.lastName, isFriend && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, color: "#34d399", fontWeight: 700, marginLeft: 6, background: "rgba(52,211,153,0.15)", borderRadius: 10, padding: "1px 6px" } }, "Friend")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.4)" } }, u.email)), /* @__PURE__ */ React.createElement("div", { style: { width: 24, height: 24, borderRadius: "50%", border: `2px solid ${selected ? "#00ff41" : "rgba(255,255,255,0.2)"}`, background: selected ? "#00ff41" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0, transition: "all 0.2s" } }, selected ? "\u2713" : ""));
+      return /* @__PURE__ */ React.createElement("div", { key: u.id, onClick: () => toggleInvite(u.id), style: { display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: selected ? "rgba(0,255,65,0.12)" : "rgba(255,255,255,0.04)", borderRadius: 12, marginBottom: 6, cursor: "pointer", border: `2px solid ${selected ? "#00ff41" : "transparent"}`, transition: "all 0.2s" } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 38 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 14 } }, u.firstName, " ", u.lastName, isFriend && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, color: "#34d399", fontWeight: 700, marginLeft: 6, background: "rgba(52,211,153,0.15)", borderRadius: 10, padding: "1px 6px" } }, "Friend")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.4)" } }, maskEmail(u.email))), /* @__PURE__ */ React.createElement("div", { style: { width: 24, height: 24, borderRadius: "50%", border: `2px solid ${selected ? "#00ff41" : "rgba(255,255,255,0.2)"}`, background: selected ? "#00ff41" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0, transition: "all 0.2s" } }, selected ? "\u2713" : ""));
     })))
   ];
   const canNext = [
@@ -2193,9 +2219,41 @@ const CreatePartyScreen = () => {
     true,
     true
   ];
-  return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: "linear-gradient(180deg,#0d0d0d 0%,#0d0d0d 100%)" } }, toast && /* @__PURE__ */ React.createElement(Toast, { msg: toast.msg, type: toast.type }), showFireworksPreview && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, zIndex: 200 }, onClick: () => setShowFireworksPreview(false) }, /* @__PURE__ */ React.createElement(FireworksCanvas, { colors: form.fireworksColors, duration: 3e3, fwStyle: form.fireworksStyle, onDone: () => setShowFireworksPreview(false) }), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", bottom: 80, left: 0, right: 0, textAlign: "center", color: "#fff", fontSize: 16, fontWeight: 700 } }, "Tap to close preview")), /* @__PURE__ */ React.createElement("div", { style: { padding: "50px 20px 16px", background: "rgba(0,0,0,0.9)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.08)", position: "sticky", top: 0, zIndex: 50 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => navigate("home"), style: { background: "rgba(255,255,255,0.08)", border: "none", color: "#fff", borderRadius: 10, width: 36, height: 36, fontSize: 18, cursor: "pointer" } }, "\u2190"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 18 } }, "Host a Party")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4 } }, stepLabels.map((l, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { flex: 1, height: 4, borderRadius: 2, background: i <= step ? "linear-gradient(90deg,#00ff41,#00d944)" : "rgba(255,255,255,0.1)", transition: "background 0.3s" } }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 6 } }, "Step ", step + 1, " of ", totalSteps, ": ", stepLabels[step])), /* @__PURE__ */ React.createElement("div", { style: { padding: "20px 20px 120px" } }, /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" }, key: step }, steps[step])), /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 20px", background: "rgba(0,0,0,0.95)", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: 10 } }, step > 0 && /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { flex: "0 0 auto", width: 100 }, onClick: () => setStep((s) => s - 1) }, "\u2190 Back"), step < totalSteps - 1 ? /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1, opacity: canNext[step] ? 1 : 0.5 }, onClick: () => {
-    if (canNext[step]) setStep((s) => s + 1);
-  } }, "Next \u2192") : /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1, background: "linear-gradient(135deg,#16a34a,#15803d)" }, onClick: handleCreate }, "\u{1F389} Create Party!")));
+  // Mode picker: choose between a quick casual hangout and a full big event
+  if (!mode) {
+    const pick = (m) => {
+      if (m === "casual") {
+        setForm((f) => ({ ...f, eventType: "casual", askDrinkPref: false }));
+      }
+      setStep(0);
+      setMode(m);
+    };
+    const modeCard = (emoji, title, meta, m, accent) => React.createElement("div", {
+      key: m,
+      onClick: () => pick(m),
+      style: { background: "#181818", border: `2px solid ${accent}55`, borderRadius: 20, padding: "26px 20px", cursor: "pointer", marginBottom: 14, transition: "all 0.2s", textAlign: "center" }
+    },
+      React.createElement("div", { style: { fontSize: 40, marginBottom: 12, filter: `drop-shadow(0 0 16px ${accent}88)` } }, emoji),
+      React.createElement("div", { style: { fontSize: 21, fontWeight: 800, marginBottom: 12, color: "#F0F0F0" } }, title),
+      React.createElement("div", { style: { display: "inline-block", background: `${accent}1a`, border: `1px solid ${accent}66`, color: accent, borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 700 } }, meta)
+    );
+    return React.createElement("div", { className: "screen", style: { background: "#0C0C0C", display: "flex", flexDirection: "column" } },
+      React.createElement("div", { style: { padding: "50px 20px 16px", display: "flex", alignItems: "center", gap: 12 } },
+        React.createElement("button", { onClick: () => navigate("home"), style: { background: "#181818", border: "1px solid #2A2A2A", color: "#F0F0F0", borderRadius: 10, width: 36, height: 36, fontSize: 18, cursor: "pointer" } }, "\u2190"),
+        React.createElement("div", { style: { fontWeight: 800, fontSize: 18, color: "#F0F0F0" } }, "Host with Partico")
+      ),
+      React.createElement("div", { style: { padding: "16px 22px 40px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" } },
+        React.createElement("div", { style: { fontSize: 28, fontWeight: 900, color: "#39FF14", marginBottom: 6, textAlign: "center" } }, "What are you planning?"),
+        React.createElement("div", { style: { fontSize: 14, color: "#666666", marginBottom: 28, textAlign: "center" } }, "Pick a vibe \u2014 we'll only ask what's needed."),
+        modeCard("\u26A1", "Casual hangout", "4 quick steps \u00B7 under a minute", "casual", "#39FF14"),
+        modeCard("\u{1F389}", "Big event", "Full planning \u00B7 the works", "big", "#00C9B1"),
+        React.createElement("div", { style: { textAlign: "center", fontSize: 12, color: "#666666", marginTop: 18 } }, "You can always edit your event after creating it")
+      )
+    );
+  }
+  return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: "linear-gradient(180deg,#0d0d0d 0%,#0d0d0d 100%)" } }, toast && /* @__PURE__ */ React.createElement(Toast, { msg: toast.msg, type: toast.type }), showFireworksPreview && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, zIndex: 200 }, onClick: () => setShowFireworksPreview(false) }, /* @__PURE__ */ React.createElement(FireworksCanvas, { colors: form.fireworksColors, duration: 3e3, fwStyle: form.fireworksStyle, onDone: () => setShowFireworksPreview(false) }), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", bottom: 80, left: 0, right: 0, textAlign: "center", color: "#fff", fontSize: 16, fontWeight: 700 } }, "Tap to close preview")), /* @__PURE__ */ React.createElement("div", { style: { padding: "50px 20px 16px", background: "rgba(0,0,0,0.9)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.08)", position: "sticky", top: 0, zIndex: 50 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => navigate("home"), style: { background: "rgba(255,255,255,0.08)", border: "none", color: "#fff", borderRadius: 10, width: 36, height: 36, fontSize: 18, cursor: "pointer" } }, "\u2190"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 18 } }, mode === "casual" ? "Quick Hangout \u26A1" : "Host an Event")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4 } }, stepOrder.map((l, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { flex: 1, height: 4, borderRadius: 2, background: i <= step ? "linear-gradient(90deg,#00ff41,#00d944)" : "rgba(255,255,255,0.1)", transition: "background 0.3s" } }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 6 } }, "Step ", step + 1, " of ", totalSteps, ": ", stepLabels[stepIdx])), /* @__PURE__ */ React.createElement("div", { style: { padding: "20px 20px 120px" } }, /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" }, key: step }, steps[stepIdx])), /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 20px", background: "rgba(0,0,0,0.95)", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { flex: "0 0 auto", width: 100 }, onClick: () => step > 0 ? setStep((s) => s - 1) : setMode(null) }, "\u2190 Back"), step < totalSteps - 1 ? /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1, opacity: canNext[stepIdx] ? 1 : 0.5 }, onClick: () => {
+    if (canNext[stepIdx]) setStep((s) => s + 1);
+  } }, "Next \u2192") : /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1, background: "linear-gradient(135deg,#16a34a,#15803d)" }, onClick: handleCreate }, mode === "casual" ? "\u26A1 Create Hangout!" : "\u{1F389} Create Event!")));
 };
 const InvitationScreen = () => {
   const { screenData, navigate, currentUser, getParty, getUser, respondToInvite, getMyInvite, trackInviteView } = useApp();
@@ -2659,7 +2717,7 @@ const PartyManageScreen = () => {
       )
     ), tab === "photos" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, /* @__PURE__ */ React.createElement("input", { ref: photoRef, type: "file", accept: "image/*", multiple: true, style: { display: "none" }, onChange: handleAddPhoto }), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { marginBottom: 16 }, onClick: () => photoRef.current?.click() }, "\u{1F4F7} Add Photos"), party.photos?.length > 0 ? /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 } }, party.photos.map((ph) => /* @__PURE__ */ React.createElement("div", { key: ph.id, style: { position: "relative", paddingTop: "100%", borderRadius: 10, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("img", { src: ph.dataUrl, style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }, alt: "" }), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent,rgba(0,0,0,0.8))", padding: "16px 6px 4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "rgba(255,255,255,0.8)" } }, ph.userName)), /* @__PURE__ */ React.createElement("button", { onClick: () => {
     if (window.confirm("Remove this photo?")) removePhoto(party.id, ph.id);
-  }, style: { position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.7)", color: "#f87171", border: "none", borderRadius: "50%", width: 24, height: 24, fontSize: 12, cursor: "pointer" } }, "\u2715")))) : /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 40, fontSize: 14 } }, "No photos yet \u{1F4F8}")), tab === "invite" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, /* @__PURE__ */ React.createElement("input", { className: "input-field", style: { marginBottom: 12 }, placeholder: "\u{1F50D} Search by name or email...", value: searchQ, onChange: (e) => setSearchQ(e.target.value) }), filteredUsers.map((u) => /* @__PURE__ */ React.createElement("div", { key: u.id, style: { display: "flex", alignItems: "center", gap: 12, padding: "10px", background: "rgba(255,255,255,0.05)", borderRadius: 12, marginBottom: 6 } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 38 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 14 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)" } }, u.email)), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+  }, style: { position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.7)", color: "#f87171", border: "none", borderRadius: "50%", width: 24, height: 24, fontSize: 12, cursor: "pointer" } }, "\u2715")))) : /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 40, fontSize: 14 } }, "No photos yet \u{1F4F8}")), tab === "invite" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, /* @__PURE__ */ React.createElement("input", { className: "input-field", style: { marginBottom: 12 }, placeholder: "\u{1F50D} Search by name or email...", value: searchQ, onChange: (e) => setSearchQ(e.target.value) }), filteredUsers.map((u) => /* @__PURE__ */ React.createElement("div", { key: u.id, style: { display: "flex", alignItems: "center", gap: 12, padding: "10px", background: "rgba(255,255,255,0.05)", borderRadius: 12, marginBottom: 6 } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 38 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 14 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)" } }, maskEmail(u.email))), /* @__PURE__ */ React.createElement("button", { onClick: () => {
     inviteToParty(party.id, u.id);
     showToast(`${u.firstName} invited! \u{1F389}`);
   }, style: { background: "linear-gradient(135deg,#00ff41,#00d944)", color: "#fff", border: "none", borderRadius: 10, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "Invite"))), filteredUsers.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 40, fontSize: 14 } }, "No more users to invite")), tab === "pop" && React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, React.createElement("div", { className: "card", style: { marginBottom: 16, background: "rgba(0,255,65,0.08)", border: "1px solid rgba(0,255,65,0.35)" } }, React.createElement("div", { style: { fontSize: 16, fontWeight: 800, marginBottom: 4 } }, "\u{1F4E2} Partico Pop"), React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 14, lineHeight: 1.7 } }, "Send an instant update to all guests \u2014 they\u2019ll see it in their notifications and event page. Start your message with \u201CPartico:\u201D to make it official!"), React.createElement("textarea", { className: "input-field", style: { resize: "none", minHeight: 96, marginBottom: 10 }, placeholder: "e.g. Partico: Hey everyone \u2014 we\u2019re now starting at 8pm, bring a jacket!", value: popMsg, onChange: (e) => setPopMsg(e.target.value) }), React.createElement("button", { className: "btn-primary", onClick: () => { if (!popMsg.trim()) { showToast("Write a message first", "error"); return; } sendPop(party.id, popMsg); setPopMsg(""); showToast("\u{1F4E2} Partico Pop sent to all guests!"); } }, "\u{1F4E2} Send Partico Pop to All Guests")), React.createElement("div", { style: { fontWeight: 600, fontSize: 14, marginBottom: 10, color: "rgba(255,255,255,0.6)" } }, "\u{1F4CB} Pop History"), (getPartyPops(party.id) || []).length === 0 ? React.createElement("div", { style: { textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 30, fontSize: 13, background: "rgba(255,255,255,0.03)", borderRadius: 14 } }, "\u{1F4E2} No pops sent yet \u2014 type a message above to update your guests") : [...(getPartyPops(party.id))].reverse().map((b) => React.createElement("div", { key: b.id, className: "card", style: { marginBottom: 8, background: "rgba(255,255,255,0.04)", borderLeft: "3px solid #00ff41" } }, React.createElement("div", { style: { fontSize: 11, color: "#00ff41", fontWeight: 700, marginBottom: 5 } }, "\u{1F4E2} Partico Pop \u00B7 " + new Date(b.timestamp).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })), React.createElement("div", { style: { fontSize: 14, color: "#fff", lineHeight: 1.6 } }, b.message)))), /* @__PURE__ */ React.createElement(BottomNav, { screen: "home", navigate })));
@@ -2722,9 +2780,13 @@ const FriendsScreen = () => {
       setBackendResults([]);
       return;
     }
-    setSearching(true);
     const token = ls.get("partico_auth_token");
-    if (token) {
+    if (!token) {
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    {
       fetch(`${API_BASE}/api/users/search?q=${encodeURIComponent(searchQ)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -2757,7 +2819,7 @@ const FriendsScreen = () => {
     } catch {
     }
     showToast("Link copied! \u{1F517}");
-  }, style: { background: "rgba(0,255,65,0.25)", border: "1px solid rgba(0,255,65,0.4)", color: "#00ff41", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0 } }, "Copy"))), friends.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "48px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 52, marginBottom: 12 } }, "\u{1F44B}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 700, marginBottom: 6 } }, "No friends yet!"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 20, lineHeight: 1.6 } }, "Search for people, share your QR code, or send your invite link to build your circle"), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { width: 180 }, onClick: () => setTab("find") }, "Find Friends \u{1F50D}")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 10 } }, "YOUR FRIENDS (", friends.length, ")"), friends.map((u) => /* @__PURE__ */ React.createElement("div", { key: u.id, className: "card", style: { marginBottom: 8, display: "flex", alignItems: "center", gap: 12 } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 46 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, u.email)), /* @__PURE__ */ React.createElement("div", { style: { background: "rgba(52,211,153,0.15)", border: "1px solid rgba(52,211,153,0.3)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, color: "#34d399", flexShrink: 0 } }, "\u2705 Friend"))))), tab === "requests" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, requests.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "48px 20px", color: "rgba(255,255,255,0.35)", fontSize: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 40, marginBottom: 12 } }, "\u{1F4ED}"), "No pending friend requests") : requests.map((req) => /* @__PURE__ */ React.createElement("div", { key: req.from, className: "card", style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Avatar, { user: req.user, size: 46 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, req.user?.firstName, " ", req.user?.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)" } }, req.user?.email), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 } }, "wants to be friends \u{1F91D}"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
+  }, style: { background: "rgba(0,255,65,0.25)", border: "1px solid rgba(0,255,65,0.4)", color: "#00ff41", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0 } }, "Copy"))), friends.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "48px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 52, marginBottom: 12 } }, "\u{1F44B}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 700, marginBottom: 6 } }, "No friends yet!"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 20, lineHeight: 1.6 } }, "Search for people, share your QR code, or send your invite link to build your circle"), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { width: 180 }, onClick: () => setTab("find") }, "Find Friends \u{1F50D}")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 10 } }, "YOUR FRIENDS (", friends.length, ")"), friends.map((u) => /* @__PURE__ */ React.createElement("div", { key: u.id, className: "card", style: { marginBottom: 8, display: "flex", alignItems: "center", gap: 12 } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 46 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, maskEmail(u.email))), /* @__PURE__ */ React.createElement("div", { style: { background: "rgba(52,211,153,0.15)", border: "1px solid rgba(52,211,153,0.3)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, color: "#34d399", flexShrink: 0 } }, "\u2705 Friend"))))), tab === "requests" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, requests.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "48px 20px", color: "rgba(255,255,255,0.35)", fontSize: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 40, marginBottom: 12 } }, "\u{1F4ED}"), "No pending friend requests") : requests.map((req) => /* @__PURE__ */ React.createElement("div", { key: req.from, className: "card", style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Avatar, { user: req.user, size: 46 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, req.user?.firstName, " ", req.user?.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)" } }, maskEmail(req.user?.email)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 } }, "wants to be friends \u{1F91D}"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
     acceptFriendRequest(req.from);
     showToast(`${req.user?.firstName} added! \u{1F389} You can now invite them to parties`);
   }, style: { flex: 1, padding: "11px", background: "linear-gradient(135deg,#00ff41,#00d944)", border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 14 } }, "Accept \u2705"), /* @__PURE__ */ React.createElement("button", { onClick: () => {
@@ -2765,7 +2827,7 @@ const FriendsScreen = () => {
     showToast("Request declined");
   }, style: { flex: 1, padding: "11px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, color: "rgba(255,255,255,0.7)", fontWeight: 600, cursor: "pointer", fontSize: 14 } }, "Decline"))))), tab === "find" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, /* @__PURE__ */ React.createElement("input", { className: "input-field", style: { marginBottom: 12 }, placeholder: "\u{1F50D} Search by name, email or phone...", value: searchQ, onChange: (e) => setSearchQ(e.target.value), autoFocus: true }), !searchQ && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "rgba(255,255,255,0.35)", textAlign: "center", padding: "12px 0 4px" } }, "Type to search all Partico users"), filtered.slice(0, 25).map((u) => {
     const alreadySent = users.find((user) => user.id === u.id)?.friendRequests?.some((r) => r && r.from === myId) || false;
-    return /* @__PURE__ */ React.createElement("div", { key: u.id, className: "card", style: { marginBottom: 8, display: "flex", alignItems: "center", gap: 12 } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 44 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, u.email)), /* @__PURE__ */ React.createElement("button", { onClick: () => handleSend(u.id, u.firstName), style: { background: alreadySent ? "rgba(255,255,255,0.08)" : "linear-gradient(135deg,#00ff41,#00d944)", color: "#fff", border: alreadySent ? "1px solid rgba(255,255,255,0.2)" : "none", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: alreadySent ? "default" : "pointer", flexShrink: 0, opacity: alreadySent ? 0.6 : 1 } }, alreadySent ? "Sent \u2713" : "+ Add"));
+    return /* @__PURE__ */ React.createElement("div", { key: u.id, className: "card", style: { marginBottom: 8, display: "flex", alignItems: "center", gap: 12 } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 44 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, maskEmail(u.email))), /* @__PURE__ */ React.createElement("button", { onClick: () => handleSend(u.id, u.firstName), style: { background: alreadySent ? "rgba(255,255,255,0.08)" : "linear-gradient(135deg,#00ff41,#00d944)", color: "#fff", border: alreadySent ? "1px solid rgba(255,255,255,0.2)" : "none", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: alreadySent ? "default" : "pointer", flexShrink: 0, opacity: alreadySent ? 0.6 : 1 } }, alreadySent ? "Sent \u2713" : "+ Add"));
   }), searchQ && filtered.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 40, fontSize: 14 } }, 'No users found for "', searchQ, '"'))), /* @__PURE__ */ React.createElement(BottomNav, { screen: "friends", navigate }));
 };
 const CalendarScreen = () => {
