@@ -249,16 +249,19 @@ app.post('/api/auth/verify-signup', async (req, res) => {
     const userId = Math.random().toString(36).substring(7); // Generate simple ID
     console.log('Attempting to create user:', { userId, email: email.toLowerCase(), username: verifyRequest.username, timestamp: new Date().toISOString() });
 
+    const newUserRow = {
+      id: userId,
+      email: email.toLowerCase(),
+      username: verifyRequest.username,
+      password: hashedPassword,
+    };
+    if (verifyRequest.firstName) newUserRow.firstName = verifyRequest.firstName;
+    if (verifyRequest.lastName) newUserRow.lastName = verifyRequest.lastName;
+    if (verifyRequest.phone) newUserRow.phone = verifyRequest.phone;
+
     const insertResponse = await supabase
       .from('partico_users')
-      .insert([
-        {
-          id: userId,
-          email: email.toLowerCase(),
-          username: verifyRequest.username,
-          password: hashedPassword,
-        },
-      ]);
+      .insert([newUserRow]);
 
     const { error: createError, data: insertData } = insertResponse;
 
@@ -304,17 +307,21 @@ app.post('/api/auth/verify-signup', async (req, res) => {
 
     // Generate JWT
     const token = jwt.sign(
-      { email: email.toLowerCase(), username: verifyRequest.username },
+      { id: userId, email: email.toLowerCase(), username: verifyRequest.username },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
 
     res.json({
       success: true,
       token,
       user: {
+        id: userId,
         email: email.toLowerCase(),
         username: verifyRequest.username,
+        firstName: verifyRequest.firstName || '',
+        lastName: verifyRequest.lastName || '',
+        phone: verifyRequest.phone || '',
       },
     });
   } catch (error) {
@@ -354,17 +361,21 @@ app.post('/api/auth/login', async (req, res) => {
 
     // Generate JWT
     const token = jwt.sign(
-      { email: user.email, username: user.username },
+      { id: user.id, email: user.email, username: user.username },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
 
     res.json({
       success: true,
       token,
       user: {
+        id: user.id,
         email: user.email,
         username: user.username,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        phone: user.phone || '',
       },
     });
   } catch (error) {
@@ -383,17 +394,16 @@ app.get('/api/auth/me', async (req, res) => {
 
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    const { data: user, error } = await supabase
-      .from('partico_users')
-      .select('email, username')
-      .eq('email', decoded.email)
-      .single();
+    let query = supabase.from('partico_users').select('*');
+    query = decoded.id ? query.eq('id', decoded.id) : query.eq('email', decoded.email);
+    const { data: user, error } = await query.single();
 
     if (error || !user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user });
+    const { password, ...safeUser } = user;
+    res.json({ user: safeUser });
   } catch (error) {
     console.error('Get user error:', error);
     res.status(401).json({ error: 'Invalid token' });
@@ -456,6 +466,472 @@ app.post('/api/auth/resend-code', async (req, res) => {
   } catch (error) {
     console.error('Resend code error:', error);
     res.status(500).json({ error: 'Failed to resend code' });
+  }
+});
+
+// ============================================================
+// Social API: user search, friends, parties (requires tables:
+// partico_friendships, partico_parties, partico_party_invites
+// — see backend/supabase-social-schema.sql)
+// ============================================================
+
+function sanitizeUser(u) {
+  if (!u) return null;
+  const { password, ...safe } = u;
+  return safe;
+}
+
+// Auth middleware: verifies JWT and loads the user row onto req.user
+async function requireAuth(req, res, next) {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token provided' });
+    const decoded = jwt.verify(token, JWT_SECRET);
+    let query = supabase.from('partico_users').select('*');
+    query = decoded.id ? query.eq('id', decoded.id) : query.eq('email', decoded.email);
+    const { data: user, error } = await query.single();
+    if (error || !user) return res.status(401).json({ error: 'User not found' });
+    req.user = sanitizeUser(user);
+    next();
+  } catch (e) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+}
+
+// Search users by username, email, or name
+app.get('/api/users/search', requireAuth, async (req, res) => {
+  try {
+    const raw = (req.query.q || '').toString().trim();
+    if (!raw) return res.json({ users: [] });
+    const q = raw.replace(/[^a-zA-Z0-9@._\s-]/g, '');
+    if (!q) return res.json({ users: [] });
+
+    let { data, error } = await supabase
+      .from('partico_users')
+      .select('*')
+      .or(`username.ilike.*${q}*,email.ilike.*${q}*,firstName.ilike.*${q}*,lastName.ilike.*${q}*`)
+      .neq('id', req.user.id)
+      .limit(20);
+
+    // Fallback if firstName/lastName columns don't exist yet
+    if (error) {
+      const retry = await supabase
+        .from('partico_users')
+        .select('*')
+        .or(`username.ilike.*${q}*,email.ilike.*${q}*`)
+        .neq('id', req.user.id)
+        .limit(20);
+      data = retry.data;
+      error = retry.error;
+    }
+
+    if (error) {
+      console.error('User search error:', error);
+      return res.status(500).json({ error: 'Search failed' });
+    }
+    res.json({ users: (data || []).map(sanitizeUser) });
+  } catch (e) {
+    console.error('Search error:', e);
+    res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// Update own profile
+app.put('/api/users/me', requireAuth, async (req, res) => {
+  try {
+    const allowed = ['firstName', 'lastName', 'phone', 'bio'];
+    const updates = {};
+    for (const k of allowed) {
+      if (req.body[k] !== undefined) updates[k] = req.body[k];
+    }
+    if (Object.keys(updates).length === 0) return res.json({ user: req.user });
+    const { error } = await supabase.from('partico_users').update(updates).eq('id', req.user.id);
+    if (error) {
+      console.error('Profile update error:', error);
+      return res.status(500).json({ error: 'Profile update failed' });
+    }
+    res.json({ user: { ...req.user, ...updates } });
+  } catch (e) {
+    res.status(500).json({ error: 'Profile update failed' });
+  }
+});
+
+function composeParty(row, inviteRows) {
+  return {
+    ...(row.data || {}),
+    id: row.id,
+    hostId: row.host_id,
+    invites: (inviteRows || []).map((r) => ({ ...(r.data || {}), userId: r.user_id, status: r.status })),
+  };
+}
+
+// Full account state: profile, friends, friend requests, parties
+app.get('/api/state', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+
+    const { data: friendships, error: fErr } = await supabase
+      .from('partico_friendships')
+      .select('*')
+      .or(`requester_id.eq.${me.id},addressee_id.eq.${me.id}`);
+    if (fErr) {
+      console.error('Friendships query error:', fErr);
+      return res.status(500).json({ error: 'State load failed', detail: fErr.message });
+    }
+
+    const friends = [];
+    const friendRequests = []; // incoming, pending
+    const outgoingRequests = []; // sent by me, pending
+    for (const f of friendships || []) {
+      if (f.status === 'accepted') {
+        friends.push(f.requester_id === me.id ? f.addressee_id : f.requester_id);
+      } else if (f.addressee_id === me.id) {
+        friendRequests.push({ from: f.requester_id, status: 'pending' });
+      } else {
+        outgoingRequests.push(f.addressee_id);
+      }
+    }
+
+    const { data: myInvites } = await supabase
+      .from('partico_party_invites')
+      .select('party_id')
+      .eq('user_id', me.id);
+    const invitedPartyIds = [...new Set((myInvites || []).map((r) => r.party_id))];
+
+    let partyQuery = supabase.from('partico_parties').select('*');
+    if (invitedPartyIds.length > 0) {
+      partyQuery = partyQuery.or(`host_id.eq.${me.id},id.in.(${invitedPartyIds.join(',')})`);
+    } else {
+      partyQuery = partyQuery.eq('host_id', me.id);
+    }
+    const { data: partyRows, error: pErr } = await partyQuery;
+    if (pErr) {
+      console.error('Parties query error:', pErr);
+      return res.status(500).json({ error: 'State load failed', detail: pErr.message });
+    }
+
+    const partyIds = (partyRows || []).map((p) => p.id);
+    let inviteRows = [];
+    if (partyIds.length > 0) {
+      const { data: ir } = await supabase
+        .from('partico_party_invites')
+        .select('*')
+        .in('party_id', partyIds);
+      inviteRows = ir || [];
+    }
+
+    const parties = (partyRows || []).map((row) =>
+      composeParty(row, inviteRows.filter((r) => r.party_id === row.id))
+    );
+
+    // Collect every user id we need a profile for
+    const profileIds = new Set([me.id, ...friends, ...outgoingRequests]);
+    friendRequests.forEach((r) => profileIds.add(r.from));
+    (partyRows || []).forEach((p) => profileIds.add(p.host_id));
+    inviteRows.forEach((r) => profileIds.add(r.user_id));
+
+    let profiles = [];
+    if (profileIds.size > 0) {
+      const { data: profRows } = await supabase
+        .from('partico_users')
+        .select('*')
+        .in('id', [...profileIds]);
+      profiles = (profRows || []).map(sanitizeUser);
+    }
+
+    res.json({
+      user: me,
+      friends,
+      friendRequests,
+      outgoingRequests,
+      parties,
+      profiles,
+    });
+  } catch (e) {
+    console.error('State error:', e);
+    res.status(500).json({ error: 'State load failed' });
+  }
+});
+
+// Send a friend request (auto-accepts if they already requested you)
+app.post('/api/friends/request', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+    const toUserId = (req.body.toUserId || '').toString();
+    if (!toUserId || toUserId === me.id) return res.status(400).json({ error: 'Invalid user' });
+
+    const { data: existing } = await supabase
+      .from('partico_friendships')
+      .select('*')
+      .or(`and(requester_id.eq.${me.id},addressee_id.eq.${toUserId}),and(requester_id.eq.${toUserId},addressee_id.eq.${me.id})`);
+
+    const row = (existing || [])[0];
+    if (row) {
+      if (row.status === 'pending' && row.requester_id === toUserId) {
+        // They already asked us — accept
+        await supabase.from('partico_friendships').update({ status: 'accepted' }).eq('id', row.id);
+        return res.json({ success: true, status: 'accepted' });
+      }
+      return res.json({ success: true, status: row.status });
+    }
+
+    const { error } = await supabase
+      .from('partico_friendships')
+      .insert([{ requester_id: me.id, addressee_id: toUserId, status: 'pending' }]);
+    if (error) {
+      console.error('Friend request error:', error);
+      return res.status(500).json({ error: 'Friend request failed' });
+    }
+    res.json({ success: true, status: 'pending' });
+  } catch (e) {
+    res.status(500).json({ error: 'Friend request failed' });
+  }
+});
+
+// Accept or decline an incoming friend request
+app.post('/api/friends/respond', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+    const { fromUserId, accept } = req.body;
+    if (!fromUserId) return res.status(400).json({ error: 'fromUserId required' });
+
+    if (accept) {
+      const { error } = await supabase
+        .from('partico_friendships')
+        .update({ status: 'accepted' })
+        .eq('requester_id', fromUserId)
+        .eq('addressee_id', me.id);
+      if (error) return res.status(500).json({ error: 'Failed to accept request' });
+    } else {
+      await supabase
+        .from('partico_friendships')
+        .delete()
+        .eq('requester_id', fromUserId)
+        .eq('addressee_id', me.id);
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to respond to request' });
+  }
+});
+
+// Remove a friend
+app.post('/api/friends/remove', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+    const userId = (req.body.userId || '').toString();
+    if (!userId) return res.status(400).json({ error: 'userId required' });
+    await supabase
+      .from('partico_friendships')
+      .delete()
+      .or(`and(requester_id.eq.${me.id},addressee_id.eq.${userId}),and(requester_id.eq.${userId},addressee_id.eq.${me.id})`);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to remove friend' });
+  }
+});
+
+// Create or update a party. The host's client sends the whole party object.
+app.post('/api/parties/sync', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+    const party = req.body.party;
+    if (!party || !party.id) return res.status(400).json({ error: 'party with id required' });
+    const partyId = party.id.toString();
+
+    const { data: existing } = await supabase
+      .from('partico_parties')
+      .select('id, host_id')
+      .eq('id', partyId)
+      .maybeSingle();
+
+    const isHost = !existing || existing.host_id === me.id;
+    if (existing && !isHost) {
+      // Guests may update shared content (photos, pops) but not invites/ownership
+      const { data: myInvite } = await supabase
+        .from('partico_party_invites')
+        .select('id')
+        .eq('party_id', partyId)
+        .eq('user_id', me.id)
+        .maybeSingle();
+      if (!myInvite) return res.status(403).json({ error: 'Not allowed' });
+    }
+
+    const data = { ...party };
+    delete data.id;
+    delete data.hostId;
+    delete data.invites;
+
+    const hostId = existing ? existing.host_id : me.id;
+    const { error: upsertErr } = await supabase
+      .from('partico_parties')
+      .upsert([{ id: partyId, host_id: hostId, data, updated_at: new Date().toISOString() }]);
+    if (upsertErr) {
+      console.error('Party upsert error:', upsertErr);
+      return res.status(500).json({ error: 'Failed to save party' });
+    }
+
+    // Only the host's sync can add invitees or update host-controlled invite fields
+    if (isHost && Array.isArray(party.invites) && party.invites.length > 0) {
+      const { data: existingInvites } = await supabase
+        .from('partico_party_invites')
+        .select('*')
+        .eq('party_id', partyId);
+      const existingByUser = new Map((existingInvites || []).map((r) => [r.user_id, r]));
+
+      const newRows = party.invites
+        .filter((i) => i && i.userId && !existingByUser.has(i.userId))
+        .map((i) => ({ party_id: partyId, user_id: i.userId, status: i.status || 'pending', data: i }));
+      if (newRows.length > 0) {
+        const { error: invErr } = await supabase.from('partico_party_invites').insert(newRows);
+        if (invErr) console.error('Invite insert error:', invErr);
+      }
+
+      // Host-controlled fields (plus-one approval, nudges) merged without
+      // touching the guest's own RSVP answers
+      for (const i of party.invites) {
+        if (!i || !i.userId) continue;
+        const row = existingByUser.get(i.userId);
+        if (!row) continue;
+        const updates = {};
+        if (i.plusOneApproved !== undefined && i.plusOneApproved !== (row.data || {}).plusOneApproved) {
+          updates.plusOneApproved = i.plusOneApproved;
+        }
+        if (i.lastNudged !== undefined && i.lastNudged !== (row.data || {}).lastNudged) {
+          updates.lastNudged = i.lastNudged;
+        }
+        if (Object.keys(updates).length > 0) {
+          await supabase
+            .from('partico_party_invites')
+            .update({ data: { ...(row.data || {}), ...updates } })
+            .eq('id', row.id);
+        }
+      }
+    }
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Party sync error:', e);
+    res.status(500).json({ error: 'Failed to save party' });
+  }
+});
+
+// Fetch one party (used when opening an invite link)
+app.get('/api/parties/:id', requireAuth, async (req, res) => {
+  try {
+    const { data: row, error } = await supabase
+      .from('partico_parties')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (error || !row) return res.status(404).json({ error: 'Party not found' });
+    const { data: inviteRows } = await supabase
+      .from('partico_party_invites')
+      .select('*')
+      .eq('party_id', row.id);
+    const userIds = [row.host_id, ...(inviteRows || []).map((r) => r.user_id)];
+    const { data: profRows } = await supabase
+      .from('partico_users')
+      .select('*')
+      .in('id', [...new Set(userIds)]);
+    res.json({ party: composeParty(row, inviteRows), users: (profRows || []).map(sanitizeUser) });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to load party' });
+  }
+});
+
+// Join a party from an invite link (adds a pending invite for the caller)
+app.post('/api/parties/:id/join', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+    const partyId = req.params.id;
+    const { data: row } = await supabase
+      .from('partico_parties')
+      .select('*')
+      .eq('id', partyId)
+      .maybeSingle();
+    if (!row) return res.status(404).json({ error: 'Party not found' });
+
+    const { data: existing } = await supabase
+      .from('partico_party_invites')
+      .select('id')
+      .eq('party_id', partyId)
+      .eq('user_id', me.id)
+      .maybeSingle();
+    if (!existing) {
+      const inviteObj = {
+        userId: me.id, status: 'pending', dateVotes: [], drinkPref: '', dietary: '',
+        answers: {}, plusOneRequested: false, plusOneApproved: false, plusOneName: '',
+        questions: [], respondedAt: null,
+      };
+      const { error: insErr } = await supabase
+        .from('partico_party_invites')
+        .insert([{ party_id: partyId, user_id: me.id, status: 'pending', data: inviteObj }]);
+      if (insErr) console.error('Join insert error:', insErr);
+    }
+
+    const { data: inviteRows } = await supabase
+      .from('partico_party_invites')
+      .select('*')
+      .eq('party_id', partyId);
+    const userIds = [row.host_id, ...(inviteRows || []).map((r) => r.user_id)];
+    const { data: profRows } = await supabase
+      .from('partico_users')
+      .select('*')
+      .in('id', [...new Set(userIds)]);
+    res.json({ party: composeParty(row, inviteRows), users: (profRows || []).map(sanitizeUser) });
+  } catch (e) {
+    console.error('Join error:', e);
+    res.status(500).json({ error: 'Failed to join party' });
+  }
+});
+
+// RSVP / update own invite response
+app.post('/api/parties/:id/rsvp', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+    const partyId = req.params.id;
+    const response = req.body.response || {};
+
+    const { data: existing } = await supabase
+      .from('partico_party_invites')
+      .select('*')
+      .eq('party_id', partyId)
+      .eq('user_id', me.id)
+      .maybeSingle();
+
+    const merged = { ...((existing && existing.data) || {}), ...response, userId: me.id, respondedAt: Date.now() };
+    const status = response.status || (existing && existing.status) || 'pending';
+
+    const { error } = await supabase
+      .from('partico_party_invites')
+      .upsert([{ party_id: partyId, user_id: me.id, status, data: merged }], { onConflict: 'party_id,user_id' });
+    if (error) {
+      console.error('RSVP error:', error);
+      return res.status(500).json({ error: 'Failed to save RSVP' });
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save RSVP' });
+  }
+});
+
+// Delete a party (host only)
+app.delete('/api/parties/:id', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+    const { data: row } = await supabase
+      .from('partico_parties')
+      .select('id, host_id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (!row) return res.json({ success: true });
+    if (row.host_id !== me.id) return res.status(403).json({ error: 'Only the host can delete a party' });
+    await supabase.from('partico_party_invites').delete().eq('party_id', row.id);
+    await supabase.from('partico_parties').delete().eq('id', row.id);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to delete party' });
   }
 });
 
