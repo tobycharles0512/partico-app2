@@ -110,7 +110,7 @@ app.post('/api/auth/signup', async (req, res) => {
 
     if (emailCheckError && emailCheckError.code !== 'PGRST116') {
       console.error('Email check error (code !== PGRST116):', emailCheckError);
-      return res.status(500).json({ error: 'Database error' });
+      return res.status(500).json({ error: 'Database error', detail: emailCheckError.message, code: emailCheckError.code });
     }
 
     if (existingEmail) {
