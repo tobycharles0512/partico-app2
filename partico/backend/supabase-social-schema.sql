@@ -7,6 +7,8 @@ alter table partico_users add column if not exists "firstName" text;
 alter table partico_users add column if not exists "lastName" text;
 alter table partico_users add column if not exists phone text;
 alter table partico_users add column if not exists bio text;
+-- Records when the user accepted the Terms & Conditions (legal proof of consent)
+alter table partico_users add column if not exists accepted_terms_at timestamptz;
 
 -- Friendships: one row per pair. status = 'pending' or 'accepted'
 create table if not exists partico_friendships (
