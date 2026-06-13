@@ -255,10 +255,15 @@ app.post('/api/auth/signup', rateLimit(10, 15 * 60 * 1000), async (req, res) => 
 // Verify signup: Confirm code and create account
 app.post('/api/auth/verify-signup', rateLimit(20, 15 * 60 * 1000), async (req, res) => {
   try {
-    const { email, code } = req.body;
+    const { email, code, acceptedTerms } = req.body;
 
     if (!email || !code) {
       return res.status(400).json({ error: 'Email and code required' });
+    }
+
+    // Accounts can only be created after accepting the Terms & Conditions
+    if (!acceptedTerms) {
+      return res.status(400).json({ error: 'You must accept the Terms & Conditions to create an account' });
     }
 
     // Get verification request
@@ -296,10 +301,18 @@ app.post('/api/auth/verify-signup', rateLimit(20, 15 * 60 * 1000), async (req, r
     if (verifyRequest.firstName) newUserRow.firstName = verifyRequest.firstName;
     if (verifyRequest.lastName) newUserRow.lastName = verifyRequest.lastName;
     if (verifyRequest.phone) newUserRow.phone = verifyRequest.phone;
+    newUserRow.accepted_terms_at = new Date().toISOString();
 
-    const insertResponse = await supabase
+    let insertResponse = await supabase
       .from('partico_users')
       .insert([newUserRow]);
+
+    // If the accepted_terms_at column hasn't been added in Supabase yet,
+    // retry without it so signups never break
+    if (insertResponse.error && String(insertResponse.error.message || '').includes('accepted_terms_at')) {
+      delete newUserRow.accepted_terms_at;
+      insertResponse = await supabase.from('partico_users').insert([newUserRow]);
+    }
 
     const { error: createError, data: insertData } = insertResponse;
 
