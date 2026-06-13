@@ -226,7 +226,7 @@ app.post('/api/auth/signup', rateLimit(10, 15 * 60 * 1000), async (req, res) => 
     // Send verification email
     const emailHtml = `
       <div style="text-align: center; background: #0d0d0d; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #fff;">
-        <img src="https://res.cloudinary.com/dvrrwjm9f/image/upload/v1773603152/final_logo_myxdg2.png" alt="Partico" style="width: 100px; height: 100px; margin-bottom: 20px;">
+        <img src="https://partico.app/partico-logo.png" alt="Partico" style="width: 100px; height: 100px; margin-bottom: 20px;">
         <h2 style="color: #00ff41; margin: 20px 0;">Verify your Partico account</h2>
         <p style="color: rgba(255,255,255,0.7); margin: 15px 0;">Your verification code is:</p>
         <h1 style="font-size: 48px; font-weight: bold; color: #00ff41; letter-spacing: 4px; margin: 30px 0;">${code}</h1>
@@ -503,7 +503,7 @@ app.post('/api/auth/resend-code', rateLimit(5, 15 * 60 * 1000), async (req, res)
     // Send new verification email
     const emailHtml = `
       <div style="text-align: center; background: #0d0d0d; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #fff;">
-        <img src="https://res.cloudinary.com/dvrrwjm9f/image/upload/v1773603152/final_logo_myxdg2.png" alt="Partico" style="width: 100px; height: 100px; margin-bottom: 20px;">
+        <img src="https://partico.app/partico-logo.png" alt="Partico" style="width: 100px; height: 100px; margin-bottom: 20px;">
         <h2 style="color: #00ff41; margin: 20px 0;">Your new verification code</h2>
         <p style="color: rgba(255,255,255,0.7); margin: 15px 0;">Your verification code is:</p>
         <h1 style="font-size: 48px; font-weight: bold; color: #00ff41; letter-spacing: 4px; margin: 30px 0;">${code}</h1>
