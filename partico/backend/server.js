@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
 const WebSocket = require('ws');
 const cors = require('cors');
+const { validateMessageText, buildMessage, appendMessage } = require('./messages');
 require('dotenv').config();
 
 const app = express();
@@ -991,6 +992,59 @@ app.post('/api/parties/:id/rsvp', requireAuth, async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: 'Failed to save RSVP' });
+  }
+});
+
+// Host<->guest 1-to-1 chat. Either the host or the guest themselves may post.
+// The message is appended to the guest's invite row (server-side append = race-safe).
+// The recipient's 'message' notif is delivered client-side via the existing
+// notifs/saveUsers path (same as nudges), since notifs are not a DB column.
+app.post('/api/parties/:id/message', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+    const partyId = req.params.id;
+    const { guestId, text } = req.body || {};
+
+    if (!guestId) return res.status(400).json({ error: 'guestId required' });
+    if (!validateMessageText(text)) return res.status(400).json({ error: 'Message text required' });
+
+    // Look up the party to find the host.
+    const { data: party } = await supabase
+      .from('partico_parties')
+      .select('id, host_id')
+      .eq('id', partyId)
+      .maybeSingle();
+    if (!party) return res.status(404).json({ error: 'Party not found' });
+
+    const isHost = party.host_id === me.id;
+    const isGuest = me.id === guestId;
+    if (!isHost && !isGuest) return res.status(403).json({ error: 'Not allowed' });
+
+    // Load the guest's invite row (the thread lives here).
+    const { data: invite } = await supabase
+      .from('partico_party_invites')
+      .select('*')
+      .eq('party_id', partyId)
+      .eq('user_id', guestId)
+      .maybeSingle();
+    if (!invite) return res.status(404).json({ error: 'No invite for this guest' });
+
+    const msg = buildMessage({ from: me.id, text });
+    const nextData = { ...(invite.data || {}), thread: appendMessage((invite.data || {}).thread, msg) };
+
+    const { error: updErr } = await supabase
+      .from('partico_party_invites')
+      .update({ data: nextData })
+      .eq('id', invite.id);
+    if (updErr) {
+      console.error('Message append error:', updErr);
+      return res.status(500).json({ error: 'Failed to send message' });
+    }
+
+    res.json({ success: true, message: msg });
+  } catch (e) {
+    console.error('Send message error:', e);
+    res.status(500).json({ error: 'Failed to send message' });
   }
 });
 
