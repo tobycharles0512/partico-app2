@@ -652,6 +652,14 @@ const AppProvider = ({ children }) => {
     saveParties(newParties);
     syncPartyToServer(newParties.find((p) => p.id === partyId));
   };
+  const removeInvite = (partyId, userId) => {
+    const newParties = parties.map((p) => {
+      if (p.id !== partyId) return p;
+      return { ...p, invites: p.invites.filter((i) => i.userId !== userId) };
+    });
+    saveParties(newParties);
+    apiFetch(`/api/parties/${partyId}/invites/${userId}`, { method: "DELETE" }).catch(() => {});
+  };
   const getUser = (id) => users.find((u) => u.id === id) || null;
   const getParty = (id) => parties.find((p) => p.id === id) || null;
   const getHostedParties = () => currentUser ? parties.filter((p) => p.hostId === currentUser.id) : [];
@@ -882,6 +890,7 @@ const AppProvider = ({ children }) => {
     addPhoto,
     removePhoto,
     inviteToParty,
+    removeInvite,
     getUser,
     getParty,
     getHostedParties,
@@ -1899,16 +1908,84 @@ const SMART_SECTION_LABELS = {
   parent_contact: { emoji: "\u{1F4F1}", label: "Parent Contact", placeholder: "Contact number for pick-up/emergencies..." },
 };
 const getEventTheme = (id) => EVENT_TYPES.find((t) => t.id === id) || EVENT_TYPES[0];
+// Map a stored party back onto the wizard's flat form state (for editing)
+const partyToForm = (p) => ({
+  title: p.title || "",
+  description: p.description || "",
+  isPrivate: p.isPrivate !== false,
+  dates: p.confirmedDate ? [p.confirmedDate] : (p.dates || []),
+  confirmedDate: p.confirmedDate || null,
+  useSingleDate: !!p.confirmedDate,
+  address: p.location?.address || "",
+  parkingAddress: p.location?.parkingAddress || "",
+  venueLat: p.location?.venueLat || null,
+  venueLng: p.location?.venueLng || null,
+  parkingLat: p.location?.parkingLat || null,
+  parkingLng: p.location?.parkingLng || null,
+  dresscode: p.dressCode?.description || "",
+  inspirationLinks: (p.dressCode?.inspirationLinks && p.dressCode.inspirationLinks.length) ? p.dressCode.inspirationLinks : [""],
+  inspirationImages: p.dressCode?.inspirationImages || [],
+  menuItems: p.menu?.items || [],
+  dietary: p.menu?.dietary || "",
+  menuInput: "",
+  drinkOptions: p.drinkOptions || [],
+  askDrinkPref: p.askDrinkPref !== false,
+  drinkInput: "",
+  customQuestions: p.customQuestions || [],
+  questionInput: "",
+  fireworksEnabled: !p.fireworks || p.fireworks.enabled !== false,
+  fireworksColors: p.fireworks?.colors || ["#00ff41", "#fbbf24", "#34d399", "#60a5fa", "#f87171"],
+  fireworksStyle: p.fireworks?.style || "classic",
+  eventType: p.eventType || "party",
+  customEventName: p.customEventName || "",
+  coverImage: p.coverImage || null,
+  playlistUrl: p.playlistUrl || "",
+  moodBoard: p.moodBoard || [],
+  smartSections: p.smartSections || {},
+  inviteFont: p.inviteFont || "",
+  inviteEffect: p.inviteEffect || "auto",
+  maxCapacity: (p.maxCapacity != null) ? String(p.maxCapacity) : "",
+  invitedUsers: [],
+  dateInput: "",
+  timeInput: ""
+});
+// Build the editable party fields from the wizard form (shared shape with createParty)
+const buildPartyData = (f, md) => ({
+  title: f.title || "My Party",
+  description: f.description || "",
+  isPrivate: f.isPrivate !== false,
+  dates: f.useSingleDate ? [] : [...f.dates],
+  confirmedDate: f.useSingleDate && f.dates.length > 0 ? f.dates[0] : null,
+  location: { address: f.address || "", parkingAddress: f.parkingAddress || "", venueLat: f.venueLat || null, venueLng: f.venueLng || null, parkingLat: f.parkingLat || null, parkingLng: f.parkingLng || null },
+  dressCode: { description: f.dresscode || "", inspirationLinks: f.inspirationLinks || [], inspirationImages: f.inspirationImages || [] },
+  menu: { items: f.menuItems || [], dietary: f.dietary || "" },
+  drinkOptions: f.drinkOptions || [],
+  askDrinkPref: f.askDrinkPref || false,
+  customQuestions: f.customQuestions || [],
+  fireworks: { enabled: f.fireworksEnabled !== false, colors: f.fireworksColors || ["#00ff41", "#00d944", "#00cc44", "#1eff00", "#34d399", "#60a5fa"], style: f.fireworksStyle || "classic" },
+  eventType: f.eventType || "party",
+  customEventName: f.eventType === "custom" ? (f.customEventName || "Event") : "",
+  eventSize: md || "big",
+  coverImage: f.coverImage || null,
+  playlistUrl: f.playlistUrl || "",
+  moodBoard: f.moodBoard || [],
+  smartSections: f.smartSections || {},
+  inviteFont: f.inviteFont || "",
+  inviteEffect: f.inviteEffect || "auto",
+  maxCapacity: f.isPrivate ? null : (parseInt(f.maxCapacity) || null)
+});
 const CreatePartyScreen = () => {
-  const { navigate, createParty, currentUser, users, cacheProfiles } = useApp();
+  const { navigate, createParty, updateParty, getParty, screenData, currentUser, users, cacheProfiles } = useApp();
+  const editPartyId = screenData?.editPartyId || null;
+  const editingParty = editPartyId ? getParty(editPartyId) : null;
   const [step, setStep] = useState(0);
-  const [mode, setMode] = useState(null); // null = picker, "casual" = quick flow, "big" = full flow
+  const [mode, setMode] = useState(editingParty ? "big" : null); // null = picker, "casual" = quick flow, "big" = full flow
   const [toast, setToast] = useState(null);
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 2500);
   };
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => editingParty ? partyToForm(editingParty) : {
     title: "",
     description: "",
     isPrivate: true,
@@ -2008,7 +2085,7 @@ const CreatePartyScreen = () => {
   const suggestedSections = currentEventType.smartSections || [];
   const stepLabels = ["Basics", "Invite Card", "Dates", "Location", "Dress Code", "Menu", "Drinks", "Questions", "Invite"];
   // Casual events only need the essentials; big events get the full flow
-  const stepOrder = mode === "casual" ? [0, 2, 3, 8] : [0, 1, 2, 3, 4, 5, 6, 7, 8];
+  const stepOrder = editPartyId ? [0, 1, 2, 3, 4, 5, 6, 7] : (mode === "casual" ? [0, 2, 3, 8] : [0, 1, 2, 3, 4, 5, 6, 7, 8]);
   const totalSteps = stepOrder.length;
   const stepIdx = stepOrder[step] !== undefined ? stepOrder[step] : 0;
   const addDate = () => {
@@ -2096,6 +2173,12 @@ const CreatePartyScreen = () => {
   const handleCreate = () => {
     if (!form.title.trim()) {
       showToast("Please enter a party name", "error");
+      return;
+    }
+    if (editPartyId) {
+      updateParty(editPartyId, buildPartyData(form, mode));
+      showToast("Changes saved! ✅");
+      navigate("partyManage", { partyId: editPartyId });
       return;
     }
     const party = createParty({
@@ -2240,9 +2323,9 @@ const CreatePartyScreen = () => {
       )
     );
   }
-  return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: "linear-gradient(180deg,#0d0d0d 0%,#0d0d0d 100%)" } }, toast && /* @__PURE__ */ React.createElement(Toast, { msg: toast.msg, type: toast.type }), showFireworksPreview && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, zIndex: 200 }, onClick: () => setShowFireworksPreview(false) }, /* @__PURE__ */ React.createElement(FireworksCanvas, { colors: form.fireworksColors, duration: 3e3, fwStyle: form.fireworksStyle, onDone: () => setShowFireworksPreview(false) }), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", bottom: 80, left: 0, right: 0, textAlign: "center", color: "#fff", fontSize: 16, fontWeight: 700 } }, "Tap to close preview")), /* @__PURE__ */ React.createElement("div", { style: { padding: "50px 20px 16px", background: "rgba(0,0,0,0.9)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.08)", position: "sticky", top: 0, zIndex: 50 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => navigate("home"), style: { background: "rgba(255,255,255,0.08)", border: "none", color: "#fff", borderRadius: 10, width: 36, height: 36, fontSize: 18, cursor: "pointer" } }, "\u2190"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 18 } }, mode === "casual" ? "Quick Hangout \u26A1" : "Host an Event")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4 } }, stepOrder.map((l, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { flex: 1, height: 4, borderRadius: 2, background: i <= step ? "linear-gradient(90deg,#00ff41,#00d944)" : "rgba(255,255,255,0.1)", transition: "background 0.3s" } }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 6 } }, "Step ", step + 1, " of ", totalSteps, ": ", stepLabels[stepIdx])), /* @__PURE__ */ React.createElement("div", { style: { padding: "20px 20px 120px" } }, /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" }, key: step }, steps[stepIdx])), /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 20px", background: "rgba(0,0,0,0.95)", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { flex: "0 0 auto", width: 100 }, onClick: () => step > 0 ? setStep((s) => s - 1) : setMode(null) }, "\u2190 Back"), step < totalSteps - 1 ? /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1, opacity: canNext[stepIdx] ? 1 : 0.5 }, onClick: () => {
+  return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: "linear-gradient(180deg,#0d0d0d 0%,#0d0d0d 100%)" } }, toast && /* @__PURE__ */ React.createElement(Toast, { msg: toast.msg, type: toast.type }), showFireworksPreview && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, zIndex: 200 }, onClick: () => setShowFireworksPreview(false) }, /* @__PURE__ */ React.createElement(FireworksCanvas, { colors: form.fireworksColors, duration: 3e3, fwStyle: form.fireworksStyle, onDone: () => setShowFireworksPreview(false) }), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", bottom: 80, left: 0, right: 0, textAlign: "center", color: "#fff", fontSize: 16, fontWeight: 700 } }, "Tap to close preview")), /* @__PURE__ */ React.createElement("div", { style: { padding: "50px 20px 16px", background: "rgba(0,0,0,0.9)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.08)", position: "sticky", top: 0, zIndex: 50 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => navigate("home"), style: { background: "rgba(255,255,255,0.08)", border: "none", color: "#fff", borderRadius: 10, width: 36, height: 36, fontSize: 18, cursor: "pointer" } }, "\u2190"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 18 } }, editPartyId ? "Edit Event \u270F\uFE0F" : (mode === "casual" ? "Quick Hangout \u26A1" : "Host an Event"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4 } }, stepOrder.map((l, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { flex: 1, height: 4, borderRadius: 2, background: i <= step ? "linear-gradient(90deg,#00ff41,#00d944)" : "rgba(255,255,255,0.1)", transition: "background 0.3s" } }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 6 } }, "Step ", step + 1, " of ", totalSteps, ": ", stepLabels[stepIdx])), /* @__PURE__ */ React.createElement("div", { style: { padding: "20px 20px 120px" } }, /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" }, key: step }, steps[stepIdx])), /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 20px", background: "rgba(0,0,0,0.95)", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { flex: "0 0 auto", width: 100 }, onClick: () => step > 0 ? setStep((s) => s - 1) : (editPartyId ? navigate("partyManage", { partyId: editPartyId }) : setMode(null)) }, "\u2190 Back"), step < totalSteps - 1 ? /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1, opacity: canNext[stepIdx] ? 1 : 0.5 }, onClick: () => {
     if (canNext[stepIdx]) setStep((s) => s + 1);
-  } }, "Next \u2192") : /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1, background: "linear-gradient(135deg,#16a34a,#15803d)" }, onClick: handleCreate }, mode === "casual" ? "\u26A1 Create Hangout!" : "\u{1F389} Create Event!")));
+  } }, "Next \u2192") : /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1, background: "linear-gradient(135deg,#16a34a,#15803d)" }, onClick: handleCreate }, editPartyId ? "\u{1F4BE} Save Changes" : (mode === "casual" ? "\u26A1 Create Hangout!" : "\u{1F389} Create Event!"))));
 };
 const InvitationScreen = () => {
   const { screenData, navigate, currentUser, getParty, getUser, respondToInvite, getMyInvite, trackInviteView } = useApp();
@@ -2542,7 +2625,7 @@ const InvitationScreen = () => {
   );
 };
 const PartyManageScreen = () => {
-  const { screenData, navigate, currentUser, getParty, getUser, updateParty, deleteParty, inviteToParty, addPhoto, removePhoto, users, parties, sendPop, getPartyPops, nudgeGuest } = useApp();
+  const { screenData, navigate, currentUser, getParty, getUser, updateParty, deleteParty, inviteToParty, removeInvite, addPhoto, removePhoto, users, parties, sendPop, getPartyPops, nudgeGuest } = useApp();
   const [tab, setTab] = useState("overview");
   const [toast, setToast] = useState(null);
   const [popMsg, setPopMsg] = useState("");
@@ -2634,7 +2717,7 @@ const PartyManageScreen = () => {
     { icon: "\u{1F17F}\uFE0F", label: "Parking", val: party.location?.parkingAddress || "Not provided" },
     { icon: "\u{1F457}", label: "Dress Code", val: party.dressCode?.description || "Not specified" },
     { icon: "\u{1F512}", label: "Privacy", val: party.isPrivate ? "Private" : "Public" }
-  ].map((d) => /* @__PURE__ */ React.createElement("div", { key: d.label, style: { display: "flex", gap: 10, padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.07)" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 16, flexShrink: 0 } }, d.icon), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 1 } }, d.label), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "rgba(255,255,255,0.8)" } }, d.val))))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 8 } }, "\u{1F517} Party Invite Link"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 8, wordBreak: "break-all" } }, party.inviteLink || buildWebLink('join-party?partyId=' + party.id)), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { fontSize: 13, marginRight: 8 }, onClick: copyInviteLink }, "\u{1F4CB} Copy Link"), (party.confirmedDate || (party.dates && party.dates[0])) && /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { fontSize: 13 }, onClick: () => downloadICS(party) }, "\u{1F4C5} Add to Calendar")), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+  ].map((d) => /* @__PURE__ */ React.createElement("div", { key: d.label, style: { display: "flex", gap: 10, padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.07)" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 16, flexShrink: 0 } }, d.icon), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 1 } }, d.label), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "rgba(255,255,255,0.8)" } }, d.val))))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 8 } }, "\u{1F517} Party Invite Link"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 8, wordBreak: "break-all" } }, party.inviteLink || buildWebLink('join-party?partyId=' + party.id)), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { fontSize: 13, marginRight: 8 }, onClick: copyInviteLink }, "\u{1F4CB} Copy Link"), (party.confirmedDate || (party.dates && party.dates[0])) && /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { fontSize: 13 }, onClick: () => downloadICS(party) }, "\u{1F4C5} Add to Calendar")), /* @__PURE__ */ React.createElement("button", { onClick: () => navigate("createParty", { editPartyId: party.id }), style: { width: "100%", padding: "13px", marginBottom: 10, background: "linear-gradient(135deg,#00ff41,#00d944)", border: "none", borderRadius: 12, color: "#0d0d0d", fontSize: 15, fontWeight: 800, cursor: "pointer" } }, "✏️ Edit Event"), /* @__PURE__ */ React.createElement("button", { onClick: () => {
     if (window.confirm("Delete this party? This cannot be undone.")) {
       deleteParty(party.id);
       navigate("home");
@@ -2648,7 +2731,7 @@ const PartyManageScreen = () => {
     return /* @__PURE__ */ React.createElement("div", { key: status, style: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 8, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 1 } }, status, " (", statusInvites.length, ")"), statusInvites.map((inv) => {
       const u = getUser(inv.userId);
       const nudgeCooldown = inv.lastNudged && (Date.now() - inv.lastNudged) < 3600000;
-      return /* @__PURE__ */ React.createElement("div", { key: inv.userId, className: "card", style: { marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 38 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 14 } }, u?.firstName, " ", u?.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)" } }, inv.dietary && `\u{1F957} ${inv.dietary}`, " ", inv.drinkPref && `\u2022 \u{1F379} ${inv.drinkPref}`), inv.plusOneApproved && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#34d399", marginTop: 2 } }, "+1: ", inv.plusOneName)), status === "pending" ? React.createElement("button", { onClick: () => { if (nudgeCooldown) return; nudgeGuest(party.id, inv.userId); showToast(`Nudged ${u?.firstName}! \u{1F440}`); }, style: { background: nudgeCooldown ? "rgba(255,255,255,0.05)" : "rgba(251,191,36,0.15)", border: `1px solid ${nudgeCooldown ? "rgba(255,255,255,0.1)" : "rgba(251,191,36,0.4)"}`, borderRadius: 10, padding: "6px 12px", color: nudgeCooldown ? "rgba(255,255,255,0.3)" : "#fbbf24", fontSize: 12, fontWeight: 700, cursor: nudgeCooldown ? "default" : "pointer", whiteSpace: "nowrap", transition: "all 0.2s" } }, nudgeCooldown ? "Nudged \u2713" : "\u{1F44B} Nudge") : React.createElement(StatusBadge, { status })));
+      return /* @__PURE__ */ React.createElement("div", { key: inv.userId, className: "card", style: { marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 38 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 14 } }, u?.firstName, " ", u?.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)" } }, inv.dietary && `\u{1F957} ${inv.dietary}`, " ", inv.drinkPref && `\u2022 \u{1F379} ${inv.drinkPref}`), inv.plusOneApproved && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#34d399", marginTop: 2 } }, "+1: ", inv.plusOneName)), status === "pending" ? React.createElement("button", { onClick: () => { if (nudgeCooldown) return; nudgeGuest(party.id, inv.userId); showToast(`Nudged ${u?.firstName}! \u{1F440}`); }, style: { background: nudgeCooldown ? "rgba(255,255,255,0.05)" : "rgba(251,191,36,0.15)", border: `1px solid ${nudgeCooldown ? "rgba(255,255,255,0.1)" : "rgba(251,191,36,0.4)"}`, borderRadius: 10, padding: "6px 12px", color: nudgeCooldown ? "rgba(255,255,255,0.3)" : "#fbbf24", fontSize: 12, fontWeight: 700, cursor: nudgeCooldown ? "default" : "pointer", whiteSpace: "nowrap", transition: "all 0.2s" } }, nudgeCooldown ? "Nudged \u2713" : "\u{1F44B} Nudge") : React.createElement(StatusBadge, { status }), React.createElement("button", { onClick: () => { if (window.confirm(`Remove ${u?.firstName || "this guest"} from the event? They'll lose access to it.`)) { removeInvite(party.id, inv.userId); showToast(`${u?.firstName || "Guest"} removed`); } }, style: { background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.35)", borderRadius: 10, padding: "6px 10px", color: "#f87171", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", marginLeft: 8 } }, "\u2715")));
     }));
   }), invites.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 40, fontSize: 14 } }, "No guests invited yet")), tab === "responses" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, party.dates?.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 12 } }, "\u{1F4C5} Date Votes"), party.dates.map((d) => {
     const votes = dateCounts[d.id] || 0;
