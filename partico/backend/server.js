@@ -5,6 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 const WebSocket = require('ws');
 const cors = require('cors');
 const { validateMessageText, buildMessage, appendMessage } = require('./messages');
+const { buildStatePartyOr } = require('./parties');
 require('dotenv').config();
 
 const app = express();
@@ -677,13 +678,12 @@ app.get('/api/state', requireAuth, async (req, res) => {
       .eq('user_id', me.id);
     const invitedPartyIds = [...new Set((myInvites || []).map((r) => r.party_id))];
 
-    let partyQuery = supabase.from('partico_parties').select('*');
-    if (invitedPartyIds.length > 0) {
-      partyQuery = partyQuery.or(`host_id.eq.${me.id},id.in.(${invitedPartyIds.join(',')})`);
-    } else {
-      partyQuery = partyQuery.eq('host_id', me.id);
-    }
-    const { data: partyRows, error: pErr } = await partyQuery;
+    // Load the user's own parties, parties they're invited to, AND every public
+    // party — so a brand-new account can discover public events hosted by others.
+    const { data: partyRows, error: pErr } = await supabase
+      .from('partico_parties')
+      .select('*')
+      .or(buildStatePartyOr(me.id, invitedPartyIds));
     if (pErr) {
       console.error('Parties query error:', pErr);
       return res.status(500).json({ error: 'State load failed' });
