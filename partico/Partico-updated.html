@@ -3317,7 +3317,7 @@ const App = () => {
       if (partyId) {
         // Fetch the party from the server first, then open the RSVP flow
         joinPartyFromInvite(partyId).then((found) => {
-          if (found) navigate("partyDetail", { partyId });
+          if (found) navigate("invitation", { partyId });
         });
       }
     }
