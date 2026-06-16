@@ -635,6 +635,21 @@ const AppProvider = ({ children }) => {
     saveParties(newParties);
     syncPartyToServer(newParties.find((p) => p.id === partyId));
   };
+  const addPhotos = (partyId, photoDataArray) => {
+    if (!currentUser || !photoDataArray || !photoDataArray.length) return;
+    const newPhotos = photoDataArray.map((dataUrl) => ({
+      id: uid(),
+      userId: currentUser.id,
+      userName: currentUser.firstName + " " + currentUser.lastName,
+      dataUrl,
+      timestamp: Date.now()
+    }));
+    const newParties = parties.map((p) =>
+      p.id === partyId ? { ...p, photos: [...p.photos, ...newPhotos] } : p
+    );
+    saveParties(newParties);
+    syncPartyToServer(newParties.find((p) => p.id === partyId));
+  };
   const removePhoto = (partyId, photoId) => {
     const newParties = parties.map((p) => {
       if (p.id !== partyId) return p;
@@ -934,6 +949,7 @@ const AppProvider = ({ children }) => {
     respondToInvite,
     respondToRSVP,
     addPhoto,
+    addPhotos,
     removePhoto,
     inviteToParty,
     removeInvite,
