@@ -186,6 +186,58 @@ setTimeout(function() {
 if(typeof React==='undefined'||typeof ReactDOM==='undefined'){var _m=document.getElementById('pre-loader-msg');if(_m)_m.textContent='Could not load app — check your internet and refresh';throw new Error('React CDN failed to load');}
 const { useState, useEffect, useRef, useContext, createContext, useCallback, useMemo } = React;
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+const compressImage = (file) => new Promise((resolve) => {
+  const r = new FileReader();
+  r.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 900;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", 0.75));
+    };
+    img.onerror = () => resolve(ev.target.result);
+    img.src = ev.target.result;
+  };
+  r.readAsDataURL(file);
+});
+
+const dataURLtoFile = (dataUrl, filename) => {
+  const [meta, b64] = dataUrl.split(",");
+  const mime = (meta.match(/:(.*?);/) || [])[1] || "image/jpeg";
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new File([arr], filename, { type: mime });
+};
+
+// Returns "shared" | "downloaded" | "cancelled"
+const savePhotosToDevice = async (photos) => {
+  const files = photos.map((ph, i) => dataURLtoFile(ph.dataUrl, `partico-photo-${i + 1}.jpg`));
+  if (navigator.canShare && navigator.canShare({ files })) {
+    try {
+      await navigator.share({ files });
+      return "shared";
+    } catch (err) {
+      if (err && err.name === "AbortError") return "cancelled";
+      // otherwise fall through to download fallback
+    }
+  }
+  files.forEach((file) => {
+    const url = URL.createObjectURL(file);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  return "downloaded";
+};
 const PARTICO_APP_URL = 'https://partico.app/';
 const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:3002' : 'https://partico-backend-production.up.railway.app';
 const getBaseUrl = () => { const p = window.location.origin + window.location.pathname; if (!p || p === 'null' || p.startsWith('file:') || p.startsWith('applewebdata:') || p.startsWith('about:')) return PARTICO_APP_URL; return p.endsWith('index.html') ? p.slice(0, p.lastIndexOf('/') + 1) : (p.endsWith('/') ? p : p + '/'); };
