@@ -2799,14 +2799,13 @@ const InvitationScreen = () => {
   );
 };
 const PartyManageScreen = () => {
-  const { screenData, navigate, currentUser, getParty, getUser, updateParty, deleteParty, inviteToParty, removeInvite, addPhoto, removePhoto, users, parties, sendPop, getPartyPops, nudgeGuest, getThread } = useApp();
+  const { screenData, navigate, currentUser, getParty, getUser, updateParty, deleteParty, inviteToParty, removeInvite, addPhoto, addPhotos, removePhoto, users, parties, sendPop, getPartyPops, nudgeGuest, getThread } = useApp();
   const [tab, setTab] = useState("overview");
   const [toast, setToast] = useState(null);
   const [popMsg, setPopMsg] = useState("");
   const [searchQ, setSearchQ] = useState("");
   const [editField, setEditField] = useState(null);
   const [editVal, setEditVal] = useState("");
-  const photoRef = useRef(null);
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 2500);
@@ -2838,33 +2837,6 @@ const PartyManageScreen = () => {
   (party.customQuestions || []).forEach((q) => {
     questionAnswers[q.id] = { question: q.text, answers: invites.filter((i) => i.answers?.[q.id]).map((i) => ({ name: getUser(i.userId)?.firstName, answer: i.answers[q.id] })) };
   });
-  const compressAndAdd = (file) => new Promise((res) => {
-    const r = new FileReader();
-    r.onload = (ev) => {
-      const img = new Image();
-      img.onload = () => {
-        const MAX = 900;
-        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-        addPhoto(party.id, canvas.toDataURL("image/jpeg", 0.75));
-        res();
-      };
-      img.onerror = () => {
-        addPhoto(party.id, ev.target.result);
-        res();
-      };
-      img.src = ev.target.result;
-    };
-    r.readAsDataURL(file);
-  });
-  const handleAddPhoto = async (e) => {
-    const files = Array.from(e.target.files);
-    await Promise.all(files.map(compressAndAdd));
-    showToast(`${files.length} photo${files.length !== 1 ? "s" : ""} added! \u{1F4F8}`);
-  };
   const handleAprovePlusOne = (userId) => {
     const newInvites = party.invites.map((i) => i.userId === userId ? { ...i, plusOneApproved: true } : i);
     updateParty(party.id, { invites: newInvites });
@@ -2968,9 +2940,7 @@ const PartyManageScreen = () => {
           React.createElement("span", { style: { fontSize: 12, color: f.active ? "#34d399" : "rgba(255,255,255,0.3)", fontWeight: 600 } }, f.active ? "\u2705 Active" : "\u2014 Not set")
         ))
       )
-    ), tab === "photos" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, /* @__PURE__ */ React.createElement("input", { ref: photoRef, type: "file", accept: "image/*", multiple: true, style: { display: "none" }, onChange: handleAddPhoto }), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { marginBottom: 16 }, onClick: () => photoRef.current?.click() }, "\u{1F4F7} Add Photos"), party.photos?.length > 0 ? /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 } }, party.photos.map((ph) => /* @__PURE__ */ React.createElement("div", { key: ph.id, style: { position: "relative", paddingTop: "100%", borderRadius: 10, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("img", { src: ph.dataUrl, style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }, alt: "" }), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent,rgba(0,0,0,0.8))", padding: "16px 6px 4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "rgba(255,255,255,0.8)" } }, ph.userName)), /* @__PURE__ */ React.createElement("button", { onClick: () => {
-    if (window.confirm("Remove this photo?")) removePhoto(party.id, ph.id);
-  }, style: { position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.7)", color: "#f87171", border: "none", borderRadius: "50%", width: 24, height: 24, fontSize: 12, cursor: "pointer" } }, "\u2715")))) : /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 40, fontSize: 14 } }, "No photos yet \u{1F4F8}")), tab === "invite" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, /* @__PURE__ */ React.createElement("input", { className: "input-field", style: { marginBottom: 12 }, placeholder: "\u{1F50D} Search by name or email...", value: searchQ, onChange: (e) => setSearchQ(e.target.value) }), filteredUsers.map((u) => /* @__PURE__ */ React.createElement("div", { key: u.id, style: { display: "flex", alignItems: "center", gap: 12, padding: "10px", background: "rgba(255,255,255,0.05)", borderRadius: 12, marginBottom: 6 } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 38 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 14 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)" } }, maskEmail(u.email))), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    ), tab === "photos" && /* @__PURE__ */ React.createElement(PhotoAlbumTab, { party, addPhotos, removePhoto, showToast, canDelete: true }), tab === "invite" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, /* @__PURE__ */ React.createElement("input", { className: "input-field", style: { marginBottom: 12 }, placeholder: "\u{1F50D} Search by name or email...", value: searchQ, onChange: (e) => setSearchQ(e.target.value) }), filteredUsers.map((u) => /* @__PURE__ */ React.createElement("div", { key: u.id, style: { display: "flex", alignItems: "center", gap: 12, padding: "10px", background: "rgba(255,255,255,0.05)", borderRadius: 12, marginBottom: 6 } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 38 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 14 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)" } }, maskEmail(u.email))), /* @__PURE__ */ React.createElement("button", { onClick: () => {
     inviteToParty(party.id, u.id);
     showToast(`${u.firstName} invited! \u{1F389}`);
   }, style: { background: "linear-gradient(135deg,#00ff41,#00d944)", color: "#fff", border: "none", borderRadius: 10, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "Invite"))), filteredUsers.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 40, fontSize: 14 } }, "No more users to invite")), tab === "pop" && React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, React.createElement("div", { className: "card", style: { marginBottom: 16, background: "rgba(0,255,65,0.08)", border: "1px solid rgba(0,255,65,0.35)" } }, React.createElement("div", { style: { fontSize: 16, fontWeight: 800, marginBottom: 4 } }, "\u{1F4E2} Partico Pop"), React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 14, lineHeight: 1.7 } }, "Send an instant update to all guests \u2014 they\u2019ll see it in their notifications and event page. Start your message with \u201CPartico:\u201D to make it official!"), React.createElement("textarea", { className: "input-field", style: { resize: "none", minHeight: 96, marginBottom: 10 }, placeholder: "e.g. Partico: Hey everyone \u2014 we\u2019re now starting at 8pm, bring a jacket!", value: popMsg, onChange: (e) => setPopMsg(e.target.value) }), React.createElement("button", { className: "btn-primary", onClick: () => { if (!popMsg.trim()) { showToast("Write a message first", "error"); return; } sendPop(party.id, popMsg); setPopMsg(""); showToast("\u{1F4E2} Partico Pop sent to all guests!"); } }, "\u{1F4E2} Send Partico Pop to All Guests")), React.createElement("div", { style: { fontWeight: 600, fontSize: 14, marginBottom: 10, color: "rgba(255,255,255,0.6)" } }, "\u{1F4CB} Pop History"), (getPartyPops(party.id) || []).length === 0 ? React.createElement("div", { style: { textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 30, fontSize: 13, background: "rgba(255,255,255,0.03)", borderRadius: 14 } }, "\u{1F4E2} No pops sent yet \u2014 type a message above to update your guests") : [...(getPartyPops(party.id))].reverse().map((b) => React.createElement("div", { key: b.id, className: "card", style: { marginBottom: 8, background: "rgba(255,255,255,0.04)", borderLeft: "3px solid #00ff41" } }, React.createElement("div", { style: { fontSize: 11, color: "#00ff41", fontWeight: 700, marginBottom: 5 } }, "\u{1F4E2} Partico Pop \u00B7 " + new Date(b.timestamp).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })), React.createElement("div", { style: { fontSize: 14, color: "#fff", lineHeight: 1.6 } }, b.message)))), /* @__PURE__ */ React.createElement(BottomNav, { screen: "home", navigate })));
