@@ -1481,6 +1481,61 @@ const Spinner = () => /* @__PURE__ */ React.createElement("div", { style: { disp
 const Input = React.forwardRef(({ label, ...props }, ref) => /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, label && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.6)", marginBottom: 6 } }, label), /* @__PURE__ */ React.createElement("input", { className: "input-field", ref: ref, ...props })));
 const TextArea = ({ label, ...props }) => /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, label && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.6)", marginBottom: 6 } }, label), /* @__PURE__ */ React.createElement("textarea", { className: "input-field", style: { resize: "vertical", minHeight: 80, ...props.style || {} }, ...props }));
 const Toast = ({ msg, type = "success" }) => /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", top: 60, left: "50%", transform: "translateX(-50%)", background: type === "error" ? "#dc2626" : "#16a34a", color: "#fff", padding: "10px 20px", borderRadius: 30, fontSize: 14, fontWeight: 600, zIndex: 9999, animation: "fadeIn 0.3s ease", whiteSpace: "nowrap", boxShadow: "0 4px 20px rgba(0,0,0,0.4)" } }, msg);
+const PhotoAlbumTab = ({ party, addPhotos, removePhoto, showToast, canDelete }) => {
+  const photoRef = useRef(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState([]);
+  const photos = party.photos || [];
+
+  const handleAddPhoto = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    const dataUrls = await Promise.all(files.map(compressImage));
+    addPhotos(party.id, dataUrls);
+    showToast(`${files.length} photo${files.length !== 1 ? "s" : ""} added! \u{1F4F8}`);
+    e.target.value = "";
+  };
+
+  const toggleSelect = (id) =>
+    setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+
+  const exitSelect = () => { setSelecting(false); setSelected([]); };
+
+  const handleSave = async () => {
+    const chosen = photos.filter((ph) => selected.includes(ph.id));
+    if (!chosen.length) return;
+    const result = await savePhotosToDevice(chosen);
+    if (result === "cancelled") return;
+    showToast(`${chosen.length} photo${chosen.length !== 1 ? "s" : ""} saved! \u{1F4BE}`);
+    exitSelect();
+  };
+
+  return React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } },
+    React.createElement("input", { ref: photoRef, type: "file", accept: "image/*", multiple: true, style: { display: "none" }, onChange: handleAddPhoto }),
+    React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 16 } },
+      !selecting && React.createElement("button", { className: "btn-primary", style: { flex: 1, margin: 0 }, onClick: () => photoRef.current?.click() }, "\u{1F4F7} Add Photos"),
+      photos.length > 0 && React.createElement("button", { className: "btn-secondary", style: { flex: selecting ? 1 : "0 0 auto", margin: 0, padding: "0 18px" }, onClick: () => selecting ? exitSelect() : setSelecting(true) }, selecting ? "Cancel" : "Select")
+    ),
+    photos.length > 0
+      ? React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, paddingBottom: selecting ? 90 : 0 } },
+          photos.map((ph) => {
+            const isSel = selected.includes(ph.id);
+            return React.createElement("div", { key: ph.id, onClick: selecting ? () => toggleSelect(ph.id) : undefined, style: { position: "relative", paddingTop: "100%", borderRadius: 10, overflow: "hidden", cursor: selecting ? "pointer" : "default", outline: isSel ? "3px solid #00ff41" : "none", outlineOffset: -3 } },
+              React.createElement("img", { src: ph.dataUrl, style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }, alt: "" }),
+              React.createElement("div", { style: { position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent,rgba(0,0,0,0.8))", padding: "16px 6px 4px" } },
+                React.createElement("div", { style: { fontSize: 9, color: "rgba(255,255,255,0.8)" } }, ph.userName)),
+              selecting && React.createElement("div", { style: { position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: "50%", border: "2px solid #fff", background: isSel ? "#00ff41" : "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#000", fontWeight: 700 } }, isSel ? "✓" : ""),
+              !selecting && canDelete && React.createElement("button", { onClick: () => { if (window.confirm("Remove this photo?")) removePhoto(party.id, ph.id); }, style: { position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.7)", color: "#f87171", border: "none", borderRadius: "50%", width: 24, height: 24, fontSize: 12, cursor: "pointer" } }, "✕")
+            );
+          })
+        )
+      : React.createElement("div", { style: { textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 40, fontSize: 14 } }, "No photos yet — be the first! \u{1F4F8}"),
+    selecting && React.createElement("div", { style: { position: "fixed", left: 0, right: 0, bottom: "calc(60px + env(safe-area-inset-bottom,8px))", background: "rgba(13,13,13,0.97)", borderTop: "1px solid rgba(255,255,255,0.1)", padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, zIndex: 99 } },
+      React.createElement("div", { style: { flex: 1, fontSize: 14, color: "rgba(255,255,255,0.7)", fontWeight: 600 } }, `${selected.length} selected`),
+      React.createElement("button", { className: "btn-primary", style: { margin: 0, width: "auto", padding: "10px 24px", opacity: selected.length ? 1 : 0.4 }, disabled: !selected.length, onClick: handleSave }, "\u{1F4BE} Save")
+    )
+  );
+};
 const BottomNav = ({ screen, navigate }) => {
   const tabs = [
     { id: "home", icon: "\u{1F3E0}", label: "Home" },
