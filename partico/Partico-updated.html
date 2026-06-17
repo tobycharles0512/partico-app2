@@ -461,6 +461,36 @@ const AppProvider = ({ children }) => {
       return true;
     }).catch(() => false);
   };
+  // Pull the public events the server says this user may discover and merge
+  // them into local state without dropping the user's own/invited parties.
+  const loadDiscover = () => {
+    const token = ls.get("partico_auth_token");
+    if (!token) return Promise.resolve(false);
+    return apiFetch("/api/discover").then(({ ok, data }) => {
+      if (!ok || !data) return false;
+      setParties((prev) => {
+        const byId = new Map(prev.map((p) => [p.id, p]));
+        (data.parties || []).forEach((p) => byId.set(p.id, p));
+        const merged = [...byId.values()];
+        ls.set("partico_parties", merged);
+        return merged;
+      });
+      if (data.profiles && data.profiles.length) {
+        const localUsers = ls.get("partico_users", []);
+        setUsers((prev) => {
+          const byId = new Map(prev.map((u) => [u.id, u]));
+          (data.profiles || []).forEach((p) => {
+            const local = byId.get(p.id) || localUsers.find((u) => u.id === p.id) || {};
+            byId.set(p.id, toLocalProfile(p, local));
+          });
+          const merged = [...byId.values()];
+          ls.set("partico_users", merged);
+          return merged;
+        });
+      }
+      return true;
+    }).catch(() => false);
+  };
   useEffect(() => {
     const u = ls.get("partico_users", []);
     const p = ls.get("partico_parties", []);
@@ -1063,6 +1093,7 @@ const AppProvider = ({ children }) => {
     getUnreadMessageCount,
     getMutualFriendSuggestions,
     joinPublicEvent,
+    loadDiscover,
     markNudgeRead: (nudgeId) => {
       if (!currentUser) return;
       const newUsers = users.map((u) => u.id !== currentUser.id ? u : { ...u, notifs: (u.notifs || []).map((n) => n.id === nudgeId ? { ...n, read: true } : n) });
@@ -3244,20 +3275,33 @@ const NotificationsScreen = () => {
   })))), /* @__PURE__ */ React.createElement(BottomNav, { screen: "home", navigate }));
 };
 const DiscoverScreen = () => {
-  const { navigate, parties, users, currentUser, joinPublicEvent } = useApp();
+  const { navigate, parties, users, currentUser, joinPublicEvent, loadDiscover } = useApp();
   const [tab, setTab] = useState("foryou");
   const [toast, setToast] = useState(null);
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2500); };
+  useEffect(() => { if (loadDiscover) loadDiscover(); }, []);
   const myFriendIds = new Set(currentUser?.friends || []);
-  const fofIds = new Set();
-  myFriendIds.forEach(fid => {
-    const friend = users.find(u => u.id === fid);
-    (friend?.friends || []).forEach(fofId => { if (fofId !== currentUser?.id && !myFriendIds.has(fofId)) fofIds.add(fofId); });
-  });
-  const publicParties = parties.filter(p => !p.isPrivate).sort((a, b) => b.createdAt - a.createdAt);
-  const filtered = tab === "foryou" ? publicParties
-    : tab === "following" ? publicParties.filter(p => myFriendIds.has(p.hostId) || fofIds.has(p.hostId))
-    : publicParties.filter(p => myFriendIds.has(p.hostId));
+  // Relationship of the current user to a host: "friend", "mutual" (share a
+  // friend), or "stranger". Mirrors backend/discover.js relationshipTo.
+  const relationshipToHost = (hostId) => {
+    if (myFriendIds.has(hostId)) return "friend";
+    const host = users.find(u => u.id === hostId);
+    if (host && (host.friends || []).some(fid => myFriendIds.has(fid))) return "mutual";
+    return "stranger";
+  };
+  const audienceOf = (p) => p.audience || "everyone";
+  const canDiscover = (aud, rel) => aud === "everyone" ? true
+    : aud === "mutual" ? (rel === "friend" || rel === "mutual")
+    : rel === "friend"; // "friends"
+  const publicParties = parties
+    .filter(p => !p.isPrivate && p.hostId !== currentUser?.id)
+    .sort((a, b) => b.createdAt - a.createdAt);
+  const visible = publicParties.filter(p => canDiscover(audienceOf(p), relationshipToHost(p.hostId)));
+  const filtered = tab === "foryou"
+    ? visible.filter(p => audienceOf(p) !== "friends")
+    : tab === "following"
+      ? visible.filter(p => audienceOf(p) !== "friends" && ["friend", "mutual"].includes(relationshipToHost(p.hostId)))
+      : visible.filter(p => relationshipToHost(p.hostId) === "friend");
   const getThemeGrad = (et) => {
     const t = EVENT_TYPES.find(x => x.id === et);
     return t ? t.grad : "linear-gradient(135deg,#00ff41,#00d944)";
