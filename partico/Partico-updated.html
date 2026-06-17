@@ -3296,12 +3296,15 @@ const DiscoverScreen = () => {
   const publicParties = parties
     .filter(p => !p.isPrivate && p.hostId !== currentUser?.id)
     .sort((a, b) => b.createdAt - a.createdAt);
-  const visible = publicParties.filter(p => canDiscover(audienceOf(p), relationshipToHost(p.hostId)));
+  // Prefer the server-computed relationship (the client can't compute "mutual"
+  // because host profiles don't include friend lists); fall back to local.
+  const relOf = (p) => p.viewerRelationship || relationshipToHost(p.hostId);
+  const visible = publicParties.filter(p => canDiscover(audienceOf(p), relOf(p)));
   const filtered = tab === "foryou"
     ? visible.filter(p => audienceOf(p) !== "friends")
     : tab === "following"
-      ? visible.filter(p => audienceOf(p) !== "friends" && ["friend", "mutual"].includes(relationshipToHost(p.hostId)))
-      : visible.filter(p => relationshipToHost(p.hostId) === "friend");
+      ? visible.filter(p => audienceOf(p) !== "friends" && ["friend", "mutual"].includes(relOf(p)))
+      : visible.filter(p => relOf(p) === "friend");
   const getThemeGrad = (et) => {
     const t = EVENT_TYPES.find(x => x.id === et);
     return t ? t.grad : "linear-gradient(135deg,#00ff41,#00d944)";
