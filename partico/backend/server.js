@@ -558,6 +558,7 @@ function publicUser(u) {
     firstName: u.firstName || '',
     lastName: u.lastName || '',
     bio: u.bio || '',
+    profilePic: u.profilePic || null,
   };
 }
 
@@ -619,7 +620,7 @@ app.get('/api/users/search', requireAuth, async (req, res) => {
 // Update own profile
 app.put('/api/users/me', requireAuth, async (req, res) => {
   try {
-    const allowed = ['firstName', 'lastName', 'phone', 'bio'];
+    const allowed = ['firstName', 'lastName', 'phone', 'bio', 'profilePic'];
     const updates = {};
     for (const k of allowed) {
       if (req.body[k] !== undefined) updates[k] = req.body[k];

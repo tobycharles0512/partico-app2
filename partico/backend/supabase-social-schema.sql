@@ -7,6 +7,8 @@ alter table partico_users add column if not exists "firstName" text;
 alter table partico_users add column if not exists "lastName" text;
 alter table partico_users add column if not exists phone text;
 alter table partico_users add column if not exists bio text;
+-- Profile picture, stored as a base64 JPEG data URL (resized to 400px client-side)
+alter table partico_users add column if not exists "profilePic" text;
 -- Records when the user accepted the Terms & Conditions (legal proof of consent)
 alter table partico_users add column if not exists accepted_terms_at timestamptz;
 
