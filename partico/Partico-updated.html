@@ -114,9 +114,16 @@ button{font-family:inherit;cursor:pointer;border:none;}
 .btn-secondary{background:var(--w10);border:1px solid var(--w20);color:var(--text);border-radius:12px;padding:12px 20px;font-size:15px;font-weight:500;width:100%;transition:opacity 0.2s;position:relative;overflow:hidden;}
 .btn-secondary:hover{animation:bubble 0.6s ease-out;}
 .btn-secondary:active{transform:scale(0.97);opacity:0.85;}
-.input-field{background:var(--w08);border:1px solid var(--w15);border-radius:12px;padding:14px 16px;font-size:15px;color:var(--text);width:100%;}
+.input-field{background:var(--w08);border:1px solid var(--w15);border-radius:12px;padding:14px 16px;font-size:15px;color:var(--text);width:100%;min-width:0;}
 .input-field::placeholder{color:var(--w40);}
 .input-field:focus{border-color:#00ff41;background:rgba(0,255,65,0.08);}
+/* Native date/time inputs have an intrinsic min-width; keep them from overflowing their grid/flex cell */
+input.input-field[type="date"],input.input-field[type="time"]{min-width:0;}
+/* Two-up field row: minmax(0,1fr) lets cells shrink (native pickers won't force overflow), and it
+   collapses to a single column on phones so the date/time pickers aren't squashed */
+.field-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;}
+.field-row > *{min-width:0;}
+@media (max-width:430px){.field-row{grid-template-columns:1fr;}}
 .badge{background:linear-gradient(135deg,#00ff41,#00d944);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;color:#000;}
 </style>
 </head>
@@ -585,7 +592,7 @@ const AppProvider = ({ children }) => {
   const updateCurrentUser = (updates) => {
     if (!currentUser) return;
     const profileFields = {};
-    ["firstName", "lastName", "phone", "bio"].forEach((k) => {
+    ["firstName", "lastName", "phone", "bio", "profilePic"].forEach((k) => {
       if (updates[k] !== undefined) profileFields[k] = updates[k];
     });
     if (Object.keys(profileFields).length > 0) {
@@ -1577,7 +1584,7 @@ const PhotoAlbumTab = ({ party, addPhotos, removePhoto, showToast, canDelete, cu
     React.createElement("input", { ref: photoRef, type: "file", accept: "image/*", multiple: true, style: { display: "none" }, onChange: handleAddPhoto }),
     React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 16 } },
       !selecting && React.createElement("button", { className: "btn-primary", style: { flex: 1, margin: 0 }, onClick: () => photoRef.current?.click() }, "\u{1F4F7} Add Photos"),
-      photos.length > 0 && React.createElement("button", { className: "btn-secondary", style: { flex: selecting ? 1 : "0 0 auto", margin: 0, padding: "0 18px" }, onClick: () => selecting ? exitSelect() : setSelecting(true) }, selecting ? "Cancel" : "Select")
+      photos.length > 0 && React.createElement("button", { className: "btn-secondary", style: { flex: selecting ? 1 : "0 0 auto", width: selecting ? undefined : "auto", margin: 0, padding: "0 18px" }, onClick: () => selecting ? exitSelect() : setSelecting(true) }, selecting ? "Cancel" : "Select")
     ),
     photos.length > 0
       ? React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, paddingBottom: selecting ? 90 : 0 } },
@@ -2470,7 +2477,7 @@ const CreatePartyScreen = () => {
       )
     ),
     // Step 2: Dates
-    /* @__PURE__ */ React.createElement("div", { key: "dates" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, marginBottom: 4 } }, "\u{1F4C5} Date Options"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 20 } }, "Add one or multiple dates for guests to vote on"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 16 } }, [{ v: false, label: "\u{1F5F3}\uFE0F Let guests vote" }, { v: true, label: "\u2705 Single confirmed date" }].map((opt) => /* @__PURE__ */ React.createElement("div", { key: opt.v, onClick: () => set("useSingleDate", opt.v), style: { flex: 1, padding: "10px", borderRadius: 12, border: `2px solid ${form.useSingleDate === opt.v ? "#00ff41" : "var(--w15)"}`, background: form.useSingleDate === opt.v ? "rgba(0,255,65,0.15)" : "var(--w05)", cursor: "pointer", textAlign: "center", fontSize: 12, fontWeight: 600, transition: "all 0.2s" } }, opt.label))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 } }, /* @__PURE__ */ React.createElement(Input, { label: "Date", type: "date", value: form.dateInput, onChange: (e) => set("dateInput", e.target.value), style: { marginBottom: 0 } }), /* @__PURE__ */ React.createElement(Input, { label: "Time", type: "time", value: form.timeInput, onChange: (e) => set("timeInput", e.target.value), style: { marginBottom: 0 } })), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", onClick: addDate, style: { fontSize: 14 } }, "+ Add ", form.useSingleDate ? "Date" : "Date Option")), form.dates.map((d) => /* @__PURE__ */ React.createElement("div", { key: d.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(0,255,65,0.1)", borderRadius: 10, marginBottom: 8, border: "1px solid rgba(0,255,65,0.3)" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14 } }, "\u{1F4C5} ", fmtDate(d.date), " ", d.time && `at ${d.time}`), /* @__PURE__ */ React.createElement("button", { onClick: () => removeDate(d.id), style: { background: "rgba(248,113,113,0.2)", color: "#f87171", border: "none", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer" } }, "\u2715"))), form.dates.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "var(--w30)", fontSize: 14, padding: 20 } }, "No dates added yet")),
+    /* @__PURE__ */ React.createElement("div", { key: "dates" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, marginBottom: 4 } }, "\u{1F4C5} Date Options"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 20 } }, "Add one or multiple dates for guests to vote on"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 16 } }, [{ v: false, label: "\u{1F5F3}\uFE0F Let guests vote" }, { v: true, label: "\u2705 Single confirmed date" }].map((opt) => /* @__PURE__ */ React.createElement("div", { key: opt.v, onClick: () => set("useSingleDate", opt.v), style: { flex: 1, padding: "10px", borderRadius: 12, border: `2px solid ${form.useSingleDate === opt.v ? "#00ff41" : "var(--w15)"}`, background: form.useSingleDate === opt.v ? "rgba(0,255,65,0.15)" : "var(--w05)", cursor: "pointer", textAlign: "center", fontSize: 12, fontWeight: 600, transition: "all 0.2s" } }, opt.label))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { className: "field-row", style: { marginBottom: 8 } }, /* @__PURE__ */ React.createElement(Input, { label: "Date", type: "date", value: form.dateInput, onChange: (e) => set("dateInput", e.target.value), style: { marginBottom: 0 } }), /* @__PURE__ */ React.createElement(Input, { label: "Time", type: "time", value: form.timeInput, onChange: (e) => set("timeInput", e.target.value), style: { marginBottom: 0 } })), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", onClick: addDate, style: { fontSize: 14 } }, "+ Add ", form.useSingleDate ? "Date" : "Date Option")), form.dates.map((d) => /* @__PURE__ */ React.createElement("div", { key: d.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(0,255,65,0.1)", borderRadius: 10, marginBottom: 8, border: "1px solid rgba(0,255,65,0.3)" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14 } }, "\u{1F4C5} ", fmtDate(d.date), " ", d.time && `at ${d.time}`), /* @__PURE__ */ React.createElement("button", { onClick: () => removeDate(d.id), style: { background: "rgba(248,113,113,0.2)", color: "#f87171", border: "none", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer" } }, "\u2715"))), form.dates.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "var(--w30)", fontSize: 14, padding: 20 } }, "No dates added yet")),
     // Step 2: Location
     /* @__PURE__ */ React.createElement("div", { key: "location" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, marginBottom: 4 } }, "\u{1F4CD} Location"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 16 } }, "Search or tap the map to drop your venue pin"), /* @__PURE__ */ React.createElement(
       MapPicker,
@@ -2931,8 +2938,13 @@ const PartyManageScreen = () => {
     showToast("Plus one request declined");
   };
   const handleConfirmDate = (d) => {
-    updateParty(party.id, { confirmedDate: d });
-    showToast(`Date confirmed: ${fmtDate(d.date)}${d.time ? ` at ${d.time}` : ""} ✅`);
+    const dateLabel = `${fmtDate(d.date)}${d.time ? ` at ${d.time}` : ""}`;
+    // Notify all guests via the existing Partico Pop pipeline (shows in their
+    // notifications + the event Updates tab). Set the date and add the pop in a
+    // single update so neither change clobbers the other.
+    const pop = { id: uid(), message: `Partico: The date is locked in — ${dateLabel}! 🎉 See you there.`, timestamp: Date.now(), readBy: [currentUser?.id] };
+    updateParty(party.id, { confirmedDate: d, pops: [...(party.pops || []), pop] });
+    showToast(`Date confirmed — guests notified: ${dateLabel} ✅`);
   };
   const allOtherUsers = users.filter((u) => u.id !== currentUser?.id && !invites.find((i) => i.userId === u.id));
   const filteredUsers = searchQ ? allOtherUsers.filter((u) => `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(searchQ.toLowerCase())) : allOtherUsers.slice(0, 10);
