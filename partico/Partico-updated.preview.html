@@ -314,6 +314,122 @@ const apiFetch = (path, opts = {}) => {
     }
   }).then((r) => r.json().then((data) => ({ ok: r.ok, status: r.status, data })));
 };
+// ============================================================================
+// DEMO MOCK BACKEND (preview only — NOT in the live app).
+// Intercepts /api/* calls and serves an in-memory dataset so the public/private
+// follow flow can be clicked through with no server or database. Remove this
+// whole block (and restore the original Partico-updated.html) before shipping.
+// ============================================================================
+(function setupDemoBackend(){
+  var U = function(id, fn, ln, isPub){ return { id: id, username: id.replace("u_",""), email: fn.toLowerCase()+"@partico.app", firstName: fn, lastName: ln, bio: "", profilePic: null, is_public: !!isPub }; };
+  var users = {
+    u_me:       U("u_me", "You", "(demo)", false),
+    u_neon:     U("u_neon", "Neon", "Nightclub", true),
+    u_sam:      U("u_sam", "Sam", "Rivera", false),
+    u_alex:     U("u_alex", "Alex", "Chen", false),
+    u_jordan:   U("u_jordan", "Jordan", "Lee", false),
+    u_anchor:   U("u_anchor", "The Anchor", "Pub", true),
+    u_marathon: U("u_marathon", "City", "Marathon", true),
+    u_pat:      U("u_pat", "Pat", "Doe", false)
+  };
+  users.u_neon.bio = "Late-night house & techno. Follow for event drops.";
+  users.u_anchor.bio = "Your friendly local. Quiz nights every Thursday.";
+  // me's relationships (mutable). friends are also in following (mutual active).
+  var S = {
+    friends: ["u_sam"],
+    following: ["u_neon", "u_sam"],
+    followers: ["u_anchor", "u_sam"],
+    outgoing: ["u_alex"],
+    incoming: ["u_jordan"]
+  };
+  var rm = function(arr, id){ var i = arr.indexOf(id); if (i >= 0) arr.splice(i, 1); };
+  var add = function(arr, id){ if (arr.indexOf(id) < 0) arr.push(id); };
+  var relOf = function(id){
+    if (S.friends.indexOf(id) >= 0) return "friend";
+    if (S.following.indexOf(id) >= 0) return "following";
+    if (S.followers.indexOf(id) >= 0) return "follower";
+    if (S.outgoing.indexOf(id) >= 0) return "requested";
+    if (S.incoming.indexOf(id) >= 0) return "incoming";
+    return "stranger";
+  };
+  var party = function(id, hostId, title, eventType, audience){
+    return { id: id, hostId: hostId, title: title, eventType: eventType, audience: audience,
+      isPrivate: false, dates: [{ date: "2026-07-18", time: "19:30" }],
+      location: { address: "Bristol, UK" }, maxCapacity: 60, invites: [],
+      coverImage: null, createdAt: Date.now() - (parseInt(id.replace(/\D/g,""),10) || 0) * 1e6 };
+  };
+  var parties = [
+    party("p1", "u_neon", "Neon Saturday: House Night", "party", "everyone"),
+    party("p2", "u_sam", "Sam's Rooftop BBQ", "bbq", "friends"),
+    party("p3", "u_marathon", "City Marathon Meetup", "party", "everyone"),
+    party("p4", "u_anchor", "The Anchor: Quiz Night", "party", "everyone")
+  ];
+  var profileList = function(ids){ return ids.map(function(id){ return users[id]; }).filter(Boolean); };
+  var meState = function(){
+    var u = Object.assign({}, users.u_me);
+    return {
+      user: u,
+      friends: S.friends.slice(),
+      following: S.following.slice(),
+      followers: S.followers.slice(),
+      outgoingRequests: S.outgoing.slice(),
+      incomingRequests: S.incoming.slice(),
+      friendRequests: S.incoming.map(function(from){ return { from: from, status: "pending" }; }),
+      parties: [],
+      profiles: Object.keys(users).map(function(k){ return users[k]; })
+    };
+  };
+  var doFollow = function(targetId){
+    var t = users[targetId]; if (!t) return { success: false };
+    if (S.incoming.indexOf(targetId) >= 0 || S.followers.indexOf(targetId) >= 0) {
+      rm(S.incoming, targetId); add(S.friends, targetId); add(S.following, targetId); add(S.followers, targetId);
+      return { success: true, status: "friend" };
+    }
+    if (t.is_public) { add(S.following, targetId); return { success: true, status: "active" }; }
+    add(S.outgoing, targetId); return { success: true, status: "pending" };
+  };
+  var doUnfollow = function(targetId){ rm(S.following, targetId); rm(S.friends, targetId); rm(S.outgoing, targetId); return { success: true }; };
+  var doRespond = function(fromUserId, accept){
+    rm(S.incoming, fromUserId);
+    if (accept) { add(S.friends, fromUserId); add(S.following, fromUserId); add(S.followers, fromUserId); }
+    return { success: true };
+  };
+  var json = function(data, status){ return Promise.resolve({ ok: (status || 200) < 400, status: status || 200, json: function(){ return Promise.resolve(data); } }); };
+  var origFetch = window.fetch ? window.fetch.bind(window) : null;
+  window.fetch = function(url, opts){
+    opts = opts || {};
+    var path = String(url);
+    var api = path.indexOf("/api/") >= 0 ? path.slice(path.indexOf("/api/")) : null;
+    if (!api) { return origFetch ? origFetch(url, opts) : json({}, 404); }
+    api = api.split("#")[0];
+    var qIndex = api.indexOf("?"); var query = ""; if (qIndex >= 0) { query = api.slice(qIndex + 1); api = api.slice(0, qIndex); }
+    var body = {}; try { if (opts.body) body = JSON.parse(opts.body); } catch (e) {}
+    if (api === "/api/state") return json(meState());
+    if (api === "/api/discover") {
+      var pub = parties.filter(function(p){ var r = relOf(p.hostId); if (p.audience === "friends") return r === "friend"; if (p.audience === "mutual") return r === "friend" || r === "mutual"; return true; });
+      var withRel = pub.map(function(p){ return Object.assign({}, p, { viewerRelationship: relOf(p.hostId) }); });
+      return json({ parties: withRel, profiles: profileList(pub.map(function(p){ return p.hostId; })) });
+    }
+    if (api === "/api/follow" || api === "/api/friends/request") return json(doFollow(body.targetId || body.toUserId));
+    if (api === "/api/unfollow" || api === "/api/friends/remove") return json(doUnfollow(body.targetId || body.userId));
+    if (api === "/api/follow/respond" || api === "/api/friends/respond") return json(doRespond(body.fromUserId, body.accept === true));
+    if (api === "/api/users/me") { if (opts.method === "PUT") { Object.keys(body).forEach(function(k){ if (k in users.u_me) users.u_me[k] = body[k]; }); } return json({ user: Object.assign({}, users.u_me) }); }
+    if (api === "/api/users/search") {
+      var m = (query.match(/(?:^|&)q=([^&]*)/) || [])[1] || ""; var q = decodeURIComponent(m).toLowerCase();
+      var list = Object.keys(users).map(function(k){ return users[k]; }).filter(function(u){ return u.id !== "u_me" && (!q || (u.firstName + " " + u.lastName + " " + u.username).toLowerCase().indexOf(q) >= 0); });
+      return json({ users: list });
+    }
+    return json({ success: true });
+  };
+  // Seed a logged-in demo session so the app boots straight to Home.
+  try {
+    localStorage.setItem("partico_auth_token", JSON.stringify("demo-token"));
+    localStorage.setItem("partico_current_user", JSON.stringify(users.u_me));
+    localStorage.setItem("partico_users", JSON.stringify([users.u_me]));
+    localStorage.setItem("partico_parties", JSON.stringify([]));
+    localStorage.setItem("partico_visited", JSON.stringify("yes"));
+  } catch (e) {}
+})();
 // Mask an email for display, e.g. tob*****s11@ic***d.com — protects other
 // people's data while still being recognisable
 const maskEmail = (email) => {
@@ -451,7 +567,7 @@ const AppProvider = ({ children }) => {
       let profiles = (data.profiles || []).map((p) => toLocalProfile(p, localUsers.find((u) => u.id === p.id) || {}));
       profiles = profiles.map((p) => {
         if (p.id === data.user.id) {
-          return { ...p, friends: data.friends || [], friendRequests: data.friendRequests || [] };
+          return { ...p, friends: data.friends || [], friendRequests: data.friendRequests || [], following: data.following || [], followers: data.followers || [], outgoingRequests: data.outgoingRequests || [], is_public: data.user.is_public === true };
         }
         if ((data.outgoingRequests || []).includes(p.id)) {
           return { ...p, friendRequests: [...(p.friendRequests || []).filter((r) => r.from !== data.user.id), { from: data.user.id, status: "pending" }] };
@@ -1924,7 +2040,7 @@ const HomeScreen = () => {
     const host = getUser(p.hostId);
     const dateStr = p.confirmedDate ? fmtDate(p.confirmedDate.date) : p.dates.length > 0 ? fmtDate(p.dates[0].date) : "Date TBD";
     return /* @__PURE__ */ React.createElement("div", { key: p.id, className: "card", style: { marginBottom: 10, cursor: "pointer" }, onClick: () => navigate("partyDetail", { partyId: p.id }) }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, p.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w50)", marginTop: 2 } }, "by ", host?.firstName, " ", host?.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w40)", marginTop: 2 } }, "\u{1F4C5} ", dateStr)), /* @__PURE__ */ React.createElement(StatusBadge, { status: "accepted" })));
-  })), /* @__PURE__ */ React.createElement(PinBoard, { currentUser, parties, navigate }), photoFeed.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { margin: "0 16px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700, marginBottom: 10 } }, "\u{1F4F8} Party Memories"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 } }, photoFeed.map((ph) => /* @__PURE__ */ React.createElement("div", { key: ph.id, style: { position: "relative", paddingTop: "100%", borderRadius: 10, overflow: "hidden", background: "var(--w05)", cursor: "pointer" }, onClick: () => navigate("partyDetail", { partyId: ph.partyId, tab: "photos" }) }, /* @__PURE__ */ React.createElement("img", { src: ph.dataUrl, style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }, alt: "" }), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent,rgba(0,0,0,0.7))", padding: "8px 6px 4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "var(--w80)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, ph.partyTitle)))))), suggestions.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { margin: "0 16px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700, marginBottom: 10 } }, "\u{1F465} People You May Know"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8 } }, suggestions.map(({ user, mutualCount }) => /* @__PURE__ */ React.createElement("div", { key: user.id, style: { background: "var(--w07)", border: "1px solid var(--w12)", borderRadius: 16, padding: "14px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, minWidth: 120, flexShrink: 0 } }, /* @__PURE__ */ React.createElement(Avatar, { user, size: 50 }), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, textAlign: "center", lineHeight: 1.3 } }, user.firstName, " ", user.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--w45)", textAlign: "center" } }, mutualCount, " mutual ", mutualCount === 1 ? "friend" : "friends"), (() => { const { text, action } = followLabel(currentUser, user); return /* @__PURE__ */ React.createElement("button", { onClick: () => { if (action === "follow") { follow(user.id); showHomeToast("Done \u{1F44B}"); } else if (action === "unfollow") { unfollow(user.id); } }, disabled: action === "none", style: { background: "linear-gradient(135deg,#00ff41,#00d944)", color: "#fff", border: "none", borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: action === "none" ? "default" : "pointer", opacity: action === "none" ? 0.6 : 1, width: "100%" } }, text); })()))), /* @__PURE__ */ React.createElement(BottomNav, { screen: "home", navigate }));
+  })), /* @__PURE__ */ React.createElement(PinBoard, { currentUser, parties, navigate }), photoFeed.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { margin: "0 16px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700, marginBottom: 10 } }, "\u{1F4F8} Party Memories"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 } }, photoFeed.map((ph) => /* @__PURE__ */ React.createElement("div", { key: ph.id, style: { position: "relative", paddingTop: "100%", borderRadius: 10, overflow: "hidden", background: "var(--w05)", cursor: "pointer" }, onClick: () => navigate("partyDetail", { partyId: ph.partyId, tab: "photos" }) }, /* @__PURE__ */ React.createElement("img", { src: ph.dataUrl, style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }, alt: "" }), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent,rgba(0,0,0,0.7))", padding: "8px 6px 4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "var(--w80)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, ph.partyTitle)))))), suggestions.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { margin: "0 16px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700, marginBottom: 10 } }, "\u{1F465} People You May Know"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8 } }, suggestions.map(({ user, mutualCount }) => /* @__PURE__ */ React.createElement("div", { key: user.id, style: { background: "var(--w07)", border: "1px solid var(--w12)", borderRadius: 16, padding: "14px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, minWidth: 120, flexShrink: 0 } }, /* @__PURE__ */ React.createElement(Avatar, { user, size: 50 }), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, textAlign: "center", lineHeight: 1.3 } }, user.firstName, " ", user.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--w45)", textAlign: "center" } }, mutualCount, " mutual ", mutualCount === 1 ? "friend" : "friends"), (() => { const { text, action } = followLabel(currentUser, user); return /* @__PURE__ */ React.createElement("button", { onClick: () => { if (action === "follow") { follow(user.id); showHomeToast("Done \u{1F44B}"); } else if (action === "unfollow") { unfollow(user.id); } }, disabled: action === "none", style: { background: "linear-gradient(135deg,#00ff41,#00d944)", color: "#fff", border: "none", borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: action === "none" ? "default" : "pointer", opacity: action === "none" ? 0.6 : 1, width: "100%" } }, text); })())))), /* @__PURE__ */ React.createElement(BottomNav, { screen: "home", navigate }));
 };
 // Cork Board Style Pinboard with Draggable Polaroids & Persistent Positions
 const PinBoard = ({ currentUser, parties, navigate }) => {
