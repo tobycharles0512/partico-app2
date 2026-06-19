@@ -125,6 +125,27 @@ input.input-field[type="date"],input.input-field[type="time"]{min-width:0;}
 .field-row > *{min-width:0;}
 @media (max-width:430px){.field-row{grid-template-columns:1fr;}}
 .badge{background:linear-gradient(135deg,#00ff41,#00d944);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;color:#000;}
+/* DEMO PREVIEW ONLY: frame the app as a phone on wider (desktop) screens.
+   On an actual phone (<=479px) this does nothing and the app fills the screen.
+   transform on #root makes it the containing block for position:fixed children
+   (sticky header + bottom nav), so they stay inside the phone frame. */
+@media (min-width:480px){
+  html{background:#0a0a0c !important;}
+  body{background:#0a0a0c !important;}
+  #root{
+    width:414px !important;
+    height:92vh !important;
+    max-height:900px !important;
+    margin:3vh auto !important;
+    position:relative !important;
+    transform:translateZ(0);
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    border-radius:38px !important;
+    box-shadow:0 0 0 10px #15151a, 0 24px 60px rgba(0,0,0,0.7) !important;
+  }
+  #root::-webkit-scrollbar{width:0;background:transparent;}
+}
 </style>
 </head>
 <body>
