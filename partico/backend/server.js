@@ -6,6 +6,8 @@ const WebSocket = require('ws');
 const cors = require('cors');
 const { validateMessageText, buildMessage, appendMessage } = require('./messages');
 const { buildStatePartyOr } = require('./parties');
+const { followAction, deriveRelationships } = require('./follows');
+const { selectDiscoverable, relationshipTo } = require('./discover');
 require('dotenv').config();
 
 const app = express();
@@ -559,6 +561,7 @@ function publicUser(u) {
     lastName: u.lastName || '',
     bio: u.bio || '',
     profilePic: u.profilePic || null,
+    is_public: u.is_public === true,
   };
 }
 
@@ -620,7 +623,7 @@ app.get('/api/users/search', requireAuth, async (req, res) => {
 // Update own profile
 app.put('/api/users/me', requireAuth, async (req, res) => {
   try {
-    const allowed = ['firstName', 'lastName', 'phone', 'bio', 'profilePic'];
+    const allowed = ['firstName', 'lastName', 'phone', 'bio', 'profilePic', 'is_public'];
     const updates = {};
     for (const k of allowed) {
       if (req.body[k] !== undefined) updates[k] = req.body[k];
@@ -651,27 +654,20 @@ app.get('/api/state', requireAuth, async (req, res) => {
   try {
     const me = req.user;
 
-    const { data: friendships, error: fErr } = await supabase
-      .from('partico_friendships')
-      .select('*')
-      .or(`requester_id.eq.${me.id},addressee_id.eq.${me.id}`);
+    const { data: followRows, error: fErr } = await supabase
+      .from('partico_follows')
+      .select('follower_id, followee_id, status')
+      .or(`follower_id.eq.${me.id},followee_id.eq.${me.id}`);
     if (fErr) {
-      console.error('Friendships query error:', fErr);
+      console.error('Follows query error:', fErr);
       return res.status(500).json({ error: 'State load failed' });
     }
-
-    const friends = [];
-    const friendRequests = []; // incoming, pending
-    const outgoingRequests = []; // sent by me, pending
-    for (const f of friendships || []) {
-      if (f.status === 'accepted') {
-        friends.push(f.requester_id === me.id ? f.addressee_id : f.requester_id);
-      } else if (f.addressee_id === me.id) {
-        friendRequests.push({ from: f.requester_id, status: 'pending' });
-      } else {
-        outgoingRequests.push(f.addressee_id);
-      }
-    }
+    const rel = deriveRelationships(me.id, followRows || []);
+    const friends = rel.friends;
+    const friendRequests = rel.incomingRequests.map((from) => ({ from, status: 'pending' }));
+    const outgoingRequests = rel.outgoingRequests;
+    const following = rel.following;
+    const followers = rel.followers;
 
     const { data: myInvites } = await supabase
       .from('partico_party_invites')
@@ -705,7 +701,7 @@ app.get('/api/state', requireAuth, async (req, res) => {
     );
 
     // Collect every user id we need a profile for
-    const profileIds = new Set([me.id, ...friends, ...outgoingRequests]);
+    const profileIds = new Set([me.id, ...friends, ...outgoingRequests, ...following, ...followers]);
     friendRequests.forEach((r) => profileIds.add(r.from));
     (partyRows || []).forEach((p) => profileIds.add(p.host_id));
     inviteRows.forEach((r) => profileIds.add(r.user_id));
@@ -720,10 +716,13 @@ app.get('/api/state', requireAuth, async (req, res) => {
     }
 
     res.json({
-      user: me,
+      user: { ...me, friends, following, followers, outgoingRequests },
       friends,
+      following,
+      followers,
       friendRequests,
       outgoingRequests,
+      incomingRequests: rel.incomingRequests,
       parties,
       profiles,
     });
@@ -733,37 +732,81 @@ app.get('/api/state', requireAuth, async (req, res) => {
   }
 });
 
+// ── Shared follow helpers (single source of truth used by both new and legacy routes) ──
+
+async function doFollow(meId, targetId) {
+  const { data: target } = await supabase
+    .from('partico_users').select('id, is_public').eq('id', targetId).maybeSingle();
+  if (!target) return { notFound: true };
+
+  const { data: reverse } = await supabase
+    .from('partico_follows').select('status')
+    .eq('follower_id', targetId).eq('followee_id', meId).maybeSingle();
+
+  const { data: forwardRow } = await supabase
+    .from('partico_follows').select('status')
+    .eq('follower_id', meId).eq('followee_id', targetId).maybeSingle();
+
+  let { forward, activateReverse } = followAction({
+    targetIsPublic: target.is_public === true,
+    reverseStatus: reverse ? reverse.status : null,
+  });
+  if (forwardRow && forwardRow.status === 'active') forward = 'active'; // never downgrade an established follow
+
+  const { error: upErr } = await supabase
+    .from('partico_follows')
+    .upsert({ follower_id: meId, followee_id: targetId, status: forward },
+      { onConflict: 'follower_id,followee_id' });
+  if (upErr) { console.error('Follow upsert error:', upErr); return { dbError: true }; }
+
+  if (activateReverse) {
+    await supabase.from('partico_follows')
+      .update({ status: 'active' })
+      .eq('follower_id', targetId).eq('followee_id', meId);
+  }
+  return { status: activateReverse ? 'friend' : forward };
+}
+
+async function doRespond(meId, fromUserId, accept) {
+  if (accept) {
+    const { data: updated, error: e1 } = await supabase.from('partico_follows')
+      .update({ status: 'active' })
+      .eq('follower_id', fromUserId).eq('followee_id', meId).select();
+    if (e1) { console.error('Accept request error:', e1); return { dbError: true }; }
+    if (!updated || updated.length === 0) return { success: true, status: 'none' }; // no pending request to accept
+    const { error: e2 } = await supabase.from('partico_follows')
+      .upsert({ follower_id: meId, followee_id: fromUserId, status: 'active' },
+        { onConflict: 'follower_id,followee_id' });
+    if (e2) { console.error('Accept upsert error:', e2); return { dbError: true }; }
+  } else {
+    const { error: delErr } = await supabase.from('partico_follows').delete()
+      .eq('follower_id', fromUserId).eq('followee_id', meId);
+    if (delErr) { console.error('Decline request error:', delErr); return { dbError: true }; }
+  }
+  return { success: true };
+}
+
+async function doUnfollow(meId, targetId) {
+  const { error: delErr } = await supabase.from('partico_follows').delete()
+    .eq('follower_id', meId).eq('followee_id', targetId);
+  if (delErr) { console.error('Unfollow error:', delErr); return { dbError: true }; }
+  return { success: true };
+}
+
+// ── Legacy friends routes (compatibility aliases over the follow graph) ──
+
 // Send a friend request (auto-accepts if they already requested you)
 app.post('/api/friends/request', requireAuth, async (req, res) => {
   try {
     const me = req.user;
     const toUserId = (req.body.toUserId || '').toString();
     if (!toUserId || toUserId === me.id) return res.status(400).json({ error: 'Invalid user' });
-
-    const { data: existing } = await supabase
-      .from('partico_friendships')
-      .select('*')
-      .or(`and(requester_id.eq.${me.id},addressee_id.eq.${toUserId}),and(requester_id.eq.${toUserId},addressee_id.eq.${me.id})`);
-
-    const row = (existing || [])[0];
-    if (row) {
-      if (row.status === 'pending' && row.requester_id === toUserId) {
-        // They already asked us — accept
-        await supabase.from('partico_friendships').update({ status: 'accepted' }).eq('id', row.id);
-        return res.json({ success: true, status: 'accepted' });
-      }
-      return res.json({ success: true, status: row.status });
-    }
-
-    const { error } = await supabase
-      .from('partico_friendships')
-      .insert([{ requester_id: me.id, addressee_id: toUserId, status: 'pending' }]);
-    if (error) {
-      console.error('Friend request error:', error);
-      return res.status(500).json({ error: 'Friend request failed' });
-    }
-    res.json({ success: true, status: 'pending' });
+    const result = await doFollow(me.id, toUserId);
+    if (result.notFound) return res.status(404).json({ error: 'User not found' });
+    if (result.dbError) return res.status(500).json({ error: 'Friend request failed' });
+    res.json({ success: true, status: result.status });
   } catch (e) {
+    console.error('Friend request error:', e);
     res.status(500).json({ error: 'Friend request failed' });
   }
 });
@@ -774,40 +817,173 @@ app.post('/api/friends/respond', requireAuth, async (req, res) => {
     const me = req.user;
     const { fromUserId, accept } = req.body;
     if (!fromUserId) return res.status(400).json({ error: 'fromUserId required' });
-
-    if (accept) {
-      const { error } = await supabase
-        .from('partico_friendships')
-        .update({ status: 'accepted' })
-        .eq('requester_id', fromUserId)
-        .eq('addressee_id', me.id);
-      if (error) return res.status(500).json({ error: 'Failed to accept request' });
-    } else {
-      await supabase
-        .from('partico_friendships')
-        .delete()
-        .eq('requester_id', fromUserId)
-        .eq('addressee_id', me.id);
-    }
+    const result = await doRespond(me.id, fromUserId.toString(), accept === true);
+    if (result.dbError) return res.status(500).json({ error: 'Failed to respond to request' });
     res.json({ success: true });
   } catch (e) {
+    console.error('Friends respond error:', e);
     res.status(500).json({ error: 'Failed to respond to request' });
   }
 });
 
-// Remove a friend
+// Remove a friend: one-directional unfollow (deletes caller's outbound edge only;
+// the reverse edge survives until the other user unfollows — Instagram-style).
 app.post('/api/friends/remove', requireAuth, async (req, res) => {
   try {
     const me = req.user;
     const userId = (req.body.userId || '').toString();
     if (!userId) return res.status(400).json({ error: 'userId required' });
-    await supabase
-      .from('partico_friendships')
-      .delete()
-      .or(`and(requester_id.eq.${me.id},addressee_id.eq.${userId}),and(requester_id.eq.${userId},addressee_id.eq.${me.id})`);
+    const result = await doUnfollow(me.id, userId);
+    if (result.dbError) return res.status(500).json({ error: 'Failed to remove friend' });
     res.json({ success: true });
   } catch (e) {
+    console.error('Friends remove error:', e);
     res.status(500).json({ error: 'Failed to remove friend' });
+  }
+});
+
+// ── New follow endpoints ──
+
+// Follow a user. Public target -> active immediately. Private target ->
+// pending (a friend request). If the target already follows/requested us,
+// following back makes us friends (both edges active). Replaces friends/request.
+app.post('/api/follow', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+    const targetId = (req.body.targetId || req.body.toUserId || '').toString();
+    if (!targetId || targetId === me.id) return res.status(400).json({ error: 'Invalid user' });
+    const result = await doFollow(me.id, targetId);
+    if (result.notFound) return res.status(404).json({ error: 'User not found' });
+    if (result.dbError) return res.status(500).json({ error: 'Follow failed' });
+    res.json({ success: true, status: result.status });
+  } catch (e) {
+    console.error('Follow error:', e);
+    res.status(500).json({ error: 'Follow failed' });
+  }
+});
+
+// Approve or decline an incoming follow request. Approving creates the mutual
+// active pair (instant friends). Declining deletes the pending edge.
+app.post('/api/follow/respond', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+    const fromUserId = (req.body.fromUserId || '').toString();
+    const accept = req.body.accept === true;
+    if (!fromUserId) return res.status(400).json({ error: 'fromUserId required' });
+    const result = await doRespond(me.id, fromUserId, accept);
+    if (result.dbError) return res.status(500).json({ error: 'Failed to respond to request' });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Follow respond error:', e);
+    res.status(500).json({ error: 'Failed to respond to request' });
+  }
+});
+
+// Unfollow: delete only my outbound edge. The reverse edge survives
+// (Instagram-style). Replaces friends/remove.
+app.post('/api/unfollow', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+    const targetId = (req.body.targetId || req.body.userId || '').toString();
+    if (!targetId) return res.status(400).json({ error: 'targetId required' });
+    const result = await doUnfollow(me.id, targetId);
+    if (result.dbError) return res.status(500).json({ error: 'Unfollow failed' });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Unfollow error:', e);
+    res.status(500).json({ error: 'Unfollow failed' });
+  }
+});
+
+// Discover feed: public events the requester may see, with audience rules
+// (everyone / mutual / friends) enforced server-side and viewerRelationship
+// attached so the client can bucket the For You / Following / Friends tabs.
+app.get('/api/discover', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+
+    const { data: myFollowRows, error: fErr } = await supabase
+      .from('partico_follows')
+      .select('follower_id, followee_id, status')
+      .or(`follower_id.eq.${me.id},followee_id.eq.${me.id}`);
+    if (fErr) {
+      console.error('Discover follows error:', fErr);
+      return res.status(500).json({ error: 'Discover failed' });
+    }
+    const myFriendIds = deriveRelationships(me.id, myFollowRows || []).friends;
+
+    const { data: allRows, error: pErr } = await supabase
+      .from('partico_parties')
+      .select('id, host_id, data');
+    if (pErr) {
+      console.error('Discover parties error:', pErr);
+      return res.status(500).json({ error: 'Discover failed' });
+    }
+    const publicRows = (allRows || []).filter(
+      (r) => r.data && r.data.isPrivate === false && r.host_id !== me.id);
+
+    const hostIds = [...new Set(publicRows.map((r) => r.host_id))];
+    const hostFriendsById = {};
+    if (hostIds.length > 0) {
+      const { data: hostRows, error: hfErr } = await supabase
+        .from('partico_follows')
+        .select('follower_id, followee_id, status')
+        .eq('status', 'active')
+        .or(`follower_id.in.(${hostIds.join(',')}),followee_id.in.(${hostIds.join(',')})`);
+      if (hfErr) {
+        console.error('Discover host-follows error:', hfErr);
+        return res.status(500).json({ error: 'Discover failed' });
+      }
+      for (const hostId of hostIds) {
+        hostFriendsById[hostId] = deriveRelationships(hostId, hostRows || []).friends;
+      }
+    }
+
+    const candidates = publicRows.map((r) => ({
+      id: r.id,
+      hostId: r.host_id,
+      isPrivate: false,
+      audience: (r.data && r.data.audience) || 'everyone',
+    }));
+    const eligibleIds = new Set(
+      selectDiscoverable({
+        parties: candidates,
+        viewerId: me.id,
+        viewerFriendIds: myFriendIds,
+        hostFriendsById,
+      }).map((p) => p.id));
+    const eligibleRows = publicRows.filter((r) => eligibleIds.has(r.id));
+
+    const partyIds = eligibleRows.map((r) => r.id);
+    let inviteRows = [];
+    if (partyIds.length > 0) {
+      const { data: ir } = await supabase
+        .from('partico_party_invites')
+        .select('party_id, user_id, status')
+        .in('party_id', partyIds);
+      inviteRows = ir || [];
+    }
+    const parties = eligibleRows.map((row) => {
+      const composed = composeParty(row, inviteRows.filter((r) => r.party_id === row.id));
+      composed.viewerRelationship = relationshipTo(
+        me.id, row.host_id, myFriendIds, hostFriendsById[row.host_id] || []);
+      return composed;
+    });
+
+    const profileIds = [...new Set(eligibleRows.map((r) => r.host_id))];
+    let profiles = [];
+    if (profileIds.length > 0) {
+      const { data: profRows } = await supabase
+        .from('partico_users')
+        .select('*')
+        .in('id', profileIds);
+      profiles = (profRows || []).map(publicUser);
+    }
+
+    res.json({ parties, profiles });
+  } catch (e) {
+    console.error('Discover error:', e);
+    res.status(500).json({ error: 'Discover failed' });
   }
 });
 
@@ -1102,6 +1278,13 @@ app.get('/api/diag/config', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Only start the HTTP listener when run directly (node server.js). When required
+// by a test, export the app + a Supabase injector so endpoints can be exercised
+// against a stub without a real DB.
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+module.exports = { app, __setSupabase: (client) => { supabase = client; } };
