@@ -2890,7 +2890,7 @@ const InvitationScreen = () => {
   return React.createElement("div", { className: "screen", style: { background: getThemedBackground() } },
     party.coverImage && React.createElement("div", { style: { position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" } },
       React.createElement("img", { src: party.coverImage, style: { width: "100%", height: "100%", objectFit: "cover" }, alt: "" }),
-      React.createElement("div", { style: { position: "absolute", inset: 0, background: "rgba(13,13,13,0.82)" } })
+      React.createElement("div", { style: { position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(13,13,13,0.42) 0%,rgba(13,13,13,0.68) 42%,rgba(13,13,13,0.9) 100%)" } })
     ),
     step > 0 && currentStep !== "done" && React.createElement("div", { style: { padding: "50px 20px 14px", background: "var(--header)", backdropFilter: "blur(20px)", borderBottom: "1px solid var(--w08)", position: "sticky", top: 0, zIndex: 50 } },
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 10 } },
