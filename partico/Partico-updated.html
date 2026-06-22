@@ -117,13 +117,15 @@ button{font-family:inherit;cursor:pointer;border:none;}
 .input-field{background:var(--w08);border:1px solid var(--w15);border-radius:12px;padding:14px 16px;font-size:15px;color:var(--text);width:100%;min-width:0;}
 .input-field::placeholder{color:var(--w40);}
 .input-field:focus{border-color:#00ff41;background:rgba(0,255,65,0.08);}
-/* Native date/time inputs have an intrinsic min-width; keep them from overflowing their grid/flex cell */
-input.input-field[type="date"],input.input-field[type="time"]{min-width:0;}
-/* Two-up field row: minmax(0,1fr) lets cells shrink (native pickers won't force overflow), and it
-   collapses to a single column on phones so the date/time pickers aren't squashed */
+/* Native date/time inputs have an intrinsic min-width; min-width:0 lets them shrink to fit their
+   cell, and font-size:16px stops iOS Safari from auto-zooming the page when they're focused */
+input.input-field[type="date"],input.input-field[type="time"]{min-width:0;font-size:16px;-webkit-appearance:none;appearance:none;}
+/* Two-up field row: minmax(0,1fr) lets cells shrink so Date + Time always sit together on one row,
+   even on the narrowest iPhone, instead of stacking or overflowing */
 .field-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;}
 .field-row > *{min-width:0;}
-@media (max-width:430px){.field-row{grid-template-columns:1fr;}}
+/* On phones, tighten the native pickers' padding so the two fit side by side without clipping */
+@media (max-width:430px){.field-row input.input-field{padding-left:10px;padding-right:8px;font-size:15px;}}
 .badge{background:linear-gradient(135deg,#00ff41,#00d944);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;color:#000;}
 </style>
 </head>
