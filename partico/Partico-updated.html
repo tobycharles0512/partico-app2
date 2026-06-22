@@ -93,6 +93,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif,'Apple C
 ::-webkit-scrollbar{width:4px;}
 .leaflet-container{border-radius:14px;z-index:1;}
 .leaflet-control-attribution{display:none;}
+.leaflet-popup-content-wrapper{background:#161616;color:#fff;border:1px solid rgba(255,255,255,0.15);border-radius:14px;}
+.leaflet-popup-tip{background:#161616;}
+.leaflet-popup-content{margin:12px;width:222px!important;}
+.leaflet-popup-close-button{color:#fff!important;}
 ::-webkit-scrollbar-track{background:var(--w05);}
 ::-webkit-scrollbar-thumb{background:linear-gradient(#00ff41,#00d944);border-radius:4px;}
 input,textarea,select{font-family:inherit;outline:none;}
@@ -3355,6 +3359,195 @@ const NotificationsScreen = () => {
     return /* @__PURE__ */ React.createElement("div", { key: p.id, className: "card", style: { marginBottom: 10, cursor: "pointer" }, onClick: () => navigate("invitation", { partyId: p.id }) }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 32 } }, "\u{1F389}"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, p.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "var(--w50)" } }, "You've been invited by ", host?.firstName, "!"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#00ff41", fontWeight: 600, marginTop: 4 } }, "Tap to respond \u2192"))));
   })))), /* @__PURE__ */ React.createElement(BottomNav, { screen: "home", navigate }));
 };
+// ---- Discover map helpers ----
+const MAP_PIN_EXACT = '<div style="width:28px;height:28px;background:linear-gradient(135deg,#00ff41,#00d944);border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>';
+const MAP_PIN_APPROX = '<div style="width:28px;height:28px;background:#7a7a7a;border:3px dashed #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>';
+const mapEsc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function milesBetween(a, b) {
+  const R = 3958.8, toRad = (d) => d * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(s));
+}
+const mapGeocodeGet = (addr) => { try { return JSON.parse(localStorage.getItem("partico_geocode") || "{}")[addr.trim().toLowerCase()] || null; } catch (e) { return null; } };
+const mapGeocodeSet = (addr, coord) => { try { const m = JSON.parse(localStorage.getItem("partico_geocode") || "{}"); m[addr.trim().toLowerCase()] = coord; localStorage.setItem("partico_geocode", JSON.stringify(m)); } catch (e) {} };
+async function mapGeocode(addr) {
+  const cached = mapGeocodeGet(addr);
+  if (cached) return cached;
+  try {
+    const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + encodeURIComponent(addr));
+    const d = await r.json();
+    if (d && d[0]) { const c = { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon) }; mapGeocodeSet(addr, c); return c; }
+  } catch (e) {}
+  return null;
+}
+function mapPopupHtml(p, dist, exact, host, currentUser) {
+  const t = EVENT_TYPES.find((x) => x.id === p.eventType);
+  const grad = t ? t.grad : "linear-gradient(135deg,#00ff41,#00d944)";
+  const emoji = t ? t.emoji : "\u{1F389}";
+  const accepted = (p.invites || []).filter((i) => i.status === "accepted").length;
+  const cap = p.maxCapacity;
+  const full = cap && accepted >= cap;
+  const joined = (p.invites || []).some((i) => i.userId === (currentUser && currentUser.id));
+  const dateStr = p.confirmedDate ? fmtDate(p.confirmedDate.date) : (p.dates && p.dates[0] ? fmtDate(p.dates[0].date) : "Date TBD");
+  const hostName = host ? ((host.firstName || "") + " " + (host.lastName || "")).trim() : "";
+  const label = joined ? "✅ Joined" : full ? "Event Full" : "Join Event \u{1F389}";
+  return '<div style="width:200px">' +
+    '<div style="height:64px;border-radius:10px;background:' + grad + ';margin-bottom:8px;position:relative">' +
+      '<span style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,0.5);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff">' + emoji + (exact ? '' : ' ≈ approx') + '</span>' +
+    '</div>' +
+    '<div style="font-weight:800;font-size:15px;color:#fff;margin-bottom:2px">' + mapEsc(p.title || 'Event') + '</div>' +
+    (hostName ? '<div style="font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:4px">by ' + mapEsc(hostName) + '</div>' : '') +
+    '<div style="font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:2px">\u{1F4C5} ' + mapEsc(dateStr) + '</div>' +
+    '<div style="font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:8px">\u{1F4CD} ' + dist.toFixed(1) + ' mi away' + (cap ? ' · ' + (full ? 'Full' : (cap - accepted) + ' left') : '') + '</div>' +
+    '<button id="map-join-' + p.id + '"' + (full && !joined ? ' disabled' : '') + ' style="width:100%;border:none;border-radius:10px;padding:9px;font-size:14px;font-weight:700;cursor:pointer;background:' + (joined ? 'rgba(52,211,153,0.3)' : 'linear-gradient(135deg,#00ff41,#00d944)') + ';color:' + (joined ? '#a7f3d0' : '#000') + '">' + label + '</button>' +
+  '</div>';
+}
+const DiscoverMap = ({ events, users, currentUser, onJoin, navigate }) => {
+  const mapRef = useRef(null);
+  const leafletMap = useRef(null);
+  const meMarker = useRef(null);
+  const radiusCircle = useRef(null);
+  const markerLayer = useRef(null);
+  const markersById = useRef({});
+  const eventsRef = useRef(events);
+  const currentUserRef = useRef(currentUser);
+  const onJoinRef = useRef(onJoin);
+  eventsRef.current = events;
+  currentUserRef.current = currentUser;
+  onJoinRef.current = onJoin;
+  const [center, setCenter] = useState({ lat: 51.5074, lng: -0.1278 });
+  const [radiusMiles, setRadiusMiles] = useState(12);
+  const [search, setSearch] = useState("");
+  const [geo, setGeo] = useState({});
+  const [status, setStatus] = useState("");
+
+  const resolved = events.map((p) => {
+    const vlat = p.location && p.location.venueLat, vlng = p.location && p.location.venueLng;
+    if (vlat != null && vlng != null) return { p, lat: vlat, lng: vlng, exact: true };
+    const g = geo[p.id];
+    if (g) return { p, lat: g.lat, lng: g.lng, exact: false };
+    return null;
+  }).filter(Boolean);
+
+  useEffect(() => {
+    if (!mapRef.current || leafletMap.current) return;
+    if (typeof L === "undefined") { setStatus("Map failed to load — try refreshing"); return; }
+    const map = L.map(mapRef.current, { zoomControl: true, attributionControl: false }).setView([center.lat, center.lng], 11);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+    leafletMap.current = map;
+    radiusCircle.current = L.circle([center.lat, center.lng], { radius: radiusMiles * 1609.34, color: "#00ff41", weight: 1.5, fillColor: "#00ff41", fillOpacity: 0.08 }).addTo(map);
+    const meIcon = L.divIcon({ html: '<div style="width:18px;height:18px;border-radius:50%;background:#2f9bff;border:3px solid #fff;box-shadow:0 0 0 6px rgba(47,155,255,0.25)"></div>', iconSize: [18, 18], iconAnchor: [9, 9], className: "" });
+    meMarker.current = L.marker([center.lat, center.lng], { icon: meIcon }).addTo(map);
+    markerLayer.current = L.layerGroup().addTo(map);
+    setTimeout(() => { if (leafletMap.current) leafletMap.current.invalidateSize(); }, 60);
+    return () => { map.remove(); leafletMap.current = null; meMarker.current = null; radiusCircle.current = null; markerLayer.current = null; markersById.current = {}; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      for (const p of events) {
+        if (cancelled) break;
+        const hasCoords = p.location && p.location.venueLat != null && p.location.venueLng != null;
+        if (hasCoords || geo[p.id] || !(p.location && p.location.address)) continue;
+        const c = await mapGeocode(p.location.address);
+        if (c && !cancelled) setGeo((prev) => ({ ...prev, [p.id]: c }));
+        await new Promise((r) => setTimeout(r, 1100));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [events]);
+
+  useEffect(() => {
+    if (!leafletMap.current) return;
+    if (meMarker.current) meMarker.current.setLatLng([center.lat, center.lng]);
+    if (radiusCircle.current) radiusCircle.current.setLatLng([center.lat, center.lng]).setRadius(radiusMiles * 1609.34);
+    leafletMap.current.setView([center.lat, center.lng]);
+  }, [center.lat, center.lng, radiusMiles]);
+
+  const markerSig = resolved.map((r) => r.p.id + ":" + r.lat + "," + r.lng).join("|");
+  useEffect(() => {
+    if (!leafletMap.current || !markerLayer.current) return;
+    markerLayer.current.clearLayers();
+    markersById.current = {};
+    resolved.forEach(({ p, lat, lng, exact }) => {
+      const dist = milesBetween(center, { lat, lng });
+      if (dist > radiusMiles) return;
+      const icon = L.divIcon({ html: exact ? MAP_PIN_EXACT : MAP_PIN_APPROX, iconSize: [28, 28], iconAnchor: [14, 28], className: "" });
+      const m = L.marker([lat, lng], { icon }).addTo(markerLayer.current);
+      m.bindPopup(() => {
+        const cur = eventsRef.current.find((e) => e.id === p.id) || p;
+        const host = users.find((u) => u.id === cur.hostId);
+        return mapPopupHtml(cur, dist, exact, host, currentUserRef.current);
+      });
+      m.on("popupopen", () => {
+        const btn = document.getElementById("map-join-" + p.id);
+        if (btn) btn.onclick = () => { onJoinRef.current(p.id); m.closePopup(); };
+      });
+      markersById.current[p.id] = m;
+    });
+  }, [markerSig, center.lat, center.lng, radiusMiles]);
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) { setStatus("Location not available on this device"); return; }
+    setStatus("Locating…");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setStatus(""); },
+      () => setStatus("Location blocked — showing default area"),
+      { timeout: 10000, maximumAge: 0 }
+    );
+  };
+  const doSearch = (e) => {
+    if (e.key !== "Enter" || !search.trim()) return;
+    setStatus("Searching…");
+    fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + encodeURIComponent(search))
+      .then((r) => r.json()).then((d) => {
+        if (d && d[0]) { setCenter({ lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon) }); setStatus(""); }
+        else setStatus("Place not found");
+      }).catch(() => setStatus("Search failed"));
+  };
+  const focusEvent = (id) => {
+    const m = markersById.current[id];
+    if (m && leafletMap.current) { leafletMap.current.setView(m.getLatLng(), 14); m.openPopup(); }
+  };
+
+  const inRange = resolved.map((r) => ({ ...r, dist: milesBetween(center, { lat: r.lat, lng: r.lng }) }))
+    .filter((r) => r.dist <= radiusMiles).sort((a, b) => a.dist - b.dist);
+
+  return /* @__PURE__ */ React.createElement(React.Fragment, null,
+    /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10, borderBottom: "1px solid var(--w08)" } },
+      /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } },
+        /* @__PURE__ */ React.createElement("button", { onClick: useMyLocation, style: { background: "var(--w10)", border: "1px solid var(--w20)", color: "var(--text)", borderRadius: 12, padding: "11px 14px", fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", cursor: "pointer" } }, "\u{1F4CD} Use my location"),
+        /* @__PURE__ */ React.createElement("input", { value: search, onChange: (e) => setSearch(e.target.value), onKeyDown: doSearch, placeholder: "or search a place / postcode…", style: { flex: 1, background: "var(--w08)", border: "1px solid var(--w15)", borderRadius: 12, padding: "11px 14px", fontSize: 14, color: "var(--text)", minWidth: 0 } })
+      ),
+      /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12 } },
+        /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13, color: "var(--w60)", whiteSpace: "nowrap" } }, "Radius"),
+        /* @__PURE__ */ React.createElement("input", { type: "range", min: 1, max: 50, value: radiusMiles, onChange: (e) => setRadiusMiles(+e.target.value), style: { flex: 1 } }),
+        /* @__PURE__ */ React.createElement("span", { style: { color: "#00ff41", fontWeight: 800, whiteSpace: "nowrap" } }, radiusMiles, " mi")
+      ),
+      status && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w50)" } }, status)
+    ),
+    /* @__PURE__ */ React.createElement("div", { ref: mapRef, style: { height: 340, width: "100%" } }),
+    /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 14px 90px" } },
+      /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "var(--w50)", marginBottom: 10 } }, /* @__PURE__ */ React.createElement("b", { style: { color: "#00ff41" } }, inRange.length), " event", inRange.length === 1 ? "" : "s", " within ", radiusMiles, " miles"),
+      inRange.length === 0
+        ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "40px 20px", color: "var(--w40)", fontSize: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 42, marginBottom: 10 } }, "\u{1F5FA}️"), "No events in this radius — try widening it.")
+        : inRange.map(({ p, exact, dist }) => {
+            const host = users.find((u) => u.id === p.hostId);
+            const t = EVENT_TYPES.find((x) => x.id === p.eventType);
+            return /* @__PURE__ */ React.createElement("div", { key: p.id, className: "card", style: { marginBottom: 12, padding: 0, overflow: "hidden", display: "flex", cursor: "pointer" }, onClick: () => focusEvent(p.id) },
+              /* @__PURE__ */ React.createElement("div", { style: { width: 90, flexShrink: 0, background: t ? t.grad : "linear-gradient(135deg,#00ff41,#00d944)" } }),
+              /* @__PURE__ */ React.createElement("div", { style: { padding: "10px 12px", flex: 1, minWidth: 0 } },
+                /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 15, marginBottom: 2 } }, (t ? t.emoji : "\u{1F389}"), " ", p.title),
+                /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w50)", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, host ? (host.firstName + " " + host.lastName) : "", exact ? "" : " · ≈ approx"),
+                /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#00ff41", fontWeight: 700 } }, "\u{1F4CD} ", dist.toFixed(1), " mi away")
+              )
+            );
+          })
+    )
+  );
+};
 const DiscoverScreen = () => {
   const { navigate, parties, users, currentUser, joinPublicEvent, loadDiscover } = useApp();
   const [tab, setTab] = useState("foryou");
@@ -3411,12 +3604,14 @@ const DiscoverScreen = () => {
     /* @__PURE__ */ React.createElement("div", { style: { background: "var(--header)", backdropFilter: "blur(20px)", padding: "50px 20px 0", borderBottom: "1px solid var(--w08)", position: "sticky", top: 0, zIndex: 50 } },
       /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 900, background: "linear-gradient(90deg,#00ff41,#00d944)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 14 } }, "🔍 Discover"),
       /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0, marginBottom: 0 } },
-        [{ id: "foryou", label: "For You" }, { id: "following", label: "Following" }, { id: "friends", label: "Friends" }].map(t =>
+        [{ id: "foryou", label: "For You" }, { id: "following", label: "Following" }, { id: "friends", label: "Friends" }, { id: "map", label: "Map" }].map(t =>
           /* @__PURE__ */ React.createElement("button", { key: t.id, onClick: () => setTab(t.id), style: { flex: 1, padding: "10px 4px", background: "none", border: "none", color: tab === t.id ? "#00ff41" : "var(--w40)", fontWeight: tab === t.id ? 700 : 400, fontSize: 14, cursor: "pointer", borderBottom: `2px solid ${tab === t.id ? "#00ff41" : "transparent"}`, transition: "all 0.2s", paddingBottom: 12 } }, t.label)
         )
       )
     ),
-    /* @__PURE__ */ React.createElement("div", { style: { padding: "16px 16px 0" } },
+    tab === "map"
+      ? /* @__PURE__ */ React.createElement(DiscoverMap, { events: visible, users, currentUser, onJoin: handleJoin, navigate })
+      : /* @__PURE__ */ React.createElement("div", { style: { padding: "16px 16px 0" } },
       filtered.length === 0 ?
         /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "60px 20px", color: "var(--w40)", fontSize: 14 } },
           /* @__PURE__ */ React.createElement("div", { style: { fontSize: 48, marginBottom: 12 } }, "🎈"),
