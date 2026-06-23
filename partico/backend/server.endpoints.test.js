@@ -194,6 +194,55 @@ test('POST /api/unfollow: deletes only the caller\'s outbound edge', async () =>
   assert.equal(del.q.eq.followee_id, 'u_x');
 });
 
+test('POST /api/parties/:id/view: a guest view increments inviteViews and preserves other party data', async () => {
+  const stub = makeStub(authAware((q) => {
+    if (q.table === 'partico_parties' && q.single) {
+      return { data: { host_id: 'u_host', data: { inviteViews: 4, coverImage: 'cover.png' } }, error: null };
+    }
+    return { data: null, error: null };
+  }));
+  __setSupabase(stub);
+  const res = await api('/api/parties/p1/view', { method: 'POST' });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.inviteViews, 5);
+  const upd = stub.calls.find((c) => c.q.op === 'update' && c.q.table === 'partico_parties');
+  assert.ok(upd, 'party row should be updated');
+  assert.equal(upd.q.payload.data.inviteViews, 5);
+  assert.equal(upd.q.payload.data.coverImage, 'cover.png'); // other fields preserved
+  assert.equal(upd.q.eq.id, 'p1');
+});
+
+test('POST /api/parties/:id/view: a first-ever view starts the count at 1', async () => {
+  const stub = makeStub(authAware((q) => {
+    if (q.table === 'partico_parties' && q.single) return { data: { host_id: 'u_host', data: {} }, error: null };
+    return { data: null, error: null };
+  }));
+  __setSupabase(stub);
+  const res = await api('/api/parties/p1/view', { method: 'POST' });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.inviteViews, 1);
+});
+
+test('POST /api/parties/:id/view: the host viewing their own invite does NOT inflate the count', async () => {
+  const stub = makeStub(authAware((q) => {
+    if (q.table === 'partico_parties' && q.single) return { data: { host_id: ME, data: { inviteViews: 7 } }, error: null };
+    return { data: null, error: null };
+  }));
+  __setSupabase(stub);
+  const res = await api('/api/parties/p1/view', { method: 'POST' });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.inviteViews, 7);
+  assert.equal(stub.calls.filter((c) => c.q.op === 'update').length, 0);
+});
+
+test('POST /api/parties/:id/view: unknown party returns 404 with no writes', async () => {
+  const stub = makeStub(authAware(() => ({ data: null, error: null })));
+  __setSupabase(stub);
+  const res = await api('/api/parties/nope/view', { method: 'POST' });
+  assert.equal(res.status, 404);
+  assert.equal(stub.calls.filter((c) => ['update', 'upsert', 'delete'].includes(c.q.op)).length, 0);
+});
+
 test('GET /api/state: derives friends/following/followers/requests from follow rows', async () => {
   const followRows = [
     { follower_id: ME, followee_id: 'fr', status: 'active' },

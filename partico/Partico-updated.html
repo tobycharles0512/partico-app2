@@ -1140,8 +1140,18 @@ const AppProvider = ({ children }) => {
       syncPartyToServer(newParties.find((p) => p.id === partyId));
     },
     trackInviteView: (partyId) => {
+      // The server is the source of truth for the count (so the host sees views
+      // from every guest, and the host's own opens don't inflate it). Bump the
+      // local copy optimistically, then reconcile with the server's tally.
       const newParties = parties.map((p) => p.id === partyId ? { ...p, inviteViews: (p.inviteViews || 0) + 1 } : p);
       saveParties(newParties);
+      apiFetch("/api/parties/" + partyId + "/view", { method: "POST" })
+        .then(({ ok, data }) => {
+          if (ok && data && typeof data.inviteViews === "number") {
+            saveParties(newParties.map((p) => p.id === partyId ? { ...p, inviteViews: data.inviteViews } : p));
+          }
+        })
+        .catch(() => {});
     }
   };
   return /* @__PURE__ */ React.createElement(AppCtx.Provider, { value: ctx }, children);

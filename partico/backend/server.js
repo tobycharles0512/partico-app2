@@ -1172,6 +1172,43 @@ app.post('/api/parties/:id/rsvp', requireAuth, async (req, res) => {
   }
 });
 
+// Record that someone opened the invite. Counting happens server-side so the
+// host sees views from ALL guests (the client can't sum across devices, and a
+// guest syncing the whole party blob would clobber host-owned fields). The
+// host's own opens don't count, so the number reflects real reach.
+// Read-modify-write isn't perfectly atomic, but it's the single source of truth
+// and matches the rest of this codebase's blob-update pattern.
+app.post('/api/parties/:id/view', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+    const partyId = req.params.id;
+
+    const { data: row, error } = await supabase
+      .from('partico_parties')
+      .select('host_id, data')
+      .eq('id', partyId)
+      .maybeSingle();
+    if (error || !row) return res.status(404).json({ error: 'Party not found' });
+
+    const current = (row.data && row.data.inviteViews) || 0;
+    // Don't let the host inflate their own analytics by opening the invite.
+    if (row.host_id === me.id) return res.json({ success: true, inviteViews: current });
+
+    const inviteViews = current + 1;
+    const { error: updErr } = await supabase
+      .from('partico_parties')
+      .update({ data: { ...(row.data || {}), inviteViews }, updated_at: new Date().toISOString() })
+      .eq('id', partyId);
+    if (updErr) {
+      console.error('Invite view update error:', updErr);
+      return res.status(500).json({ error: 'Failed to record view' });
+    }
+    res.json({ success: true, inviteViews });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to record view' });
+  }
+});
+
 // Host<->guest 1-to-1 chat. Either the host or the guest themselves may post.
 // The message is appended to the guest's invite row (server-side append = race-safe).
 // The recipient's 'message' notif is delivered client-side via the existing
