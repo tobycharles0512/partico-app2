@@ -3574,6 +3574,10 @@ const DiscoverScreen = () => {
   // because host profiles don't include friend lists); fall back to local.
   const relOf = (p) => p.viewerRelationship || relationshipToHost(p.hostId);
   const visible = publicParties.filter(p => canDiscover(audienceOf(p), relOf(p)));
+  // The feed tabs intentionally hide your own events, but on the map a host
+  // wants to see their own public event alongside everyone else's.
+  const myPublicEvents = parties.filter(p => !p.isPrivate && p.hostId === currentUser?.id);
+  const mapEvents = [...myPublicEvents, ...visible];
   const myFollowing = new Set(currentUser?.following || []);
   const filtered = tab === "foryou"
     ? visible.filter(p => audienceOf(p) !== "friends" && !myFollowing.has(p.hostId))
@@ -3610,7 +3614,7 @@ const DiscoverScreen = () => {
       )
     ),
     tab === "map"
-      ? /* @__PURE__ */ React.createElement(DiscoverMap, { events: visible, users, currentUser, onJoin: handleJoin, navigate })
+      ? /* @__PURE__ */ React.createElement(DiscoverMap, { events: mapEvents, users, currentUser, onJoin: handleJoin, navigate })
       : /* @__PURE__ */ React.createElement("div", { style: { padding: "16px 16px 0" } },
       filtered.length === 0 ?
         /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "60px 20px", color: "var(--w40)", fontSize: 14 } },
