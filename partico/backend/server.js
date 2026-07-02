@@ -71,6 +71,12 @@ try {
   console.error('Supabase init error:', err.message);
 }
 
+// In production a real secret is mandatory: the dev fallback below is public,
+// so falling back to it would make every JWT forgeable. Fail fast instead.
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET is not set in production. Refusing to start.');
+  process.exit(1);
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
@@ -394,17 +400,27 @@ app.post('/api/auth/login', rateLimit(20, 15 * 60 * 1000), async (req, res) => {
       return res.status(400).json({ error: 'Email/username and password required' });
     }
 
-    // Try to find user by email or username
+    // Try to find user by email, then username. Two exact-match `.eq()` queries
+    // instead of interpolating user input into an `.or()` filter string, which
+    // would let a crafted identifier inject extra PostgREST filter conditions.
     const normalizedInput = emailOrUsername.toLowerCase();
 
-    const { data: user, error: queryError } = await supabase
+    const byEmail = await supabase
       .from('partico_users')
       .select('*')
-      .or(`email.eq.${normalizedInput},username.eq.${normalizedInput}`)
-      .single();
+      .eq('email', normalizedInput)
+      .maybeSingle();
+    let user = byEmail.data;
+    if (!user) {
+      const byUsername = await supabase
+        .from('partico_users')
+        .select('*')
+        .eq('username', normalizedInput)
+        .maybeSingle();
+      user = byUsername.data;
+    }
 
-    if (queryError || !user) {
-      console.error('User query error:', queryError);
+    if (!user) {
       return res.status(401).json({ error: 'Invalid email/username or password' });
     }
 
@@ -1172,6 +1188,42 @@ app.post('/api/parties/:id/rsvp', requireAuth, async (req, res) => {
   }
 });
 
+// Remove a guest's invite. The host may remove any guest; a guest may remove
+// themselves. Without this, the frontend's "remove guest" DELETE hit no route
+// and the guest reappeared on the next state sync.
+app.delete('/api/parties/:id/invites/:userId', requireAuth, async (req, res) => {
+  try {
+    const me = req.user;
+    const partyId = req.params.id;
+    const targetUserId = req.params.userId;
+
+    const { data: party } = await supabase
+      .from('partico_parties')
+      .select('id, host_id')
+      .eq('id', partyId)
+      .maybeSingle();
+    if (!party) return res.json({ success: true }); // nothing to remove
+
+    const isHost = party.host_id === me.id;
+    const isSelf = me.id === targetUserId;
+    if (!isHost && !isSelf) return res.status(403).json({ error: 'Not allowed' });
+
+    const { error: delErr } = await supabase
+      .from('partico_party_invites')
+      .delete()
+      .eq('party_id', partyId)
+      .eq('user_id', targetUserId);
+    if (delErr) {
+      console.error('Invite delete error:', delErr);
+      return res.status(500).json({ error: 'Failed to remove guest' });
+    }
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Remove invite error:', e);
+    res.status(500).json({ error: 'Failed to remove guest' });
+  }
+});
+
 // Record that someone opened the invite. Counting happens server-side so the
 // host sees views from ALL guests (the client can't sum across devices, and a
 // guest syncing the whole party blob would clobber host-owned fields). The
@@ -1294,7 +1346,7 @@ app.get('/health', async (req, res) => {
     supabaseClientReady: !!supabase,
     supabaseInitError: supabaseInitError,
     dbTest,
-    supabaseUrlPreview: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 40) : 'NOT SET',
+    supabaseUrlSet: !!process.env.SUPABASE_URL,
     resendKeySet: !!process.env.RESEND_API_KEY,
     jwtSecretSet: !!process.env.JWT_SECRET,
   });
@@ -1305,7 +1357,6 @@ app.get('/api/diag/config', (req, res) => {
   res.json({
     timestamp: new Date().toISOString(),
     nodeEnv: process.env.NODE_ENV,
-    supabaseUrl: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 30) + '...' : 'NOT SET',
     supabaseUrlSet: !!process.env.SUPABASE_URL,
     supabaseKeySet: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     jwtSecretSet: !!process.env.JWT_SECRET,

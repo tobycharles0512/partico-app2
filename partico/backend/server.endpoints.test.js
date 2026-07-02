@@ -243,6 +243,71 @@ test('POST /api/parties/:id/view: unknown party returns 404 with no writes', asy
   assert.equal(stub.calls.filter((c) => ['update', 'upsert', 'delete'].includes(c.q.op)).length, 0);
 });
 
+test('DELETE /api/parties/:id/invites/:userId: the host can remove a guest', async () => {
+  const stub = makeStub(authAware((q) => {
+    if (q.table === 'partico_parties' && q.single) return { data: { id: 'p1', host_id: ME }, error: null };
+    return { data: null, error: null };
+  }));
+  __setSupabase(stub);
+  const res = await api('/api/parties/p1/invites/u_guest', { method: 'DELETE' });
+  assert.equal(res.status, 200);
+  const del = stub.calls.find((c) => c.q.op === 'delete' && c.q.table === 'partico_party_invites');
+  assert.ok(del, 'guest invite should be deleted');
+  assert.equal(del.q.eq.party_id, 'p1');
+  assert.equal(del.q.eq.user_id, 'u_guest');
+});
+
+test('DELETE /api/parties/:id/invites/:userId: a non-host removing someone else is forbidden with no writes', async () => {
+  const stub = makeStub(authAware((q) => {
+    if (q.table === 'partico_parties' && q.single) return { data: { id: 'p1', host_id: 'u_other' }, error: null };
+    return { data: null, error: null };
+  }));
+  __setSupabase(stub);
+  const res = await api('/api/parties/p1/invites/u_guest', { method: 'DELETE' });
+  assert.equal(res.status, 403);
+  assert.equal(stub.calls.filter((c) => c.q.op === 'delete').length, 0);
+});
+
+test('DELETE /api/parties/:id/invites/:userId: a guest may remove themselves', async () => {
+  const stub = makeStub(authAware((q) => {
+    if (q.table === 'partico_parties' && q.single) return { data: { id: 'p1', host_id: 'u_other' }, error: null };
+    return { data: null, error: null };
+  }));
+  __setSupabase(stub);
+  const res = await api(`/api/parties/p1/invites/${ME}`, { method: 'DELETE' });
+  assert.equal(res.status, 200);
+  const del = stub.calls.find((c) => c.q.op === 'delete' && c.q.table === 'partico_party_invites');
+  assert.ok(del, 'own invite should be deleted');
+  assert.equal(del.q.eq.user_id, ME);
+});
+
+test('POST /api/auth/login: queries by exact email/username eq (injection-safe), never a raw or() filter', async () => {
+  const bcryptjs = require('bcryptjs');
+  const hash = await bcryptjs.hash('pw12345', 10);
+  const stub = makeStub((q) => {
+    if (q.table === 'partico_users' && q.op === 'select' && q.eq.email === 'me@test.app') {
+      return { data: { id: ME, email: 'me@test.app', username: 'me', password: hash }, error: null };
+    }
+    return { data: null, error: null };
+  });
+  __setSupabase(stub);
+  const res = await api('/api/auth/login', { method: 'POST', headers: { Authorization: '' }, body: JSON.stringify({ emailOrUsername: 'me@test.app', password: 'pw12345' }) });
+  assert.equal(res.status, 200);
+  assert.ok(res.body.token, 'a JWT should be returned');
+  // No handler should build an or() filter from user input (the old injection vector).
+  assert.equal(stub.calls.filter((c) => c.q.table === 'partico_users' && c.q.or).length, 0);
+});
+
+test('POST /api/auth/login: an injection-style identifier matches nothing and is rejected', async () => {
+  const stub = makeStub((q) => {
+    // A safe eq query for the literal injection string finds no user.
+    return { data: null, error: null };
+  });
+  __setSupabase(stub);
+  const res = await api('/api/auth/login', { method: 'POST', headers: { Authorization: '' }, body: JSON.stringify({ emailOrUsername: 'x,username.eq.me', password: 'whatever' }) });
+  assert.equal(res.status, 401);
+});
+
 test('GET /api/state: derives friends/following/followers/requests from follow rows', async () => {
   const followRows = [
     { follower_id: ME, followee_id: 'fr', status: 'active' },
