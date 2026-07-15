@@ -8,6 +8,7 @@ const { validateMessageText, buildMessage, appendMessage } = require('./messages
 const { buildStatePartyOr } = require('./parties');
 const { followAction, deriveRelationships } = require('./follows');
 const { selectDiscoverable, relationshipTo } = require('./discover');
+const { sanitizePhotosSync } = require('./photo-permissions');
 require('dotenv').config();
 
 const app = express();
@@ -1013,7 +1014,7 @@ app.post('/api/parties/sync', requireAuth, async (req, res) => {
 
     const { data: existing } = await supabase
       .from('partico_parties')
-      .select('id, host_id')
+      .select('id, host_id, data')
       .eq('id', partyId)
       .maybeSingle();
 
@@ -1033,6 +1034,9 @@ app.post('/api/parties/sync', requireAuth, async (req, res) => {
     delete data.id;
     delete data.hostId;
     delete data.invites;
+    // A guest's sync can't delete/edit someone else's photo, or forge a removal
+    // request in another guest's name — only the upload owner and host can.
+    data.photos = sanitizePhotosSync(existing?.data?.photos, party.photos, me.id, isHost);
 
     const hostId = existing ? existing.host_id : me.id;
     const { error: upsertErr } = await supabase
