@@ -197,6 +197,48 @@ input.input-field[type="date"],input.input-field[type="time"]{min-width:0;font-s
 </style>
 <style id="rd-profile">
 /* profile */
+.rdp-sec{margin-bottom:18px}
+.rdp-sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:10px}
+.rdp-sec-h h3{font-family:var(--rd-display);font-size:19px;font-weight:800;letter-spacing:-.02em}
+.rdp-sec-h span{font-size:12px;--text:var(--w45)}
+.rdp-stats{--rdp-up:#00ff41;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+:root[data-theme="light"] .rdp-stats,:root[data-theme="light"] .rdp-list{--rdp-up:#0a8f2c}
+.rdp-stat{background:var(--w05);border:1px solid var(--w10);border-radius:18px;padding:12px 14px;display:grid;gap:2px;align-content:start;min-width:0}
+.rdp-stat .n{font-family:var(--rd-display);font-weight:800;font-size:28px;font-variant-numeric:tabular-nums;line-height:1.1;letter-spacing:-.02em}
+.rdp-stat .l{font-size:12px;--text:var(--w55)}
+.rdp-stat .d{font-size:11px;font-weight:700;--text:var(--rdp-up)}
+.rdp-stat .d.down{--text:var(--w40)}
+.rdp-stat.wide{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center}
+.rdp-stat.spark-tile{grid-template-columns:minmax(0,1fr);gap:6px}
+.rdp-ring{width:72px;height:72px;display:block}
+.rdp-ring circle{fill:none;stroke-width:8}
+.rdp-ring .bgc{stroke:var(--w08)}
+.rdp-ring .fg{stroke:var(--rdp-up);stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset 1.4s cubic-bezier(.2,.8,.2,1)}
+.rdp-ring text{fill:var(--text);font:800 16px var(--rd-display)}
+.rdp-spark{width:100%;height:64px;display:block;overflow:visible}
+.rdp-spark .ln{fill:none;stroke:var(--rdp-up);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;stroke-dasharray:600;stroke-dashoffset:0;transition:stroke-dashoffset 1.6s ease}
+.rdp-spark.off .ln{stroke-dashoffset:600}
+.rdp-spark .area{transition:opacity 1.2s ease .3s}
+.rdp-spark.off .area{opacity:0}
+.rdp-spark .dot{fill:var(--rdp-up);transition:opacity .4s ease 1.3s}
+.rdp-spark.off .dot{opacity:0}
+.rdp-spark text{fill:var(--w45);font-size:9px}
+.rdp-spark .grid{stroke:var(--w10)}
+.rdp-list{--rdp-up:#00ff41;display:grid;gap:6px}
+.rdp-row{display:flex;gap:12px;align-items:center;background:var(--w05);border:1px solid var(--w10);border-radius:18px;padding:10px 12px;cursor:pointer;transition:transform .15s;text-align:left;width:100%;font:inherit}
+.rdp-row:active{transform:scale(.98)}
+.rdp-date{width:46px;height:50px;border-radius:12px;background:var(--w07);display:grid;place-items:center;align-content:center;flex:none;line-height:1}
+.rdp-date span{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;--text:var(--rdp-up)}
+.rdp-date b{font-family:var(--rd-display);font-size:20px}
+.rdp-row .tx{flex:1;min-width:0}
+.rdp-row .tx b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdp-row .tx small{font-size:12px;--text:var(--w50)}
+.rdp-pill{font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px;white-space:nowrap;flex:none}
+.rdp-pill.host{background:rgba(139,92,246,.18);--text:#a78bfa}
+.rdp-pill.went{background:rgba(0,255,65,.12);--text:var(--rdp-up)}
+:root[data-theme="light"] .rdp-pill.host{--text:#6d28d9}
+.rdp-empty{font-size:13px;--text:var(--w45);padding:6px 2px}
+@media (prefers-reduced-motion:reduce){.rdp-ring .fg,.rdp-spark .ln,.rdp-spark .area,.rdp-spark .dot,.rdp-row{transition:none}}
 </style>
 </head>
 <body>
@@ -320,6 +362,73 @@ PL.friends = {};
 <script id="logic-profile">
 window.PL = window.PL || {};
 PL.profile = {};
+(function () {
+  var DAY = 86400000;
+  var MN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function nowMs(now) { return now == null ? Date.now() : (typeof now === "number" ? now : now.getTime()); }
+  function invitesOf(p) { return (p && p.invites) || []; }
+  function myInvite(p, userId) { return invitesOf(p).find(function (i) { return i.userId === userId; }) || null; }
+  // Headcount at a party: accepted guests plus the plus-ones the host approved.
+  function guestsAt(p) {
+    return invitesOf(p).reduce(function (s, i) {
+      return i.status === "accepted" ? s + 1 + (i.plusOneRequested && i.plusOneApproved ? 1 : 0) : s;
+    }, 0);
+  }
+  PL.profile.guestsAt = guestsAt;
+  // Your numbers. Only parties that have already happened count towards the 30-day and monthly figures.
+  // The last 30 days include a party exactly 30 days ago; the 30 days before run from 60 days ago up to (not incl.) 30.
+  PL.profile.stats = function (parties, userId, now) {
+    var t = nowMs(now), list = parties || [];
+    var hosted = list.filter(function (p) { return p && p.hostId === userId; });
+    var hostedPast = [];
+    hosted.forEach(function (p) { var d = PL.partyDate(p); if (d && d.getTime() <= t) hostedPast.push({ p: p, t: d.getTime(), d: d }); });
+    var cur = hostedPast.filter(function (x) { return x.t >= t - 30 * DAY; });
+    var prev = hostedPast.filter(function (x) { return x.t < t - 30 * DAY && x.t >= t - 60 * DAY; });
+    var sumGuests = function (arr) { return arr.reduce(function (s, x) { return s + guestsAt(x.p); }, 0); };
+    var guests30 = sumGuests(cur), guestsPrev = sumGuests(prev);
+    var accepted = 0, responded = 0;
+    hosted.forEach(function (p) { invitesOf(p).forEach(function (i) { if (i.status && i.status !== "pending") { responded++; if (i.status === "accepted") accepted++; } }); });
+    var attended = list.filter(function (p) {
+      if (!p || p.hostId === userId) return false;
+      var mine = myInvite(p, userId), d = PL.partyDate(p);
+      return !!(mine && mine.status === "accepted" && d && d.getTime() <= t);
+    }).length;
+    var photos = list.reduce(function (s, p) {
+      if (!p) return s;
+      var mine = p.hostId === userId || (myInvite(p, userId) || {}).status === "accepted";
+      return mine ? s + ((p.photos && p.photos.length) || 0) : s;
+    }, 0);
+    var nowD = new Date(t), months = [];
+    for (var k = 5; k >= 0; k--) {
+      var m = new Date(nowD.getFullYear(), nowD.getMonth() - k, 1);
+      months.push({ label: MN[m.getMonth()], year: m.getFullYear(), month: m.getMonth(), guests: 0 });
+    }
+    hostedPast.forEach(function (x) {
+      months.forEach(function (b) { if (x.d.getFullYear() === b.year && x.d.getMonth() === b.month) b.guests += guestsAt(x.p); });
+    });
+    var best = null;
+    months.forEach(function (b) { if (b.guests > 0 && (!best || b.guests >= best.guests)) best = b; });
+    return {
+      hosted30: cur.length, hostedDelta: cur.length - prev.length,
+      guests30: guests30, guestsDelta: guests30 - guestsPrev,
+      attended: attended, photos: photos,
+      rsvpRate: responded ? Math.round(100 * accepted / responded) : 0,
+      months: months, bestMonth: best ? best.label : null
+    };
+  };
+  // Parties you hosted or said yes to that have already happened, most recent first.
+  PL.profile.pastParties = function (parties, userId, now) {
+    var t = nowMs(now), out = [];
+    (parties || []).forEach(function (p) {
+      if (!p) return;
+      var hosted = p.hostId === userId;
+      if (!hosted && (myInvite(p, userId) || {}).status !== "accepted") return;
+      var d = PL.partyDate(p);
+      if (d && d.getTime() <= t) out.push({ party: p, date: d, hosted: hosted });
+    });
+    return out.sort(function (a, b) { return b.date - a.date; });
+  };
+})();
 </script>
 <script>
 if(typeof React==='undefined'||typeof ReactDOM==='undefined'){var _m=document.getElementById('pre-loader-msg');if(_m)_m.textContent='Could not load app — check your internet and refresh';throw new Error('React CDN failed to load');}
@@ -3470,7 +3579,7 @@ const CalendarScreen = () => {
   })), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, marginBottom: 12 } }, "Upcoming Events"), Object.entries(events).filter(([dateStr]) => new Date(dateStr) >= new Date(todayStr)).sort().slice(0, 10).map(([dateStr, evts]) => /* @__PURE__ */ React.createElement("div", { key: dateStr, className: "card", style: { marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w50)", marginBottom: 4 } }, fmtDate(dateStr)), evts.map((e, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 4 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 8, height: 8, borderRadius: "50%", background: e.type === "confirmed" ? "#34d399" : "#fbbf24", flexShrink: 0 } }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 600 } }, e.title), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: e.type === "confirmed" ? "#34d399" : "#fbbf24", marginLeft: "auto" } }, e.type === "confirmed" ? "Confirmed" : "TBD"))))), Object.keys(events).length === 0 && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "var(--w30)", fontSize: 14, padding: 20 } }, "No parties in your calendar yet"))), /* @__PURE__ */ React.createElement(BottomNav, { screen: "calendar", navigate }));
 };
 const ProfileScreen = () => {
-  const { navigate, currentUser, logout, updateCurrentUser, getHostedParties, getMyInvites, darkMode, setDarkMode } = useApp();
+  const { navigate, currentUser, logout, updateCurrentUser, getHostedParties, getMyInvites, darkMode, setDarkMode, parties, getUser } = useApp();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ bio: currentUser?.bio || "" });
   const [toast, setToast] = useState(null);
@@ -3490,7 +3599,9 @@ const ProfileScreen = () => {
   const ToggleSwitch = ({ on, onToggle }) => React.createElement("div", { onClick: onToggle, style: { width: 44, height: 24, borderRadius: 12, background: on ? "#00ff41" : "var(--w20)", position: "relative", cursor: "pointer", transition: "background 0.3s", flexShrink: 0 } }, React.createElement("div", { style: { position: "absolute", top: 2, left: on ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.3s" } }));
   const hosted = getHostedParties();
   const myInvites = getMyInvites();
-  const attended = myInvites.filter((p) => p.status === "past" || p.invites?.find((i) => i.userId === currentUser?.id && i.status === "accepted"));
+  // Same definitions as "Your stats": attended = past parties someone else hosted where you said yes.
+  const myStats = useMemo(() => PL.profile.stats(parties, currentUser?.id), [parties, currentUser?.id]);
+  const pastRows = useMemo(() => PL.profile.pastParties(parties, currentUser?.id), [parties, currentUser?.id]);
   const myQRValue = buildWebLink('add-friend?id=' + (currentUser?.id || '') + '&name=' + encodeURIComponent((currentUser?.firstName||'') + ' ' + (currentUser?.lastName||'')));
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
@@ -3518,7 +3629,7 @@ const ProfileScreen = () => {
     showToast("Profile saved! \u2705");
   };
   if (!currentUser) return null;
-  return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: "var(--bg)", paddingBottom: 80 } }, toast && /* @__PURE__ */ React.createElement(Toast, { msg: toast.msg, type: toast.type }), showQR && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }, onClick: () => setShowQR(false) }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, fontWeight: 700, marginBottom: 16 } }, "Your Partico QR Code"), /* @__PURE__ */ React.createElement(QRCode, { value: myQRValue, size: 220 }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginTop: 16, textAlign: "center" } }, "Friends scan this to add you instantly", /* @__PURE__ */ React.createElement("br", null), "Tap anywhere to close")), privacyModal && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }, onClick: () => setPrivacyModal(null) }, /* @__PURE__ */ React.createElement("div", { onClick: (e) => e.stopPropagation(), style: { background: "var(--w05)", border: "1px solid var(--w10)", borderRadius: 20, padding: "26px 22px", maxWidth: 340, textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 44, marginBottom: 10 } }, privacyModal === "toPublic" ? "\u{1F30D}" : "\u{1F512}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 19, fontWeight: 800, marginBottom: 10 } }, privacyModal === "toPublic" ? "Make your account public?" : "Make your account private?"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "var(--w55)", lineHeight: 1.65, marginBottom: 20 } }, privacyModal === "toPublic" ? "Anyone can follow you instantly — no approval needed — and your public events show up in their Following feed. Your current friends stay friends." : "New followers will have to send a request you approve before they can follow you. Your current followers stay, and your events stay among friends."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { flex: 1 }, onClick: () => setPrivacyModal(null) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1 }, onClick: () => { const next = privacyModal === "toPublic"; updateCurrentUser({ is_public: next }); apiFetch("/api/users/me", { method: "PUT", body: JSON.stringify({ is_public: next }) }).catch(() => {}); setPrivacyModal(null); } }, privacyModal === "toPublic" ? "Go Public \u{1F30D}" : "Go Private \u{1F512}")))), /* @__PURE__ */ React.createElement("div", { style: { background: "linear-gradient(135deg,rgba(0,255,65,0.2),rgba(124,58,237,0.2))", padding: "50px 20px 24px", borderBottom: "1px solid var(--w08)", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "relative", display: "inline-block", marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Avatar, { user: currentUser, size: 80 }), /* @__PURE__ */ React.createElement("button", { onClick: () => fileRef.current?.click(), style: { position: "absolute", bottom: 0, right: 0, background: "#00ff41", border: "2px solid #0d0d0d", borderRadius: "50%", width: 26, height: 26, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" } }, "\u{1F4F7}")), /* @__PURE__ */ React.createElement("input", { ref: fileRef, type: "file", accept: "image/*", style: { display: "none" }, onChange: handlePhotoChange }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800 } }, currentUser.firstName, " ", currentUser.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginTop: 2 } }, currentUser.email), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "var(--w40)", marginTop: 2 } }, "\u{1F4F1} ", currentUser.phone), currentUser.bio && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w60)", marginTop: 8, fontStyle: "italic" } }, '"', currentUser.bio, '"'), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "center", marginTop: 12 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setEditing(!editing), style: { background: "var(--w10)", border: "none", color: "#fff", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" } }, "\u270F\uFE0F Edit Bio"), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowQR(true), style: { background: "linear-gradient(135deg,#00ff41,#00d944)", border: "none", color: "#fff", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "QR Code \u{1F4F1}"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "16px 16px 20px" } }, editing && /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 12, animation: "fadeIn 0.3s ease" } }, /* @__PURE__ */ React.createElement(TextArea, { label: "Bio", placeholder: "Tell people about yourself...", value: form.bio, onChange: (e) => setForm((f) => ({ ...f, bio: e.target.value })), style: { marginBottom: 10 } }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1 }, onClick: handleSave }, "Save \u2705"), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { flex: 1 }, onClick: () => setEditing(false) }, "Cancel"))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 } }, [{ n: hosted.length, l: "Hosted", icon: "\u{1F3A4}" }, { n: attended.length, l: "Attended", icon: "\u{1F38A}" }, { n: currentUser.friends?.length || 0, l: "Friends", icon: "\u{1F465}" }, { n: currentUser.following?.length || 0, l: "Following", icon: "➡️" }, { n: currentUser.followers?.length || 0, l: "Followers", icon: "\u{1F465}" }].map((s) => /* @__PURE__ */ React.createElement("div", { key: s.l, className: "card", style: { textAlign: "center", padding: "14px 8px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, marginBottom: 4 } }, s.icon), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: "#00ff41" } }, s.n), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--w50)", marginTop: 2 } }, s.l)))), hosted.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, marginBottom: 10 } }, "\u{1F3A4} Parties Hosted"), hosted.map((p) => /* @__PURE__ */ React.createElement("div", { key: p.id, className: "card", style: { marginBottom: 6, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }, onClick: () => navigate("partyManage", { partyId: p.id }) }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 14 } }, p.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w40)" } }, p.invites?.filter((i) => i.status === "accepted").length, " guests")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18 } }, "\u203A")))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 800, marginBottom: 12, color: "#00ff41" } }, "\u2699\uFE0F Settings"), /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 8, overflow: "hidden" } },
+  return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: "var(--bg)", paddingBottom: 80 } }, toast && /* @__PURE__ */ React.createElement(Toast, { msg: toast.msg, type: toast.type }), showQR && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }, onClick: () => setShowQR(false) }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, fontWeight: 700, marginBottom: 16 } }, "Your Partico QR Code"), /* @__PURE__ */ React.createElement(QRCode, { value: myQRValue, size: 220 }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginTop: 16, textAlign: "center" } }, "Friends scan this to add you instantly", /* @__PURE__ */ React.createElement("br", null), "Tap anywhere to close")), privacyModal && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }, onClick: () => setPrivacyModal(null) }, /* @__PURE__ */ React.createElement("div", { onClick: (e) => e.stopPropagation(), style: { background: "var(--w05)", border: "1px solid var(--w10)", borderRadius: 20, padding: "26px 22px", maxWidth: 340, textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 44, marginBottom: 10 } }, privacyModal === "toPublic" ? "\u{1F30D}" : "\u{1F512}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 19, fontWeight: 800, marginBottom: 10 } }, privacyModal === "toPublic" ? "Make your account public?" : "Make your account private?"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "var(--w55)", lineHeight: 1.65, marginBottom: 20 } }, privacyModal === "toPublic" ? "Anyone can follow you instantly — no approval needed — and your public events show up in their Following feed. Your current friends stay friends." : "New followers will have to send a request you approve before they can follow you. Your current followers stay, and your events stay among friends."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { flex: 1 }, onClick: () => setPrivacyModal(null) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1 }, onClick: () => { const next = privacyModal === "toPublic"; updateCurrentUser({ is_public: next }); apiFetch("/api/users/me", { method: "PUT", body: JSON.stringify({ is_public: next }) }).catch(() => {}); setPrivacyModal(null); } }, privacyModal === "toPublic" ? "Go Public \u{1F30D}" : "Go Private \u{1F512}")))), /* @__PURE__ */ React.createElement("div", { style: { background: "linear-gradient(135deg,rgba(0,255,65,0.2),rgba(124,58,237,0.2))", padding: "50px 20px 24px", borderBottom: "1px solid var(--w08)", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "relative", display: "inline-block", marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Avatar, { user: currentUser, size: 80 }), /* @__PURE__ */ React.createElement("button", { onClick: () => fileRef.current?.click(), style: { position: "absolute", bottom: 0, right: 0, background: "#00ff41", border: "2px solid #0d0d0d", borderRadius: "50%", width: 26, height: 26, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" } }, "\u{1F4F7}")), /* @__PURE__ */ React.createElement("input", { ref: fileRef, type: "file", accept: "image/*", style: { display: "none" }, onChange: handlePhotoChange }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800 } }, currentUser.firstName, " ", currentUser.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginTop: 2 } }, currentUser.email), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "var(--w40)", marginTop: 2 } }, "\u{1F4F1} ", currentUser.phone), currentUser.bio && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w60)", marginTop: 8, fontStyle: "italic" } }, '"', currentUser.bio, '"'), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "center", marginTop: 12 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setEditing(!editing), style: { background: "var(--w10)", border: "none", color: "#fff", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" } }, "\u270F\uFE0F Edit Bio"), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowQR(true), style: { background: "linear-gradient(135deg,#00ff41,#00d944)", border: "none", color: "#fff", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "QR Code \u{1F4F1}"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "16px 16px 20px" } }, editing && /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 12, animation: "fadeIn 0.3s ease" } }, /* @__PURE__ */ React.createElement(TextArea, { label: "Bio", placeholder: "Tell people about yourself...", value: form.bio, onChange: (e) => setForm((f) => ({ ...f, bio: e.target.value })), style: { marginBottom: 10 } }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1 }, onClick: handleSave }, "Save \u2705"), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { flex: 1 }, onClick: () => setEditing(false) }, "Cancel"))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 } }, [{ n: hosted.length, l: "Hosted", icon: "\u{1F3A4}" }, { n: myStats.attended, l: "Attended", icon: "\u{1F38A}" }, { n: currentUser.friends?.length || 0, l: "Friends", icon: "\u{1F465}" }, { n: currentUser.following?.length || 0, l: "Following", icon: "➡️" }, { n: currentUser.followers?.length || 0, l: "Followers", icon: "\u{1F465}" }].map((s) => /* @__PURE__ */ React.createElement("div", { key: s.l, className: "card", style: { textAlign: "center", padding: "14px 8px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, marginBottom: 4 } }, s.icon), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: "#00ff41" } }, s.n), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--w50)", marginTop: 2 } }, s.l)))), React.createElement(ProfileStats, { st: myStats }), React.createElement(ProfilePastParties, { rows: pastRows, getUser, navigate }), hosted.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, marginBottom: 10 } }, "\u{1F3A4} Parties Hosted"), hosted.map((p) => /* @__PURE__ */ React.createElement("div", { key: p.id, className: "card", style: { marginBottom: 6, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }, onClick: () => navigate("partyManage", { partyId: p.id }) }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 14 } }, p.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w40)" } }, p.invites?.filter((i) => i.status === "accepted").length, " guests")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18 } }, "\u203A")))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 800, marginBottom: 12, color: "#00ff41" } }, "\u2699\uFE0F Settings"), /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 8, overflow: "hidden" } },
   React.createElement("div", { onClick: () => toggleSetting("privacy"), style: { padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" } },
     React.createElement("div", { style: { fontSize: 14, fontWeight: 600 } }, "\ud83d\udd10 Privacy & Security"),
     React.createElement("div", { style: { fontSize: 18, transform: openSetting === "privacy" ? "rotate(90deg)" : "none", transition: "transform 0.2s" } }, "\u203A")),
@@ -3577,6 +3688,81 @@ const ProfileScreen = () => {
   )
 ), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--w05)", padding: "14px", borderRadius: 12, marginBottom: 12, border: "1px solid var(--w10)" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 600 } }, currentUser.is_public ? "\u{1F30D} Public Account" : "\u{1F512} Private Account"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--w50)", marginTop: 2 } }, currentUser.is_public ? "Anyone can follow you instantly" : "People must send a request to follow you")), /* @__PURE__ */ React.createElement("div", { onClick: () => setPrivacyModal(currentUser.is_public ? "toPrivate" : "toPublic"), style: { width: 50, height: 28, borderRadius: 14, background: currentUser.is_public ? "#00ff41" : "var(--w20)", position: "relative", cursor: "pointer", transition: "background 0.3s", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: 2, left: currentUser.is_public ? 26 : 2, width: 24, height: 24, borderRadius: "50%", background: "#fff", transition: "left 0.3s" } }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--w05)", padding: "14px", borderRadius: 12, marginBottom: 12, border: "1px solid var(--w10)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 600 } }, "\ud83c\udf19 Dark Mode"), /* @__PURE__ */ React.createElement("div", { onClick: () => setDarkMode(!darkMode), style: { width: 50, height: 28, borderRadius: 14, background: darkMode ? "#00ff41" : "var(--w20)", position: "relative", cursor: "pointer", transition: "background 0.3s" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: 2, left: darkMode ? 26 : 2, width: 24, height: 24, borderRadius: "50%", background: "#fff", transition: "left 0.3s" } }))), /* @__PURE__ */ React.createElement("button", { onClick: logout, style: { width: "100%", padding: "13px", background: "rgba(220,38,38,0.15)", border: "1px solid rgba(220,38,38,0.4)", borderRadius: 12, color: "#f87171", fontSize: 15, fontWeight: 700, cursor: "pointer", marginTop: 0 } }, "Sign Out")), /* @__PURE__ */ React.createElement(BottomNav, { screen: "profile", navigate }));
 };
+// "Your stats" on the profile: tiles count up, the ring fills and the sparkline draws once the section scrolls into view.
+const ProfileStats = ({ st }) => {
+  const ref = useRef(null);
+  const reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const [prog, setProg] = useState(reduce || !window.IntersectionObserver ? 1 : 0);
+  useEffect(() => {
+    if (prog === 1) return;
+    const el = ref.current;
+    if (!el) return;
+    let raf = 0;
+    const io = new IntersectionObserver((ents) => {
+      if (!ents.some((en) => en.isIntersecting)) return;
+      io.disconnect();
+      const t0 = performance.now();
+      const step = (t) => { const p = Math.min(1, (t - t0) / 1200); setProg(p); if (p < 1) raf = requestAnimationFrame(step); };
+      raf = requestAnimationFrame(step);
+    }, { threshold: 0.15 });
+    io.observe(el);
+    return () => { io.disconnect(); cancelAnimationFrame(raf); };
+  }, []);
+  const ease = 1 - Math.pow(1 - prog, 3);
+  const n = (v) => Math.round(v * ease);
+  const on = prog > 0;
+  const delta = (d, unit) => d === 0 ? React.createElement("span", { className: "d down" }, "same as the 30 days before") : React.createElement("span", { className: "d" + (d < 0 ? " down" : "") }, (d > 0 ? "▲ " : "▼ ") + Math.abs(d) + " " + unit);
+  const tile = (v, label, extra) => React.createElement("div", { className: "rdp-stat" }, React.createElement("span", { className: "n" }, n(v)), React.createElement("span", { className: "l" }, label), extra || null);
+  const W = 300, H = 46;
+  const max = Math.max(1, ...st.months.map((m) => m.guests));
+  const pts = st.months.map((m, i) => [Math.round(i * (W / (st.months.length - 1))), Math.round(6 + (H - 6) * (1 - m.guests / max))]);
+  const line = pts.map((p, i) => (i ? "L" : "M") + p[0] + "," + p[1]).join(" ");
+  const area = line + " L" + W + "," + H + " L0," + H + " Z";
+  const last = pts[pts.length - 1];
+  const C = 201;
+  const ringOff = on ? C * (1 - st.rsvpRate / 100) : C;
+  return React.createElement("section", { ref, className: "rdp-sec", "aria-label": "Your stats" },
+    React.createElement("div", { className: "rdp-sec-h" }, React.createElement("h3", null, "Your stats"), React.createElement("span", null, "last 30 days")),
+    React.createElement("div", { className: "rdp-stats" },
+      tile(st.hosted30, "parties hosted", delta(st.hostedDelta, "vs before")),
+      tile(st.guests30, "guests through your door", delta(st.guestsDelta, st.guestsDelta === 1 || st.guestsDelta === -1 ? "guest" : "guests")),
+      tile(st.attended, "parties you went to (all time)"),
+      tile(st.photos, "photos in your albums"),
+      React.createElement("div", { className: "rdp-stat wide" },
+        React.createElement("svg", { className: "rdp-ring", viewBox: "0 0 80 80", role: "img", "aria-label": "RSVP rate " + st.rsvpRate + "%" },
+          React.createElement("circle", { className: "bgc", cx: 40, cy: 40, r: 32 }),
+          React.createElement("circle", { className: "fg", cx: 40, cy: 40, r: 32, strokeDasharray: C, style: { strokeDashoffset: ringOff } }),
+          React.createElement("text", { x: 40, y: 46, textAnchor: "middle" }, n(st.rsvpRate) + "%")),
+        React.createElement("div", null,
+          React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, "RSVP rate"),
+          React.createElement("div", { style: { fontSize: 12, "--text": "var(--w55)", marginTop: 2 } }, st.rsvpRate + "% of people who reply to your invites say yes."))),
+      React.createElement("div", { className: "rdp-stat wide spark-tile" },
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 12, gap: 8 } },
+          React.createElement("span", { style: { "--text": "var(--w55)" } }, "Guests at your parties, last 6 months"),
+          React.createElement("span", { className: "d" }, "best: " + (st.bestMonth || "—"))),
+        React.createElement("svg", { className: "rdp-spark" + (on ? "" : " off"), viewBox: "-6 0 312 62", role: "img", "aria-label": "Guests per month: " + st.months.map((m) => m.label + " " + m.guests).join(", ") },
+          React.createElement("defs", null, React.createElement("linearGradient", { id: "rdpSparkGrad", x1: 0, x2: 0, y1: 0, y2: 1 },
+            React.createElement("stop", { offset: 0, stopColor: "#00ff41", stopOpacity: 0.35 }),
+            React.createElement("stop", { offset: 1, stopColor: "#00ff41", stopOpacity: 0 }))),
+          React.createElement("line", { className: "grid", x1: 0, x2: W, y1: H, y2: H }),
+          React.createElement("path", { className: "area", d: area, fill: "url(#rdpSparkGrad)" }),
+          React.createElement("path", { className: "ln", d: line }),
+          React.createElement("circle", { className: "dot", cx: last[0], cy: last[1], r: 3.5 }),
+          st.months.map((m, i) => React.createElement("text", { key: m.year + "-" + m.month, x: pts[i][0], y: 60, textAnchor: i === 0 ? "start" : i === st.months.length - 1 ? "end" : "middle" }, m.label))))));
+};
+// "Past parties": what you hosted or went to, most recent first.
+const ProfilePastParties = ({ rows, getUser, navigate }) => React.createElement("section", { className: "rdp-sec", "aria-label": "Past parties" },
+  React.createElement("div", { className: "rdp-sec-h" }, React.createElement("h3", null, "Past parties"), rows.length > 0 && React.createElement("span", null, rows.length)),
+  rows.length === 0
+    ? React.createElement("div", { className: "rdp-empty" }, "No past parties yet — they'll show up here once they've happened.")
+    : React.createElement("div", { className: "rdp-list" }, rows.map(({ party, date, hosted }) => {
+        const host = hosted ? null : getUser(party.hostId);
+        const when = date.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric" });
+        return React.createElement("button", { key: party.id, type: "button", className: "rdp-row", onClick: () => navigate(hosted ? "partyManage" : "partyDetail", { partyId: party.id }) },
+          React.createElement("div", { className: "rdp-date" }, React.createElement("span", null, date.toLocaleDateString(undefined, { month: "short" })), React.createElement("b", null, date.getDate())),
+          React.createElement("div", { className: "tx" }, React.createElement("b", null, party.title || "Untitled party"), React.createElement("small", null, when + " · " + (hosted ? "you hosted" : "by " + (host?.firstName || "someone")))),
+          React.createElement("span", { className: "rdp-pill " + (hosted ? "host" : "went") }, hosted ? "Hosted" : "Went"));
+      })));
 const NotificationsScreen = () => {
   const { navigate, getPendingInvites, getUser, getUnreadPops, markPopRead, markNudgeRead, currentUser } = useApp();
   const pending = getPendingInvites();
