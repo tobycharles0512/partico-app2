@@ -193,7 +193,50 @@ input.input-field[type="date"],input.input-field[type="time"]{min-width:0;font-s
 /* memories */
 </style>
 <style id="rd-friends">
-/* friends */
+/* Friends screen (redesign). Text colour is set through --text because of the global colour rule. */
+.rdf-head{padding:50px 16px 12px;background:var(--header);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--w08);position:sticky;top:0;z-index:50}
+.rdf-titlerow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.rdf-titlerow h2{font-size:26px;font-weight:800;line-height:1.1}
+.rdf-dim{--text:var(--w50)}
+.rdf-note{margin:4px 0 0;font-size:14px;line-height:1.5}
+.rdf-tabs{display:flex;gap:4px;background:var(--w05);border:1px solid var(--w10);border-radius:999px;padding:3px}
+.rdf-tabs button{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;border:none;background:none;--text:var(--w55);font-weight:600;font-size:12px;padding:8px 0;border-radius:999px;cursor:pointer;transition:background .2s,color .2s;white-space:nowrap}
+.rdf-tabs button.on{background:var(--w90);--text:var(--bg)}
+.rdf-badge{background:#00ff41;--text:#0d0d0d;border-radius:999px;font-size:10px;font-weight:800;min-width:17px;padding:1px 5px;line-height:15px;text-align:center}
+.rdf-pane{animation:fadeIn .3s ease}
+.rdf-search{margin:12px 0 4px}
+.rdf-subh{font-size:12px;letter-spacing:.1em;text-transform:uppercase;--text:var(--w40);font-weight:700;margin:18px 0 6px}
+.rdf-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--w08);animation:rdFadeUp .4s ease both}
+.rdf-tx{flex:1;min-width:0;display:block;text-align:left}
+.rdf-plain{background:none;border:none;padding:0;cursor:pointer;font:inherit}
+.rdf-tx b{display:block;font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rdf-tx small{display:block;font-size:12px;--text:var(--w50);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.rdf-acts{display:flex;gap:6px;flex-shrink:0}
+.rdf-btn{border:none;border-radius:999px;padding:10px 16px;font-weight:800;font-size:13px;cursor:pointer;transition:transform .12s,background .2s;flex-shrink:0;white-space:nowrap}
+.rdf-btn:active{transform:scale(.96)}
+.rdf-btn.g{background:#00ff41;--text:#0d0d0d}
+.rdf-btn.ghost{background:var(--w08);border:1px solid var(--w12)}
+.rdf-btn.danger{background:rgba(255,90,90,.14);--text:var(--rd-red);border:1px solid rgba(255,90,90,.35)}
+.rdf-btn.block{width:100%;padding:13px;text-align:center;white-space:normal}
+.rdf-btn.sm{padding:7px 13px;font-size:12px}
+.rdf-btn:disabled{opacity:.5;cursor:default;transform:none}
+.rdf-empty{border:1px dashed var(--w15);border-radius:26px;padding:26px 20px;text-align:center;display:grid;gap:10px;justify-items:center;margin-top:14px;font-size:14px;line-height:1.5}
+.rdf-empty b{font-size:22px}
+.rdf-linkcard{background:linear-gradient(120deg,rgba(0,255,65,.14),rgba(139,92,246,.14));border:1px solid var(--w10);border-radius:18px;padding:14px;display:grid;gap:8px;margin-top:22px}
+.rdf-linkcard b{font-size:16px}
+.rdf-linkrow{display:flex;gap:8px;align-items:center}
+.rdf-linkrow code{flex:1;min-width:0;background:var(--w08);border-radius:10px;padding:9px 12px;font-size:12px;user-select:all;-webkit-user-select:all;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdf-overlay{position:fixed;inset:0;z-index:300}
+.rdf-scrim{position:absolute;inset:0;background:rgba(0,0,0,.55);animation:rdfFade .25s ease}
+.rdf-sheet{position:absolute;left:0;right:0;bottom:0;max-width:560px;margin:0 auto;background:var(--surface);border:1px solid var(--surface-border);border-bottom:none;border-radius:26px 26px 0 0;padding:10px 16px calc(20px + env(safe-area-inset-bottom,0px));display:grid;gap:14px;max-height:82%;overflow:auto;animation:rdfUp .3s cubic-bezier(.2,.8,.2,1)}
+.rdf-grab{width:40px;height:5px;border-radius:3px;background:var(--w20);margin:0 auto}
+.rdf-who{display:flex;align-items:center;gap:14px}
+.rdf-who h3{font-size:22px;font-weight:800;margin:0 0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rdf-tags{display:flex;flex-wrap:wrap;gap:6px}
+.rdf-tag{font-size:12px;padding:4px 10px;border-radius:999px;background:rgba(0,255,65,.12);border:1px solid rgba(0,255,65,.25);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+@keyframes rdfUp{from{transform:translateY(100%)}}
+@keyframes rdfFade{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){.rdf-row,.rdf-pane,.rdf-sheet,.rdf-scrim{animation:none}.rdf-btn,.rdf-tabs button{transition:none}}
 </style>
 <style id="rd-profile">
 /* profile */
@@ -316,6 +359,54 @@ PL.memories = {};
 <script id="logic-friends">
 window.PL = window.PL || {};
 PL.friends = {};
+// Was this person at the party as host or as an accepted guest?
+PL.friends._went = function (p, id) {
+  if (!p || !id) return false;
+  if (p.hostId === id) return true;
+  return (p.invites || []).some(function (i) { return i && i.userId === id && i.status === "accepted"; });
+};
+PL.friends._time = function (p) {
+  var d = PL.partyDate(p);
+  return d ? d.getTime() : null;
+};
+// Parties both of you went to (host or accepted guest), most recent first.
+PL.friends.partiesTogether = function (parties, meId, otherId) {
+  if (!meId || !otherId || meId === otherId) return [];
+  return (parties || []).filter(function (p) {
+    return p && PL.friends._went(p, meId) && PL.friends._went(p, otherId);
+  }).sort(function (a, b) { return (PL.friends._time(b) || 0) - (PL.friends._time(a) || 0); });
+};
+// Lower-case, accent-free, single-spaced text for name matching.
+PL.friends._fold = function (s) {
+  s = String(s == null ? "" : s).toLowerCase();
+  if (s.normalize) s = s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return s.replace(/\s+/g, " ").trim();
+};
+// Users whose first, last or full name contains the query (case/accent-insensitive). Blank query keeps everyone.
+PL.friends.filterByName = function (users, query) {
+  var list = (users || []).filter(Boolean);
+  var q = PL.friends._fold(query);
+  if (!q) return list;
+  return list.filter(function (u) {
+    var f = PL.friends._fold(u.firstName), l = PL.friends._fold(u.lastName);
+    return f.indexOf(q) >= 0 || l.indexOf(q) >= 0 || (f + " " + l).trim().indexOf(q) >= 0;
+  });
+};
+// My upcoming hosted parties this friend isn't invited to yet: soonest first, undated (date TBD) last.
+PL.friends.hostableParties = function (parties, meId, friendId, now) {
+  var t = (now && typeof now.getTime === "function") ? now.getTime() : (typeof now === "number" ? now : Date.now());
+  return (parties || []).filter(function (p) {
+    if (!p || p.hostId !== meId || p.status === "past" || p.status === "cancelled") return false;
+    if ((p.invites || []).some(function (i) { return i && i.userId === friendId; })) return false;
+    var pt = PL.friends._time(p);
+    return pt === null || pt >= t;
+  }).sort(function (a, b) {
+    var x = PL.friends._time(a), y = PL.friends._time(b);
+    if (x === null) return y === null ? 0 : 1;
+    if (y === null) return -1;
+    return x - y;
+  });
+};
 </script>
 <script id="logic-profile">
 window.PL = window.PL || {};
@@ -3354,23 +3445,42 @@ const PartyDetailScreen = () => {
   }, style: { width: "100%", padding: "12px", background: "rgba(220,38,38,0.15)", border: "1px solid rgba(220,38,38,0.4)", borderRadius: 12, color: "#f87171", fontSize: 14, fontWeight: 600, cursor: "pointer" } }, "Cancel RSVP")), activeTab === "updates" && React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, (getPartyPops && getPartyPops(party.id) || []).length === 0 ? React.createElement("div", { style: { textAlign: "center", padding: 50 } }, React.createElement("div", { style: { fontSize: 48, marginBottom: 12 } }, "\u{1F4E2}"), React.createElement("div", { style: { fontSize: 15, color: "var(--w40)" } }, "No updates from the host yet")) : [...(getPartyPops(party.id))].reverse().map((b) => React.createElement("div", { key: b.id, className: "card", style: { marginBottom: 10, borderLeft: "3px solid #00ff41", background: "rgba(0,255,65,0.06)" } }, React.createElement("div", { style: { fontSize: 11, color: "#00ff41", fontWeight: 700, marginBottom: 5 } }, "\u{1F4E2} Partico Pop \u00B7 " + new Date(b.timestamp).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })), React.createElement("div", { style: { fontSize: 15, color: "#fff", lineHeight: 1.6 } }, b.message)))), activeTab === "photos" && /* @__PURE__ */ React.createElement(PhotoAlbumTab, { party, addPhotos, removePhoto, requestPhotoRemoval, resolvePhotoRemoval, showToast, canDelete: false, currentUserId: currentUser?.id, currentUserName: currentUser ? currentUser.firstName + " " + currentUser.lastName : "" }), activeTab === "guests" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 12 } }, headcount, " going"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 10 } }, acceptedGuests.map((u) => /* @__PURE__ */ React.createElement("div", { key: u.id, style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 64 } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 48 }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "var(--w70)", textAlign: "center", fontWeight: 500 } }, u.firstName)))), acceptedGuests.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "var(--w30)", padding: 40, fontSize: 14 } }, "No guests confirmed yet"))), /* @__PURE__ */ React.createElement(BottomNav, { screen: "home", navigate }));
 };
 const FriendsScreen = () => {
-  const { navigate, currentUser, users, getFriends, getFriendRequests, sendFriendRequest, follow, unfollow, acceptFriendRequest, declineFriendRequest, showToast, toast } = useApp();
+  const { navigate, currentUser, users, parties, getUser, getFriends, getFriendRequests, getMutualFriendSuggestions, follow, unfollow, acceptFriendRequest, declineFriendRequest, removeFriend, inviteToParty } = useApp();
+  const h = React.createElement;
+  // Toasts are local: showToast/toast aren't on the app context.
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2500); };
   const [showQR, setShowQR] = useState(false);
   const [tab, setTab] = useState("friends");
+  const [friendQ, setFriendQ] = useState("");
   const [searchQ, setSearchQ] = useState("");
   const [backendResults, setBackendResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [sheetId, setSheetId] = useState(null);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [invitedNow, setInvitedNow] = useState([]);
+  // Optimistic UI until the next server sync lands
+  const [justFollowed, setJustFollowed] = useState([]);
+  const [cancelledReqs, setCancelledReqs] = useState([]);
+  const linkRef = useRef(null);
   const friends = getFriends();
   const requests = getFriendRequests();
   const myId = currentUser?.id || "";
   const myFriends = currentUser?.friends || [];
-  const myRequests = currentUser?.friendRequests || [];
+  const incomingIds = new Set((currentUser?.friendRequests || []).filter(Boolean).map((r) => r.from));
+  const outgoing = (currentUser?.outgoingRequests || []).filter((id) => !cancelledReqs.includes(id) && !myFriends.includes(id));
   const myQRValue = buildWebLink('add-friend?id=' + myId + '&name=' + encodeURIComponent((currentUser?.firstName||'') + ' ' + (currentUser?.lastName||'')));
+  const nameOf = (u) => ((u?.firstName || "") + " " + (u?.lastName || "")).trim() || u?.username || "Partico user";
+  const firstOf = (u) => u?.firstName || u?.username || "them";
+  const partyWord = (n) => n + " part" + (n === 1 ? "y" : "ies") + " together";
+  const rowDelay = (i) => ({ animationDelay: Math.min(i, 10) * 0.03 + "s" });
 
-  // Search backend when available, fallback to localStorage
+  // Search all Partico users on the server (debounced); falls back to the local cache below
   useEffect(() => {
-    if (!searchQ) {
+    const q = searchQ.trim();
+    if (!q) {
       setBackendResults([]);
+      setSearching(false);
       return;
     }
     const token = ls.get("partico_auth_token");
@@ -3379,49 +3489,207 @@ const FriendsScreen = () => {
       return;
     }
     setSearching(true);
-    {
-      fetch(`${API_BASE}/api/users/search?q=${encodeURIComponent(searchQ)}`, {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      fetch(`${API_BASE}/api/users/search?q=${encodeURIComponent(q)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(r => r.json())
         .then(data => {
+          if (cancelled) return;
           setBackendResults((data.users || [])
-            .filter(u => u.id !== myId && !myFriends.includes(u.id) && !myRequests.some((r) => r && r.from === u.id))
+            .filter(u => u.id !== myId && !myFriends.includes(u.id))
             .map(u => ({ ...u, firstName: u.firstName || u.username || "", lastName: u.lastName || "" })));
           setSearching(false);
         })
-        .catch(err => {
-          setSearching(false);
+        .catch(() => {
+          if (!cancelled) setSearching(false);
         });
-    }
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [searchQ]);
 
-  const allOtherUsers = users.filter(
-    (u) => u.id !== myId && !myFriends.includes(u.id) && !myRequests.some((r) => r && r.from === u.id)
-  );
-  // Use backend results if available, otherwise filter localStorage
-  const filtered = searchQ ? (backendResults.length > 0 ? backendResults : allOtherUsers.filter((u) => `${u.firstName} ${u.lastName} ${u.email} ${u.phone || ""}`.toLowerCase().includes(searchQ.toLowerCase()))) : allOtherUsers;
-  const handleSend = (userId, name) => {
-    const profile = filtered.find((u) => u.id === userId);
-    sendFriendRequest(userId, profile || name);
-    showToast(`Friend request sent to ${name}! \u{1F4E8}`);
-  };
-  return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: "var(--bg)", paddingBottom: 80 } }, toast && /* @__PURE__ */ React.createElement(Toast, { msg: toast.msg, type: toast.type }), showQR && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 300, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }, onClick: () => setShowQR(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "var(--w05)", border: "1px solid var(--w10)", borderRadius: 24, padding: 28, textAlign: "center", maxWidth: 280 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 700, marginBottom: 4 } }, "Your Partico QR"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "var(--w40)", marginBottom: 16 } }, "Friends scan this to add you instantly"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "center", marginBottom: 16 } }, /* @__PURE__ */ React.createElement(QRCode, { value: myQRValue, size: 200 })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w40)", marginBottom: 12 } }, currentUser?.firstName, " ", currentUser?.lastName), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowQR(false), className: "btn-secondary", style: { fontSize: 14 } }, "Close"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "50px 20px 0", background: "var(--header)", backdropFilter: "blur(20px)", borderBottom: "1px solid var(--w08)", position: "sticky", top: 0, zIndex: 50 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, fontWeight: 900 } }, "\u{1F465} Friends"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w40)", marginTop: 1 } }, friends.length, " friend", friends.length !== 1 ? "s" : "", " \xB7 ", requests.length, " request", requests.length !== 1 ? "s" : "")), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowQR(true), style: { background: "linear-gradient(135deg,#00ff41,#00d944)", border: "none", color: "#fff", borderRadius: 12, padding: "9px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "My QR \u{1F4F1}")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0, marginBottom: 0, borderBottom: "1px solid var(--w06)" } }, [{ id: "friends", l: `Friends${friends.length > 0 ? ` (${friends.length})` : ""}` }, { id: "requests", l: `Requests${requests.length > 0 ? ` (${requests.length})` : ""}` }, { id: "find", l: "Find People \u{1F50D}" }].map((t) => /* @__PURE__ */ React.createElement("button", { key: t.id, onClick: () => setTab(t.id), style: { flex: 1, background: "none", color: tab === t.id ? "#00ff41" : "var(--w45)", border: "none", borderBottom: `2px solid ${tab === t.id ? "#00ff41" : "transparent"}`, padding: "11px 4px", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" } }, t.l)))), /* @__PURE__ */ React.createElement("div", { style: { padding: "16px 16px 24px" } }, tab === "friends" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 14, background: "linear-gradient(135deg,rgba(0,255,65,0.12),rgba(124,58,237,0.12))", border: "1px solid rgba(0,255,65,0.25)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 28 } }, "\u{1F517}"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, marginBottom: 2 } }, "Your invite link"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--w40)", wordBreak: "break-all" } }, myQRValue.length > 50 ? myQRValue.slice(0, 50) + "..." : myQRValue)), /* @__PURE__ */ React.createElement("button", { onClick: () => {
-    try {
-      navigator.clipboard.writeText(myQRValue);
-    } catch {
+  // Close the friend sheet with Escape
+  useEffect(() => {
+    if (!sheetId) return;
+    const onKey = (e) => { if (e.key === "Escape") closeSheet(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sheetId]);
+
+  const openSheet = (id) => { setConfirmRemove(false); setInvitedNow([]); setSheetId(id); };
+  const closeSheet = () => { setSheetId(null); setConfirmRemove(false); setInvitedNow([]); };
+
+  // Friends tab: your friends, most parties together first, filtered by name
+  const together = {};
+  friends.forEach((u) => { together[u.id] = PL.friends.partiesTogether(parties, myId, u.id); });
+  const friendList = PL.friends.filterByName(friends, friendQ).slice().sort((a, b) => together[b.id].length - together[a.id].length);
+
+  // Find tab: same pool and matching as before (server results, else name/email/phone over cached users)
+  const allOtherUsers = users.filter((u) => u.id !== myId && !myFriends.includes(u.id));
+  const q = searchQ.trim();
+  const filtered = q ? (backendResults.length > 0 ? backendResults : allOtherUsers.filter((u) => `${u.firstName} ${u.lastName} ${u.email} ${u.phone || ""}`.toLowerCase().includes(q.toLowerCase()) || PL.friends.filterByName([u], q).length > 0)) : allOtherUsers;
+  const suggestions = q ? [] : (getMutualFriendSuggestions() || []);
+  const suggestedIds = new Set(suggestions.map((s) => s.user.id));
+  const others = q ? [] : allOtherUsers.filter((u) => !suggestedIds.has(u.id)).slice(0, Math.max(0, 25 - suggestions.length));
+
+  const handleFollow = (u, label) => {
+    if (label.action === "follow") {
+      follow(u.id);
+      setJustFollowed((l) => [...l, u.id]);
+      showToast(label.text === "Follow back" ? `You and ${firstOf(u)} are now friends \u{1F389}` : u.is_public ? `Following ${firstOf(u)} \u{1F44B}` : `Friend request sent to ${firstOf(u)} \u{1F4E8}`);
+    } else if (label.action === "unfollow") {
+      unfollow(u.id);
+      setJustFollowed((l) => l.filter((x) => x !== u.id));
+      showToast(`Unfollowed ${firstOf(u)}`);
     }
-    showToast("Link copied! \u{1F517}");
-  }, style: { background: "rgba(0,255,65,0.25)", border: "1px solid rgba(0,255,65,0.4)", color: "#00ff41", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0 } }, "Copy"))), friends.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "48px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 52, marginBottom: 12 } }, "\u{1F44B}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 700, marginBottom: 6 } }, "No friends yet!"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w40)", marginBottom: 20, lineHeight: 1.6 } }, "Search for people, share your QR code, or send your invite link to build your circle"), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { width: 180 }, onClick: () => setTab("find") }, "Find Friends \u{1F50D}")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--w35)", letterSpacing: 1, marginBottom: 10 } }, "YOUR FRIENDS (", friends.length, ")"), friends.map((u) => /* @__PURE__ */ React.createElement("div", { key: u.id, className: "card", style: { marginBottom: 8, display: "flex", alignItems: "center", gap: 12 } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 46 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w40)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, maskEmail(u.email))), /* @__PURE__ */ React.createElement("div", { style: { background: "rgba(52,211,153,0.15)", border: "1px solid rgba(52,211,153,0.3)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, color: "#34d399", flexShrink: 0 } }, "\u2705 Friend"))))), tab === "requests" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, requests.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "48px 20px", color: "var(--w35)", fontSize: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 40, marginBottom: 12 } }, "\u{1F4ED}"), "No pending friend requests") : requests.map((req) => /* @__PURE__ */ React.createElement("div", { key: req.from, className: "card", style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Avatar, { user: req.user, size: 46 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, req.user?.firstName, " ", req.user?.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w40)" } }, maskEmail(req.user?.email)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--w30)", marginTop: 2 } }, "wants to be friends \u{1F91D}"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
-    acceptFriendRequest(req.from);
-    showToast(`${req.user?.firstName} added! \u{1F389} You can now invite them to parties`);
-  }, style: { flex: 1, padding: "11px", background: "linear-gradient(135deg,#00ff41,#00d944)", border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 14 } }, "Accept \u2705"), /* @__PURE__ */ React.createElement("button", { onClick: () => {
-    declineFriendRequest(req.from);
-    showToast("Request declined");
-  }, style: { flex: 1, padding: "11px", background: "var(--w07)", border: "1px solid var(--w15)", borderRadius: 10, color: "var(--w70)", fontWeight: 600, cursor: "pointer", fontSize: 14 } }, "Decline"))))), tab === "find" && /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, /* @__PURE__ */ React.createElement("input", { className: "input-field", style: { marginBottom: 12 }, placeholder: "\u{1F50D} Search by name, email or phone...", value: searchQ, onChange: (e) => setSearchQ(e.target.value), autoFocus: true }), !searchQ && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "var(--w35)", textAlign: "center", padding: "12px 0 4px" } }, "Type to search all Partico users"), filtered.slice(0, 25).map((u) => {
-    const { text, action } = followLabel(currentUser, u);
-    return /* @__PURE__ */ React.createElement("div", { key: u.id, className: "card", style: { marginBottom: 8, display: "flex", alignItems: "center", gap: 12 } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 44 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w40)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, maskEmail(u.email))), /* @__PURE__ */ React.createElement("button", { onClick: () => { if (action === "follow") { follow(u.id); showToast("Done \u{1F44B}"); } else if (action === "unfollow") { unfollow(u.id); } }, disabled: action === "none", style: { background: action === "none" ? "var(--w08)" : "linear-gradient(135deg,#00ff41,#00d944)", color: "#fff", border: action === "none" ? "1px solid var(--w20)" : "none", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: action === "none" ? "default" : "pointer", flexShrink: 0, opacity: action === "none" ? 0.6 : 1 } }, text));
-  }), searchQ && filtered.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "var(--w30)", padding: 40, fontSize: 14 } }, 'No users found for "', searchQ, '"'))), /* @__PURE__ */ React.createElement(BottomNav, { screen: "friends", navigate }));
+  };
+  const accept = (u) => {
+    acceptFriendRequest(u.id);
+    showToast(`${firstOf(u)} added! \u{1F389} You can now invite them to parties`);
+  };
+  const personRow = (u, sub, i) => {
+    let btn;
+    if (incomingIds.has(u.id)) {
+      btn = h("button", { className: "rdf-btn g sm", onClick: () => accept(u) }, "Accept");
+    } else {
+      const label = followLabel(currentUser, u);
+      const optimistic = label.action === "follow" && justFollowed.includes(u.id);
+      const text = optimistic ? (u.is_public ? "Following" : "Requested") : label.text;
+      const action = optimistic ? "none" : label.action;
+      btn = h("button", { className: "rdf-btn sm " + (action === "follow" ? "g" : "ghost"), disabled: action === "none", onClick: () => handleFollow(u, label) }, text);
+    }
+    return h("div", { key: u.id, className: "rdf-row", style: rowDelay(i) }, h(Avatar, { user: u, size: 44 }), h("div", { className: "rdf-tx" }, h("b", null, nameOf(u)), h("small", null, incomingIds.has(u.id) ? "Sent you a request" : sub)), btn);
+  };
+
+  const copyLink = () => {
+    const selectLink = () => {
+      const el = linkRef.current;
+      if (el && window.getSelection && document.createRange) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      showToast("Link selected — copy it from the menu");
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(myQRValue).then(() => showToast("Link copied! \u{1F517}"), selectLink);
+      } else {
+        selectLink();
+      }
+    } catch (e) {
+      selectLink();
+    }
+  };
+
+  const tabs = [
+    { id: "friends", label: "Friends · " + friends.length },
+    { id: "requests", label: "Requests", badge: requests.length },
+    { id: "find", label: "Find" }
+  ];
+
+  // ---- Friends tab ----
+  const friendsTab = () => h("div", { className: "rdf-pane" },
+    friends.length > 0 && h("input", { className: "input-field rdf-search", placeholder: "Search your friends", value: friendQ, onChange: (e) => setFriendQ(e.target.value), autoComplete: "off", "aria-label": "Search your friends" }),
+    friends.length === 0
+      ? h("div", { className: "rdf-empty" }, h("div", { style: { fontSize: 44 } }, "\u{1F44B}"), h("b", { className: "rd-display" }, "No friends yet!"), h("span", { className: "rdf-dim" }, "Search for people, share your QR code, or send your invite link to build your circle"), h("button", { className: "rdf-btn g", onClick: () => setTab("find") }, "Find friends \u{1F50D}"))
+      : friendList.length === 0
+        ? h("p", { className: "rdf-dim rdf-note" }, `No friends match “${friendQ}”.`)
+        : friendList.map((u, i) => {
+          const n = together[u.id].length;
+          return h("div", { key: u.id, className: "rdf-row", style: rowDelay(i) },
+            h(Avatar, { user: u, size: 44, onClick: () => openSheet(u.id) }),
+            h("button", { className: "rdf-tx rdf-plain", onClick: () => openSheet(u.id) }, h("b", null, nameOf(u)), h("small", null, n ? partyWord(n) : "No parties together yet")),
+            h("button", { className: "rdf-btn ghost sm", onClick: () => openSheet(u.id) }, "View"));
+        })
+  );
+
+  // ---- Requests tab ----
+  const requestsTab = () => h("div", { className: "rdf-pane" },
+    h("div", { className: "rdf-subh" }, "Received"),
+    requests.length === 0
+      ? h("p", { className: "rdf-dim rdf-note" }, "No pending friend requests. \u{1F4ED}")
+      : requests.map((req, i) => h("div", { key: req.from, className: "rdf-row", style: rowDelay(i) },
+        h(Avatar, { user: req.user, size: 44 }),
+        h("div", { className: "rdf-tx" }, h("b", null, nameOf(req.user)), h("small", null, "Wants to be friends \u{1F91D}" + (req.user?.email ? " · " + maskEmail(req.user.email) : ""))),
+        h("div", { className: "rdf-acts" },
+          h("button", { className: "rdf-btn g sm", onClick: () => accept(req.user) }, "Accept"),
+          h("button", { className: "rdf-btn ghost sm", onClick: () => { declineFriendRequest(req.from); showToast("Request declined"); } }, "Decline")))),
+    h("div", { className: "rdf-subh" }, "Sent"),
+    outgoing.length === 0
+      ? h("p", { className: "rdf-dim rdf-note" }, "You haven't sent any requests.")
+      : outgoing.map((id, i) => {
+        const u = getUser(id) || { id, firstName: "Partico user" };
+        return h("div", { key: id, className: "rdf-row", style: rowDelay(i) },
+          h(Avatar, { user: u, size: 44 }),
+          h("div", { className: "rdf-tx" }, h("b", null, nameOf(u)), h("small", null, "Waiting for them to accept")),
+          h("button", { className: "rdf-btn ghost sm", onClick: () => { unfollow(id); setCancelledReqs((l) => [...l, id]); showToast("Request cancelled"); } }, "Cancel"));
+      })
+  );
+
+  // ---- Find tab ----
+  const findTab = () => h("div", { className: "rdf-pane" },
+    h("input", { className: "input-field rdf-search", placeholder: "\u{1F50D} Search by name, email or phone...", value: searchQ, onChange: (e) => setSearchQ(e.target.value), autoFocus: true, autoComplete: "off", "aria-label": "Search all Partico users" }),
+    q
+      ? h(React.Fragment, null,
+        h("div", { className: "rdf-subh" }, searching ? "Searching…" : "Results"),
+        filtered.slice(0, 25).map((u, i) => personRow(u, maskEmail(u.email) || "On Partico", i)),
+        !searching && filtered.length === 0 && h("p", { className: "rdf-dim rdf-note" }, `No one called “${q}”. Try sharing your invite link instead.`))
+      : h(React.Fragment, null,
+        suggestions.length > 0 && h("div", { className: "rdf-subh" }, "People you may know"),
+        suggestions.map((s, i) => personRow(s.user, s.mutualCount + " mutual friend" + (s.mutualCount === 1 ? "" : "s"), i)),
+        others.length > 0 && h("div", { className: "rdf-subh" }, suggestions.length ? "More on Partico" : "On Partico"),
+        others.map((u, i) => personRow(u, maskEmail(u.email) || "On Partico", i + suggestions.length)),
+        suggestions.length === 0 && others.length === 0 && h("p", { className: "rdf-dim rdf-note" }, "Type to search all Partico users")),
+    h("div", { className: "rdf-linkcard" },
+      h("b", { className: "rd-display" }, "Your invite link"),
+      h("span", { className: "rdf-dim", style: { fontSize: 13 } }, "Send it to anyone. Opening it adds you as a friend on Partico."),
+      h("div", { className: "rdf-linkrow" },
+        h("code", { ref: linkRef }, myQRValue),
+        h("button", { className: "rdf-btn g sm", onClick: copyLink }, "Copy"),
+        h("button", { className: "rdf-btn ghost sm", onClick: () => setShowQR(true), "aria-label": "Show my QR code" }, "QR")))
+  );
+
+  // ---- Friend bottom sheet ----
+  const sheet = () => {
+    const f = getUser(sheetId) || friends.find((u) => u.id === sheetId);
+    if (!f) return null;
+    const shared = PL.friends.partiesTogether(parties, myId, f.id);
+    const hostable = PL.friends.hostableParties(parties, myId, f.id, Date.now()).filter((p) => !invitedNow.includes(p.id));
+    const justInvited = invitedNow.map((pid) => parties.find((p) => p.id === pid)).filter(Boolean);
+    return h("div", { className: "rdf-overlay" },
+      h("div", { className: "rdf-scrim", onClick: closeSheet }),
+      h("div", { className: "rdf-sheet", role: "dialog", "aria-modal": "true", "aria-label": nameOf(f) },
+        h("div", { className: "rdf-grab" }),
+        h("div", { className: "rdf-who" },
+          h(Avatar, { user: f, size: 64 }),
+          h("div", { style: { minWidth: 0 } }, h("h3", { className: "rd-display" }, nameOf(f)), h("span", { className: "rdf-dim", style: { fontSize: 13 } }, shared.length ? partyWord(shared.length) : "No parties together yet", f.email ? " · " + maskEmail(f.email) : ""))),
+        shared.length > 0 && h("div", { className: "rdf-tags" }, shared.slice(0, 6).map((p) => h("span", { key: p.id, className: "rdf-tag" }, p.title || "Untitled party")), shared.length > 6 && h("span", { className: "rdf-tag" }, "+" + (shared.length - 6) + " more")),
+        (hostable.length > 0 || justInvited.length > 0) && h("div", { className: "rdf-subh", style: { margin: 0 } }, "Invite to your party"),
+        hostable.map((p) => h("button", { key: p.id, className: "rdf-btn ghost block", onClick: () => { inviteToParty(p.id, f.id); setInvitedNow((l) => [...l, p.id]); showToast(`Invited ${firstOf(f)} to ${p.title} \u{1F389}`); } }, "+ " + (p.title || "Untitled party"))),
+        justInvited.map((p) => h("button", { key: p.id, className: "rdf-btn ghost block", disabled: true }, "✓ Invited to " + (p.title || "Untitled party"))),
+        h("button", { className: "rdf-btn danger block", onClick: () => {
+          if (!confirmRemove) { setConfirmRemove(true); return; }
+          removeFriend(f.id);
+          closeSheet();
+          showToast(`Removed ${firstOf(f)} from your friends`);
+        } }, confirmRemove ? `Tap again to remove ${firstOf(f)}` : "Remove friend")));
+  };
+
+  return h("div", { className: "screen rdf-screen", style: { background: "var(--bg)", paddingBottom: 80 } },
+    toast && h(Toast, { msg: toast.msg, type: toast.type }),
+    showQR && h("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 300, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }, onClick: () => setShowQR(false) }, h("div", { className: "cover-dark", style: { background: "#181818", border: "1px solid #2A2A2A", borderRadius: 24, padding: 28, textAlign: "center", maxWidth: 280 } }, h("div", { style: { fontSize: 18, fontWeight: 700, marginBottom: 4 } }, "Your Partico QR"), h("div", { style: { fontSize: 13, color: "var(--w40)", marginBottom: 16 } }, "Friends scan this to add you instantly"), h("div", { style: { display: "flex", justifyContent: "center", marginBottom: 16 } }, h(QRCode, { value: myQRValue, size: 200 })), h("div", { style: { fontSize: 12, color: "var(--w40)", marginBottom: 12 } }, currentUser?.firstName, " ", currentUser?.lastName), h("button", { onClick: () => setShowQR(false), className: "btn-secondary", style: { fontSize: 14 } }, "Close"))),
+    h("div", { className: "rdf-head" },
+      h("div", { className: "rdf-titlerow" },
+        h("div", null, h("h2", { className: "rd-display" }, "Friends"), h("div", { className: "rdf-dim", style: { fontSize: 12, marginTop: 1 } }, friends.length, " friend", friends.length !== 1 ? "s" : "", " · ", requests.length, " request", requests.length !== 1 ? "s" : "")),
+        h("button", { className: "rdf-btn ghost sm", onClick: () => setShowQR(true) }, "My QR \u{1F4F1}")),
+      h("div", { className: "rdf-tabs", role: "tablist" }, tabs.map((t) => h("button", { key: t.id, role: "tab", "aria-selected": tab === t.id, className: tab === t.id ? "on" : "", onClick: () => setTab(t.id) }, t.label, t.badge > 0 && h("span", { className: "rdf-badge" }, t.badge))))),
+    h("div", { style: { padding: "4px 16px 24px" } }, tab === "friends" && friendsTab(), tab === "requests" && requestsTab(), tab === "find" && findTab()),
+    sheetId && sheet(),
+    h(BottomNav, { screen: "friends", navigate }));
 };
 const CalendarScreen = () => {
   const { navigate, currentUser, getHostedParties, getMyInvites, getUpcomingParties } = useApp();
