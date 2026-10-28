@@ -336,3 +336,142 @@ test('GET /api/state: derives friends/following/followers/requests from follow r
   assert.deepEqual(res.body.user.following.sort(), ['fr', 'pub']);
   assert.deepEqual(res.body.user.followers.sort(), ['fr']);
 });
+
+// ── Party sync: host vs guest field ownership ──
+
+const CHECKLIST = [{ id: 'c1', text: 'Buy ice', done: false }, { id: 'c2', text: 'Playlist', done: true }];
+
+function storedHostParty() {
+  return {
+    title: 'Host title',
+    description: 'Host desc',
+    inviteViews: 3,
+    checklist: CHECKLIST,
+    photos: [{ id: 'ph_sam', userId: 'u_sam', dataUrl: 'data:sam', removalRequest: null, reactions: { u_leo: '😂' } }],
+    pops: [],
+  };
+}
+
+// Resolver for a sync where the stored row exists with the given host, and the
+// caller (ME) has an invite row when `invited` is true.
+function syncResolver(hostId, invited = true) {
+  return authAware((q) => {
+    if (q.table === 'partico_parties' && q.op === 'select' && q.single) {
+      return { data: { id: 'p1', host_id: hostId, data: storedHostParty() }, error: null };
+    }
+    if (q.table === 'partico_party_invites' && q.op === 'select' && q.single) {
+      return { data: invited ? { id: 'inv1' } : null, error: null };
+    }
+    return { data: null, error: null };
+  });
+}
+
+function partyUpsert(stub) {
+  return stub.calls.find((c) => c.q.op === 'upsert' && c.q.table === 'partico_parties');
+}
+
+test('POST /api/parties/sync: the host can store and update the prep checklist', async () => {
+  const stub = makeStub(syncResolver(ME));
+  __setSupabase(stub);
+  const newChecklist = [...CHECKLIST, { id: 'c3', text: 'Balloons', done: false }];
+  const party = { id: 'p1', hostId: ME, ...storedHostParty(), title: 'New title', checklist: newChecklist };
+  const res = await api('/api/parties/sync', { method: 'POST', body: JSON.stringify({ party }) });
+  assert.equal(res.status, 200);
+  const up = partyUpsert(stub);
+  assert.ok(up, 'party row upserted');
+  assert.deepEqual(up.q.payload[0].data.checklist, newChecklist);
+  assert.equal(up.q.payload[0].data.title, 'New title');
+  assert.equal(up.q.payload[0].host_id, ME);
+});
+
+test('POST /api/parties/sync: creating a brand-new party still stores the whole blob (incl. checklist)', async () => {
+  const stub = makeStub(authAware(() => ({ data: null, error: null })));
+  __setSupabase(stub);
+  const party = { id: 'p_new', hostId: ME, title: 'Fresh', checklist: CHECKLIST, photos: [], invites: [] };
+  const res = await api('/api/parties/sync', { method: 'POST', body: JSON.stringify({ party }) });
+  assert.equal(res.status, 200);
+  const up = partyUpsert(stub);
+  assert.equal(up.q.payload[0].host_id, ME);
+  assert.equal(up.q.payload[0].data.title, 'Fresh');
+  assert.deepEqual(up.q.payload[0].data.checklist, CHECKLIST);
+  assert.ok(!('invites' in up.q.payload[0].data) && !('id' in up.q.payload[0].data));
+});
+
+test('POST /api/parties/sync: a guest cannot change checklist/title/inviteViews but can add a photo and react', async () => {
+  const stub = makeStub(syncResolver('u_host'));
+  __setSupabase(stub);
+  const party = {
+    id: 'p1', hostId: 'u_host',
+    title: 'Guest overwrote this', description: '', inviteViews: 0,
+    checklist: [{ id: 'cX', text: 'guest junk', done: true }],
+    photos: [
+      { id: 'ph_sam', userId: 'u_sam', dataUrl: 'data:sam', removalRequest: null, reactions: { [ME]: '🔥' } },
+      { id: 'ph_me', userId: ME, dataUrl: 'data:me' },
+    ],
+    pops: [],
+  };
+  const res = await api('/api/parties/sync', { method: 'POST', body: JSON.stringify({ party }) });
+  assert.equal(res.status, 200);
+  const data = partyUpsert(stub).q.payload[0].data;
+  assert.equal(partyUpsert(stub).q.payload[0].host_id, 'u_host');
+  assert.equal(data.title, 'Host title');
+  assert.equal(data.description, 'Host desc');
+  assert.equal(data.inviteViews, 3);
+  assert.deepEqual(data.checklist, CHECKLIST);
+  assert.deepEqual(data.photos.map((p) => p.id), ['ph_sam', 'ph_me']);
+  assert.deepEqual(data.photos[0].reactions, { u_leo: '😂', [ME]: '🔥' }); // leo's kept, mine added
+});
+
+test('POST /api/parties/sync: an uninvited non-host is forbidden with no writes', async () => {
+  const stub = makeStub(syncResolver('u_host', false));
+  __setSupabase(stub);
+  const res = await api('/api/parties/sync', { method: 'POST', body: JSON.stringify({ party: { id: 'p1', title: 'x' } }) });
+  assert.equal(res.status, 403);
+  assert.equal(stub.calls.filter((c) => ['upsert', 'update', 'delete', 'insert'].includes(c.q.op)).length, 0);
+});
+
+test('POST /api/parties/:id/rsvp: a rich "maybe" response round-trips into invite data', async () => {
+  const stub = makeStub(authAware((q) => {
+    if (q.table === 'partico_party_invites' && q.op === 'select' && q.single) {
+      return { data: { id: 'inv1', party_id: 'p1', user_id: ME, status: 'pending', data: { userId: ME, status: 'pending', thread: [{ id: 'm1' }] } }, error: null };
+    }
+    return { data: null, error: null };
+  }));
+  __setSupabase(stub);
+  const response = {
+    status: 'maybe',
+    plusOneRequested: true,
+    plusOneName: 'Alex',
+    dietary: 'vegan',
+    drinkPreferences: ['beer', 'soft'],
+    answers: { q1: 'yes' },
+    dateVotes: ['2026-11-01', '2026-11-08'],
+  };
+  const res = await api('/api/parties/p1/rsvp', { method: 'POST', body: JSON.stringify({ response }) });
+  assert.equal(res.status, 200);
+  const up = stub.calls.find((c) => c.q.op === 'upsert' && c.q.table === 'partico_party_invites');
+  assert.ok(up, 'invite upserted');
+  const row = up.q.payload[0];
+  assert.equal(row.status, 'maybe');
+  assert.equal(row.user_id, ME);
+  for (const [k, v] of Object.entries(response)) assert.deepEqual(row.data[k], v, `invite data.${k}`);
+  assert.deepEqual(row.data.thread, [{ id: 'm1' }], 'existing invite data preserved');
+  assert.equal(typeof row.data.respondedAt, 'number');
+});
+
+test('GET /api/state: party data fields (e.g. checklist) are returned unchanged', async () => {
+  const stub = makeStub(authAware((q) => {
+    if (q.table === 'partico_follows') return { data: [], error: null };
+    if (q.table === 'partico_party_invites') return { data: [], error: null };
+    if (q.table === 'partico_parties') return { data: [{ id: 'p1', host_id: ME, data: storedHostParty() }], error: null };
+    if (q.table === 'partico_users' && q.in) return { data: [{ id: ME, username: 'me', email: 'me@test.app' }], error: null };
+    return { data: null, error: null };
+  }));
+  __setSupabase(stub);
+  const res = await api('/api/state');
+  assert.equal(res.status, 200);
+  const p = res.body.parties.find((x) => x.id === 'p1');
+  assert.deepEqual(p.checklist, CHECKLIST);
+  assert.deepEqual(p.photos[0].reactions, { u_leo: '😂' });
+  assert.equal(p.hostId, ME);
+});

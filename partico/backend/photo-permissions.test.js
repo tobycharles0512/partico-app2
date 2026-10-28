@@ -99,3 +99,77 @@ test('a guest cannot add a new photo impersonating another uploader', () => {
   const result = sanitizePhotosSync([], incoming, 'maya', false);
   assert.deepStrictEqual(result, []);
 });
+
+// ── Photo reactions: reactions = { [userId]: emoji }, one per user per photo ──
+
+test('a guest can add their own reaction to someone else\'s photo', () => {
+  const existing = [photo({ id: 'ph_1', userId: 'sam' })];
+  const incoming = [photo({ id: 'ph_1', userId: 'sam', reactions: { maya: '🔥' } })];
+  const result = sanitizePhotosSync(existing, incoming, 'maya', false);
+  assert.deepStrictEqual(result[0].reactions, { maya: '🔥' });
+});
+
+test('a guest can change and clear their own reaction', () => {
+  const existing = [photo({ id: 'ph_1', userId: 'sam', reactions: { maya: '🔥', leo: '😂' } })];
+  const changed = sanitizePhotosSync(existing, [photo({ id: 'ph_1', userId: 'sam', reactions: { maya: '😍', leo: '😂' } })], 'maya', false);
+  assert.deepStrictEqual(changed[0].reactions, { maya: '😍', leo: '😂' });
+  const cleared = sanitizePhotosSync(existing, [photo({ id: 'ph_1', userId: 'sam', reactions: { leo: '😂' } })], 'maya', false);
+  assert.deepStrictEqual(cleared[0].reactions, { leo: '😂' });
+});
+
+test('a guest cannot forge, change or delete another user\'s reaction', () => {
+  const existing = [photo({ id: 'ph_1', userId: 'sam', reactions: { leo: '😂' } })];
+  const incoming = [photo({ id: 'ph_1', userId: 'sam', reactions: { maya: '🙌', jess: '🔥' } })]; // drops leo, forges jess
+  const result = sanitizePhotosSync(existing, incoming, 'maya', false);
+  assert.deepStrictEqual(result[0].reactions, { leo: '😂', maya: '🙌' });
+});
+
+test('an invalid reaction value is dropped (not one of the four emoji)', () => {
+  const existing = [photo({ id: 'ph_1', userId: 'sam', reactions: { maya: '🔥' } })];
+  const result = sanitizePhotosSync(existing, [photo({ id: 'ph_1', userId: 'sam', reactions: { maya: '💩' } })], 'maya', false);
+  assert.ok(!result[0].reactions || !('maya' in result[0].reactions), 'invalid emoji must not be stored');
+  const objVal = sanitizePhotosSync([photo({ id: 'ph_1', userId: 'sam' })], [photo({ id: 'ph_1', userId: 'sam', reactions: { maya: { x: 1 } } })], 'maya', false);
+  assert.ok(!objVal[0].reactions || !('maya' in objVal[0].reactions));
+});
+
+test('non-object reactions are ignored but other users\' existing reactions survive', () => {
+  const existing = [photo({ id: 'ph_1', userId: 'sam', reactions: { leo: '😂' } })];
+  for (const bad of [['🔥'], '🔥', 42, null]) {
+    const result = sanitizePhotosSync(existing, [photo({ id: 'ph_1', userId: 'sam', reactions: bad })], 'maya', false);
+    assert.deepStrictEqual(result[0].reactions, { leo: '😂' });
+  }
+});
+
+test('the photo owner can react to their own photo but cannot touch others\' reactions', () => {
+  const existing = [photo({ id: 'ph_1', userId: 'sam', reactions: { leo: '😂' } })];
+  const incoming = [photo({ id: 'ph_1', userId: 'sam', dataUrl: 'data:edited', reactions: { sam: '🙌', maya: '🔥' } })];
+  const result = sanitizePhotosSync(existing, incoming, 'sam', false);
+  assert.strictEqual(result[0].dataUrl, 'data:edited');
+  assert.deepStrictEqual(result[0].reactions, { leo: '😂', sam: '🙌' });
+});
+
+test('the photo owner editing their photo without reactions keeps others\' reactions', () => {
+  const existing = [photo({ id: 'ph_1', userId: 'sam', reactions: { leo: '😂' } })];
+  const result = sanitizePhotosSync(existing, [photo({ id: 'ph_1', userId: 'sam' })], 'sam', false);
+  assert.deepStrictEqual(result[0].reactions, { leo: '😂' });
+});
+
+test('a new photo keeps only the uploader\'s own reaction', () => {
+  const incoming = [photo({ id: 'ph_new', userId: 'maya', reactions: { maya: '😍', leo: '🔥' } })];
+  const result = sanitizePhotosSync([], incoming, 'maya', false);
+  assert.deepStrictEqual(result[0].reactions, { maya: '😍' });
+});
+
+test('reactions do not interfere with removal-request rules', () => {
+  const existing = [photo({ id: 'ph_1', userId: 'sam' })];
+  const incoming = [photo({ id: 'ph_1', userId: 'sam', removalRequest: { by: 'maya', reason: 'x', note: '' }, reactions: { maya: '🔥' } })];
+  const result = sanitizePhotosSync(existing, incoming, 'maya', false);
+  assert.deepStrictEqual(result[0].removalRequest, { by: 'maya', reason: 'x', note: '' });
+  assert.deepStrictEqual(result[0].reactions, { maya: '🔥' });
+});
+
+test('the host remains unrestricted for reactions', () => {
+  const existing = [photo({ id: 'ph_1', userId: 'sam', reactions: { leo: '😂' } })];
+  const incoming = [photo({ id: 'ph_1', userId: 'sam', reactions: { jess: '🔥' } })];
+  assert.deepStrictEqual(sanitizePhotosSync(existing, incoming, 'host', true), incoming);
+});

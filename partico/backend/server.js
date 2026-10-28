@@ -5,7 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 const WebSocket = require('ws');
 const cors = require('cors');
 const { validateMessageText, buildMessage, appendMessage } = require('./messages');
-const { buildStatePartyOr } = require('./parties');
+const { buildStatePartyOr, mergeGuestPartySync } = require('./parties');
 const { followAction, deriveRelationships } = require('./follows');
 const { selectDiscoverable, relationshipTo } = require('./discover');
 const { sanitizePhotosSync } = require('./photo-permissions');
@@ -1030,13 +1030,20 @@ app.post('/api/parties/sync', requireAuth, async (req, res) => {
       if (!myInvite) return res.status(403).json({ error: 'Not allowed' });
     }
 
-    const data = { ...party };
-    delete data.id;
-    delete data.hostId;
-    delete data.invites;
-    // A guest's sync can't delete/edit someone else's photo, or forge a removal
-    // request in another guest's name — only the upload owner and host can.
-    data.photos = sanitizePhotosSync(existing?.data?.photos, party.photos, me.id, isHost);
+    let data;
+    if (isHost) {
+      data = { ...party };
+      delete data.id;
+      delete data.hostId;
+      delete data.invites;
+      data.photos = sanitizePhotosSync(existing?.data?.photos, party.photos, me.id, true);
+    } else {
+      // A guest (possibly with a stale cache) may only change guest-writable
+      // fields — photos (own uploads, own removal request, own reaction) and
+      // their own pop read-marks. Host-controlled fields (title, dates,
+      // checklist, inviteViews, ...) always come from the stored row.
+      data = mergeGuestPartySync(existing.data, party, me.id);
+    }
 
     const hostId = existing ? existing.host_id : me.id;
     const { error: upsertErr } = await supabase

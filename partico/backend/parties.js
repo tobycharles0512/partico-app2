@@ -19,4 +19,47 @@ function buildStatePartyOr(meId, invitedPartyIds = []) {
   return conds.join(',');
 }
 
-module.exports = { buildStatePartyOr };
+// ── Guest party sync ──
+//
+// The frontend syncs the WHOLE party object through POST /api/parties/sync,
+// including from invited guests whose local cache may be stale. A guest's sync
+// must never overwrite host-controlled fields (title, dates, description,
+// checklist, inviteViews, ...). The only party fields a guest legitimately
+// changes through a sync are:
+//   - photos: addPhoto/addPhotos, removePhoto (own), requestPhotoRemoval,
+//     resolvePhotoRemoval, and photo reactions — see sanitizePhotosSync.
+//   - pops:   markPopRead adds the guest's id to a pop's readBy.
+// Everything else is taken from the stored row.
+const { sanitizePhotosSync } = require('./photo-permissions');
+
+// A guest may only ADD themselves to readBy on pops that already exist. They
+// can't create, edit, delete or reorder pops, nor touch anyone else's read mark.
+function mergeGuestPopReads(existingPops, incomingPops, userId) {
+  if (!Array.isArray(existingPops)) return existingPops;
+  const incomingById = new Map(
+    (Array.isArray(incomingPops) ? incomingPops : [])
+      .filter((p) => p && p.id != null)
+      .map((p) => [p.id, p])
+  );
+  return existingPops.map((pop) => {
+    const inc = pop && incomingById.get(pop.id);
+    const readBy = Array.isArray(pop && pop.readBy) ? pop.readBy : [];
+    if (!inc || !Array.isArray(inc.readBy) || !inc.readBy.includes(userId) || readBy.includes(userId)) return pop;
+    return { ...pop, readBy: [...readBy, userId] };
+  });
+}
+
+function mergeGuestPartySync(existingData, incomingParty, userId) {
+  const base = existingData && typeof existingData === 'object' ? existingData : {};
+  const incoming = incomingParty && typeof incomingParty === 'object' ? incomingParty : {};
+  const result = { ...base };
+  delete result.id;
+  delete result.hostId;
+  delete result.invites;
+
+  result.photos = sanitizePhotosSync(base.photos, incoming.photos, userId, false);
+  if (Array.isArray(base.pops)) result.pops = mergeGuestPopReads(base.pops, incoming.pops, userId);
+  return result;
+}
+
+module.exports = { buildStatePartyOr, mergeGuestPartySync, mergeGuestPopReads };
