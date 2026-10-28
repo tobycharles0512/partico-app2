@@ -166,6 +166,38 @@ input.input-field[type="date"],input.input-field[type="time"]{min-width:0;font-s
 @media (max-width:430px){.field-row input.input-field{padding-left:10px;padding-right:8px;font-size:15px;}}
 .badge{background:linear-gradient(135deg,#00ff41,#00d944);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;color:#000;}
 </style>
+<!-- Redesign (2026-10): display + handwriting fonts, shared animation tokens, and one style block per redesigned area -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Caveat:wght@600&display=swap">
+<style id="rd-shared">
+:root{--rd-display:"Bricolage Grotesque",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--rd-hand:"Caveat","Bradley Hand",cursive;--rd-green:#00ff41;--rd-amber:#ffb020;--rd-red:#ff5a5a;--rd-violet:#8b5cf6;}
+@keyframes rdFadeUp{from{opacity:0;transform:translateY(14px)}}
+@keyframes rdPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,255,65,.6)}50%{box-shadow:0 0 0 6px rgba(0,255,65,0)}}
+@keyframes rdTick{0%{transform:translateY(-6px);opacity:.3}100%{transform:none;opacity:1}}
+@keyframes rdPopIn{from{transform:scale(.3);opacity:0}}
+.rd-display{font-family:var(--rd-display);letter-spacing:-.02em}
+.rd-reveal{transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1)}
+.rd-reveal.rd-pending{opacity:0;transform:translateY(24px) scale(.98)}
+@media (prefers-reduced-motion:reduce){.rd-reveal.rd-pending{opacity:1;transform:none}}
+</style>
+<style id="rd-nav">
+/* nav */
+</style>
+<style id="rd-home">
+/* home */
+</style>
+<style id="rd-invite">
+/* invite */
+</style>
+<style id="rd-memories">
+/* memories */
+</style>
+<style id="rd-friends">
+/* friends */
+</style>
+<style id="rd-profile">
+/* profile */
+</style>
 </head>
 <body>
 <!-- Pre-loader sits OUTSIDE #root so React mounting clears #root but not this -->
@@ -256,6 +288,39 @@ setTimeout(function() {
 }, 8000);
 </script>
 <div id="root"></div>
+<script id="logic-shared">
+// Pure helpers for the redesigned screens: no React, no DOM, so partico/tests can unit-test them in Node.
+window.PL = window.PL || {};
+// A party's effective start: the confirmed date, else the first proposed date. null when there is no date yet.
+PL.partyDate = function (p) {
+  if (!p) return null;
+  var d = (p.confirmedDate && p.confirmedDate.date) || (p.dates && p.dates[0] && p.dates[0].date);
+  if (!d) return null;
+  var t = (p.confirmedDate && p.confirmedDate.time) || (p.dates && p.dates[0] && p.dates[0].time) || "20:00";
+  var dt = new Date(String(d).slice(0, 10) + "T" + (t || "20:00"));
+  return isNaN(dt.getTime()) ? null : dt;
+};
+</script>
+<script id="logic-home">
+window.PL = window.PL || {};
+PL.home = {};
+</script>
+<script id="logic-invite">
+window.PL = window.PL || {};
+PL.invite = {};
+</script>
+<script id="logic-memories">
+window.PL = window.PL || {};
+PL.memories = {};
+</script>
+<script id="logic-friends">
+window.PL = window.PL || {};
+PL.friends = {};
+</script>
+<script id="logic-profile">
+window.PL = window.PL || {};
+PL.profile = {};
+</script>
 <script>
 if(typeof React==='undefined'||typeof ReactDOM==='undefined'){var _m=document.getElementById('pre-loader-msg');if(_m)_m.textContent='Could not load app — check your internet and refresh';throw new Error('React CDN failed to load');}
 const { useState, useEffect, useRef, useContext, createContext, useCallback, useMemo } = React;
@@ -1632,6 +1697,24 @@ const MapView = ({ lat, lng, label, height = 200 }) => {
   if (!lat || !lng) return null;
   return /* @__PURE__ */ React.createElement("div", { ref: mapRef, style: { height, borderRadius: 12, border: "1px solid rgba(0,255,65,0.3)", marginTop: 8, overflow: "hidden" } });
 };
+// Scroll reveal: children glide up as they enter the viewport. Anything already on screen at mount stays visible.
+const Reveal = ({ children, delay = 0, style, className = "" }) => {
+  const ref = useRef(null);
+  const [pending, setPending] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !window.IntersectionObserver) return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (el.getBoundingClientRect().top < window.innerHeight - 40) return;
+    setPending(true);
+    const io = new IntersectionObserver((ents) => {
+      ents.forEach((en) => { if (en.isIntersecting) { setPending(false); io.disconnect(); } });
+    }, { threshold: 0.15 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return React.createElement("div", { ref, className: "rd-reveal" + (pending ? " rd-pending" : "") + (className ? " " + className : ""), style: { transitionDelay: delay + "s", ...style } }, children);
+};
 const Avatar = ({ user, size = 40, onClick }) => {
   const s = { width: size, height: size, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.38, fontWeight: 700, cursor: onClick ? "pointer" : "default", border: "2px solid rgba(0,255,65,0.5)", flexShrink: 0, overflow: "hidden", background: user ? avatarColor(user.id) : "#444" };
   if (user?.profilePic) return /* @__PURE__ */ React.createElement("img", { src: user.profilePic, style: { ...s, objectFit: "cover" }, onClick });
@@ -2263,6 +2346,8 @@ const PinBoard = ({ currentUser, parties, navigate }) => {
     )
   );
 };
+// Home's memories area. Starts as just the pin board; the memories redesign fills in recap, polaroids and albums.
+const MemoriesSection = ({ currentUser, parties, navigate }) => React.createElement(PinBoard, { currentUser, parties, navigate });
 const EVENT_TYPES = [
   { id: "party", label: "Party", emoji: "\u{1F38A}", color: "#00ff41", grad: "linear-gradient(135deg,#00ff41,#00d944)", fw: ["#00ff41","#fbbf24","#34d399","#60a5fa","#f87171"], font: "'Segoe UI',sans-serif", smartSections: ["what_to_bring","parking"] },
   { id: "birthday", label: "Birthday", emoji: "\u{1F382}", color: "#f59e0b", grad: "linear-gradient(135deg,#f59e0b,#ef4444)", fw: ["#f59e0b","#ef4444","#fde68a","#f87171"], font: "'Segoe UI',sans-serif", smartSections: ["gift_list","age_milestone","surprise_mode"] },
