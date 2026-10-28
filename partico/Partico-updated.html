@@ -190,7 +190,87 @@ input.input-field[type="date"],input.input-field[type="time"]{min-width:0;font-s
 /* invite */
 </style>
 <style id="rd-memories">
-/* memories */
+/* memories: pin board, recap, polaroids, albums, photo viewer */
+.rdm-memories{padding:0 16px;margin:20px 0 24px}
+.rdm-sec{margin:28px 0 0}
+.rdm-memories>.rdm-sec:first-child{margin-top:0}
+.rdm-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 0 12px}
+.rdm-h h3{font-family:var(--rd-display);font-size:19px;font-weight:800;letter-spacing:-.02em;margin:0}
+.rdm-h small{font-size:12px;--text:var(--w50)}
+.rdm-frame{background:linear-gradient(135deg,#9b7a5c,#6f533d 40%,#8f6f53 70%,#5f4634);padding:12px;border-radius:6px;box-shadow:0 18px 40px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.18),inset 0 -2px 5px rgba(0,0,0,.4)}
+.rdm-board{position:relative;height:430px;background-color:#c69a6d;background-image:radial-gradient(rgba(90,50,25,.35) 1px,transparent 1.6px),radial-gradient(rgba(255,230,200,.18) 1px,transparent 1.4px),radial-gradient(circle at 30% 20%,rgba(255,220,180,.25),transparent 60%),radial-gradient(circle at 80% 90%,rgba(80,40,15,.3),transparent 55%);background-size:7px 7px,11px 11px,100% 100%,100% 100%;background-position:0 0,3px 5px,0 0,0 0;box-shadow:inset 0 0 24px rgba(0,0,0,.45);overflow:hidden;user-select:none;-webkit-user-select:none}
+.rdm-board.tall{height:540px}
+.rdm-pin{position:absolute;width:96px;background:#fbfaf6;padding:6px 6px 22px;border-radius:2px;box-shadow:0 6px 14px rgba(0,0,0,.45);cursor:grab;touch-action:none;transition:box-shadow .2s,transform .25s cubic-bezier(.34,1.56,.64,1);animation:rdmPinIn .6s cubic-bezier(.34,1.56,.64,1) both;-webkit-tap-highlight-color:transparent}
+@keyframes rdmPinIn{from{opacity:0;scale:.6}}
+.rdm-pin:hover{box-shadow:0 12px 24px rgba(0,0,0,.55)}
+.rdm-pin.drag{cursor:grabbing;box-shadow:0 18px 30px rgba(0,0,0,.6);transition:box-shadow .2s}
+.rdm-pin:focus-visible{outline:2px solid #00ff41;outline-offset:2px}
+.rdm-pin .ph{height:76px;border-radius:1px;pointer-events:none;background:#e0e0e0 center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:28px}
+.rdm-pin .ph.none{background:linear-gradient(135deg,#00ff41,#00a83a)}
+.rdm-pin em{position:absolute;left:4px;right:4px;bottom:3px;text-align:center;--text:#2a2a2a;font:600 15px/1 var(--rd-hand);font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.rdm-pin:before{content:"";position:absolute;top:-6px;left:50%;width:13px;height:13px;margin-left:-6px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ff8a8a,var(--pin,#d62828) 55%,#7a0f0f);box-shadow:1px 3px 3px rgba(0,0,0,.45);z-index:2}
+.rdm-hint{font-size:12px;--text:var(--w40);text-align:center;margin-top:8px}
+.rdm-tabs{display:flex;gap:4px;background:var(--w05);border:1px solid var(--w10);border-radius:999px;padding:3px;margin-bottom:12px}
+.rdm-tabs button{flex:1;border:none;background:none;--text:var(--w60);font-weight:600;font-size:12px;padding:7px 0;border-radius:999px;cursor:pointer;transition:background .2s}
+.rdm-tabs button.on{background:#00ff41;--text:#04140a}
+.rdm-recap{border-radius:24px;overflow:hidden;position:relative;height:300px;cursor:pointer;background:#111;--text:#fff;-webkit-tap-highlight-color:transparent}
+.rdm-recap .slide{position:absolute;inset:0;opacity:0;transition:opacity 1s ease}
+.rdm-recap .slide.on{opacity:1}
+.rdm-recap .slide .ph{position:absolute;inset:0;background:#222 center/cover no-repeat}
+.rdm-recap .slide.on .ph{animation:rdmKb 5s ease-out forwards}
+@keyframes rdmKb{from{transform:scale(1.15) translate(4%,2%)}to{transform:scale(1) translate(0,0)}}
+.rdm-recap .over{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.4),transparent 30%,transparent 50%,rgba(0,0,0,.85));padding:16px;display:flex;flex-direction:column;justify-content:space-between}
+.rdm-bars{display:flex;gap:4px}
+.rdm-bars span{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.3);overflow:hidden}
+.rdm-bars span i{display:block;height:100%;width:0;background:#fff}
+.rdm-bars span.done i{width:100%}
+.rdm-bars span.run i{animation:rdmFill var(--dur,4s) linear forwards}
+@keyframes rdmFill{to{width:100%}}
+.rdm-recap .k{font-size:11px;letter-spacing:.12em;text-transform:uppercase;--text:#00ff41;font-weight:800}
+.rdm-recap h4{font-family:var(--rd-display);font-size:26px;font-weight:800;margin:0;line-height:1.05;letter-spacing:-.02em}
+.rdm-recap p{margin:4px 0 0;font-size:13px;--text:rgba(255,255,255,.85)}
+.rdm-polas{height:300px;position:relative;display:grid;place-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.rdm-pola{position:absolute;width:190px;background:#fbfaf6;padding:10px 10px 36px;border-radius:4px;box-shadow:0 14px 30px rgba(0,0,0,.5);transition:transform .5s cubic-bezier(.2,.8,.2,1),opacity .35s}
+.rdm-pola .ph{height:170px;border-radius:2px;background:#ddd center/cover no-repeat}
+.rdm-pola em{position:absolute;left:6px;right:6px;bottom:7px;text-align:center;--text:#222;font:600 20px/1.1 var(--rd-hand);font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdm-pola.fling{transform:translate(120%,-30px) rotate(24deg)!important;opacity:0}
+.rdm-onday{margin-top:14px;display:flex;gap:12px;align-items:center;background:linear-gradient(120deg,rgba(139,92,246,.22),rgba(0,255,65,.10));border:1px solid var(--w10);border-radius:18px;padding:12px;cursor:pointer;width:100%;text-align:left}
+.rdm-onday .ph{width:54px;height:54px;border-radius:12px;flex:none;background:#333 center/cover no-repeat}
+.rdm-onday b{font-size:14px;display:block}
+.rdm-onday small{font-size:12px;--text:var(--w60)}
+.rdm-arow{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px 4px;scroll-snap-type:x proximity}
+.rdm-arow::-webkit-scrollbar{display:none}
+.rdm-album{flex:0 0 140px;scroll-snap-align:start;border-radius:18px;overflow:hidden;position:relative;aspect-ratio:1;cursor:pointer;border:none;padding:0;background:#222;--text:#fff;text-align:left}
+.rdm-album .ph{position:absolute;inset:0;background:#222 center/cover no-repeat;transition:transform .4s ease}
+.rdm-album:hover .ph{transform:scale(1.05)}
+.rdm-album .cap{position:absolute;left:0;right:0;bottom:0;padding:10px;background:linear-gradient(transparent,rgba(0,0,0,.8));z-index:2}
+.rdm-album b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdm-album small{font-size:11px;--text:rgba(255,255,255,.78)}
+.rdm-album .new{position:absolute;top:8px;left:8px;z-index:2;font-size:10px;font-weight:800;background:#00ff41;--text:#04140a;padding:2px 7px;border-radius:999px}
+.rdm-viewer{position:fixed;inset:0;z-index:400;background:#000;--text:#fff;display:flex;flex-direction:column;animation:rdmZoomIn .3s ease}
+@keyframes rdmZoomIn{from{transform:scale(.92);opacity:0}}
+.rdm-viewer img.full{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.rdm-viewer .tz{position:absolute;top:0;bottom:0;z-index:1;cursor:pointer}
+.rdm-viewer .tz.l{left:0;width:35%}.rdm-viewer .tz.r{right:0;width:65%}
+.rdm-viewer .vt{position:relative;padding:calc(env(safe-area-inset-top,0px) + 14px) 14px 30px;display:grid;gap:10px;background:linear-gradient(rgba(0,0,0,.65),transparent);z-index:2}
+.rdm-viewer .who{display:flex;align-items:center;gap:10px;font-size:13px}
+.rdm-viewer .who b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdm-viewer .who small{--text:rgba(255,255,255,.72)}
+.rdm-viewer .x{background:none;border:none;font-size:28px;cursor:pointer;line-height:1;padding:0 4px}
+.rdm-viewer .vb{position:absolute;left:0;right:0;bottom:0;padding:40px 16px calc(24px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,rgba(0,0,0,.75));z-index:2;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rdm-react{background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid transparent;border-radius:999px;padding:7px 12px;cursor:pointer;font-size:14px;font-weight:600;transition:transform .15s}
+.rdm-react.mine{border-color:#00ff41;background:rgba(0,255,65,.22)}
+.rdm-react.pop{animation:rdmPopR .35s ease}
+@keyframes rdmPopR{50%{transform:scale(1.35)}}
+.rdm-viewer .act{margin-left:auto;background:rgba(255,255,255,.12);border:none;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer}
+.rdm-viewer .act.danger{background:rgba(220,38,38,.25);--text:#fca5a5}
+.rdm-viewer .act + .act{margin-left:0}
+.rdm-tile-r{position:absolute;bottom:4px;right:5px;font-size:10px;font-weight:700;--text:#fff;background:rgba(0,0,0,.55);border-radius:999px;padding:1px 6px;pointer-events:none}
+@media (prefers-reduced-motion:reduce){
+  .rdm-pin,.rdm-recap .slide.on .ph,.rdm-react.pop,.rdm-viewer{animation:none}
+  .rdm-bars span.run i{animation:none;width:100%}
+  .rdm-recap .slide,.rdm-pola,.rdm-pin,.rdm-album .ph{transition:none}
+}
 </style>
 <style id="rd-friends">
 /* friends */
@@ -311,7 +391,122 @@ PL.invite = {};
 </script>
 <script id="logic-memories">
 window.PL = window.PL || {};
-PL.memories = {};
+PL.memories = (function () {
+  var DAY = 86400000;
+  var REACTIONS = ["\u{1F525}", "\u{1F602}", "\u{1F60D}", "\u{1F64C}"];
+  var photosOf = function (p) { return (p && p.photos) || []; };
+  var ts = function (ph) { return (ph && ph.timestamp) || 0; };
+  var lastPhotoTs = function (p) { return photosOf(p).reduce(function (m, ph) { return Math.max(m, ts(ph)); }, 0); };
+  var latestPhoto = function (p) { return photosOf(p).reduce(function (best, ph) { return !best || ts(ph) >= ts(best) ? ph : best; }, null); };
+  var acceptedCount = function (p) { return ((p && p.invites) || []).filter(function (i) { return i.status === "accepted"; }).length; };
+  // Hosted, or an accepted invite.
+  var isMine = function (p, userId) {
+    if (!p || !userId) return false;
+    if (p.hostId === userId) return true;
+    return ((p.invites) || []).some(function (i) { return i.userId === userId && i.status === "accepted"; });
+  };
+  // When a party "happened": its date, else its newest photo.
+  var when = function (p) { var d = PL.partyDate(p); return d ? d.getTime() : lastPhotoTs(p); };
+  var photoParties = function (parties, userId) {
+    return (parties || []).filter(function (p) { return isMine(p, userId) && photosOf(p).length > 0; })
+      .sort(function (a, b) { return when(b) - when(a); });
+  };
+  var reactionCounts = function (photo) {
+    var c = {};
+    REACTIONS.forEach(function (e) { c[e] = 0; });
+    var r = (photo && photo.reactions) || {};
+    Object.keys(r).forEach(function (k) { if (r[k]) c[r[k]] = (c[r[k]] || 0) + 1; });
+    return c;
+  };
+  var reactionTotal = function (photo) { var r = (photo && photo.reactions) || {}; return Object.keys(r).filter(function (k) { return !!r[k]; }).length; };
+  var fireCount = function (photo) { return reactionCounts(photo)[REACTIONS[0]] || 0; };
+  var partyReactions = function (p) { return photosOf(p).reduce(function (s, ph) { return s + reactionTotal(ph); }, 0); };
+  var seeded = function (seed) { return function (k) { var x = Math.sin(seed * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); }; };
+
+  return {
+    REACTIONS: REACTIONS,
+    isMine: isMine,
+    photoParties: photoParties,
+    reactionCounts: reactionCounts,
+    reactionTotal: reactionTotal,
+    // One reaction per user per photo: same emoji again clears it, another switches. Returns a new photo.
+    toggleReaction: function (photo, userId, emoji) {
+      if (!photo || !userId) return photo;
+      var r = Object.assign({}, photo.reactions || {});
+      if (r[userId] === emoji) delete r[userId]; else r[userId] = emoji;
+      return Object.assign({}, photo, { reactions: r });
+    },
+    boardParties: function (parties, userId) {
+      return (parties || []).filter(function (p) { return isMine(p, userId); }).slice(0, 12);
+    },
+    // Default spot for a pin: a loose 3-column scatter (percent of the board), stable per party.
+    pinPos: function (partyId, idx, count) {
+      var id = String(partyId || "");
+      var j = seeded((id.charCodeAt(0) || 0) + (id.charCodeAt(id.length - 1) || 0) + idx * 7);
+      var rows = Math.max(1, Math.ceil((count || 1) / 3)), col = idx % 3, row = Math.floor(idx / 3);
+      return {
+        left: Math.round((3 + col * 32 + j(1) * 6) * 10) / 10,
+        top: Math.round((3 + row * (88 / rows) + j(2) * 4) * 10) / 10,
+        rotation: Math.round(j(3) * 22 - 11)
+      };
+    },
+    // Story slides for my parties of the last ~60 days (else my 3 most recent photo parties).
+    recapSlides: function (parties, userId, now) {
+      var all = photoParties(parties, userId);
+      if (!all.length) return [];
+      var pp = all.filter(function (p) { var d = (now - when(p)) / DAY; return d >= 0 && d <= 60; });
+      var recent = pp.length > 0;
+      if (!recent) pp = all.slice(0, 3);
+      var total = pp.reduce(function (s, p) { return s + photosOf(p).length; }, 0);
+      var slides = [{ kind: "recap", recent: recent, parties: pp.length, photos: total, party: pp[0], photo: latestPhoto(pp[0]) }];
+      var most = pp.slice().sort(function (a, b) { return photosOf(b).length - photosOf(a).length; })[0];
+      slides.push({ kind: "most", party: most, photo: latestPhoto(most), count: photosOf(most).length, guests: acceptedCount(most) });
+      var loved = pp.slice().sort(function (a, b) { return partyReactions(b) - partyReactions(a); })[0];
+      if (partyReactions(loved) > 0) {
+        var bestPh = photosOf(loved).slice().sort(function (a, b) { return reactionTotal(b) - reactionTotal(a); })[0];
+        slides.push({ kind: "reactions", party: loved, photo: bestPh, count: partyReactions(loved) });
+      }
+      var hot = null;
+      pp.forEach(function (p) { photosOf(p).forEach(function (ph) { var n = fireCount(ph); if (n > 0 && (!hot || n > hot.count)) hot = { kind: "hottest", party: p, photo: ph, count: n }; }); });
+      if (hot) slides.push(hot);
+      return slides;
+    },
+    albums: function (parties, userId, now) {
+      return photoParties(parties, userId).map(function (p) {
+        var last = lastPhotoTs(p);
+        return { party: p, cover: latestPhoto(p), count: photosOf(p).length, isNew: now - last < 3 * DAY, date: PL.partyDate(p), last: last };
+      }).sort(function (a, b) { return b.last - a.last; });
+    },
+    latestPhotos: function (parties, userId, n) {
+      var out = [];
+      photoParties(parties, userId).forEach(function (p) { photosOf(p).forEach(function (ph) { out.push({ party: p, photo: ph }); }); });
+      return out.sort(function (a, b) { return ts(b.photo) - ts(a.photo); }).slice(0, n || 5);
+    },
+    // Short relative time for the photo viewer ("just now", "5m ago", "3h ago", "2d ago", else "12 Mar").
+    ago: function (t, now) {
+      if (!t) return "";
+      var s = Math.max(0, (now - t) / 1000);
+      if (s < 60) return "just now";
+      if (s < 3600) return Math.floor(s / 60) + "m ago";
+      if (s < 86400) return Math.floor(s / 3600) + "h ago";
+      if (s < 7 * 86400) return Math.floor(s / 86400) + "d ago";
+      return new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    },
+    // A party I went to (with photos) about a year ago: 358-372 days back, closest to 365.
+    onThisDay: function (parties, userId, now) {
+      var best = null;
+      photoParties(parties, userId).forEach(function (p) {
+        var d = PL.partyDate(p); if (!d) return;
+        var ago = (now - d.getTime()) / DAY;
+        if (ago < 358 || ago > 372) return;
+        if (!best || Math.abs(ago - 365) < Math.abs(best.ago - 365)) best = { party: p, ago: ago };
+      });
+      if (!best) return null;
+      var p = best.party;
+      return { party: p, photo: photosOf(p)[0], count: photosOf(p).length, others: ((p.invites) || []).filter(function (i) { return i.status === "accepted" && i.userId !== userId; }).length + (p.hostId === userId ? 0 : 1) };
+    }
+  };
+})();
 </script>
 <script id="logic-friends">
 window.PL = window.PL || {};
@@ -1735,6 +1930,37 @@ const PhotoAlbumTab = ({ party, addPhotos, removePhoto, requestPhotoRemoval, res
   const photos = party.photos || [];
   const targetPhoto = requestTargetId ? photos.find((p) => p.id === requestTargetId) : null;
   const pendingOnMine = photos.filter((ph) => ph.userId === currentUserId && ph.removalRequest);
+  // Photo viewer + reactions. Reactions ride the normal party sync: updateParty -> syncPartyToServer.
+  const M = window.PL.memories;
+  const app = useApp() || {};
+  const [viewerId, setViewerId] = useState(null);
+  const [popped, setPopped] = useState(null);
+  const viewIdx = viewerId ? photos.findIndex((p) => p.id === viewerId) : -1;
+  const viewPhoto = viewIdx >= 0 ? photos[viewIdx] : null;
+  useEffect(() => { if (viewerId && !viewPhoto) setViewerId(null); }, [viewerId, viewPhoto]);
+  const stepViewer = (d) => {
+    const j = viewIdx + d;
+    if (j < 0) return;
+    if (j >= photos.length) { setViewerId(null); return; }
+    setViewerId(photos[j].id);
+  };
+  useEffect(() => {
+    if (!viewerId) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setViewerId(null);
+      else if (e.key === "ArrowRight") stepViewer(1);
+      else if (e.key === "ArrowLeft") stepViewer(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+  const handleReact = (ph, emoji) => {
+    if (!currentUserId || !app.updateParty) return;
+    // Send every photo whole, with the full reactions map; only my own entry changes.
+    const newPhotos = photos.map((x) => x.id === ph.id ? M.toggleReaction(x, currentUserId, emoji) : x);
+    app.updateParty(party.id, { photos: newPhotos });
+    setPopped({ emoji, n: Date.now() });
+  };
 
   const handleAddPhoto = async (e) => {
     const files = Array.from(e.target.files);
@@ -1791,14 +2017,16 @@ const PhotoAlbumTab = ({ party, addPhotos, removePhoto, requestPhotoRemoval, res
             const isSel = selected.includes(ph.id);
             const mayDelete = canDelete || ph.userId === currentUserId;
             const iAmRequester = ph.removalRequest && ph.removalRequest.by === currentUserId;
-            return React.createElement("div", { key: ph.id, onClick: selecting ? () => toggleSelect(ph.id) : undefined, style: { position: "relative", paddingTop: "100%", borderRadius: 10, overflow: "hidden", cursor: selecting ? "pointer" : "default", outline: isSel ? "3px solid #00ff41" : (ph.removalRequest && !mayDelete ? "2px dashed rgba(251,191,36,0.85)" : "none"), outlineOffset: -3 } },
+            const nReacts = M.reactionTotal(ph);
+            return React.createElement("div", { key: ph.id, onClick: selecting ? () => toggleSelect(ph.id) : () => setViewerId(ph.id), style: { position: "relative", paddingTop: "100%", borderRadius: 10, overflow: "hidden", cursor: "pointer", outline: isSel ? "3px solid #00ff41" : (ph.removalRequest && !mayDelete ? "2px dashed rgba(251,191,36,0.85)" : "none"), outlineOffset: -3 } },
               React.createElement("img", { src: ph.dataUrl, style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }, alt: "" }),
               React.createElement("div", { style: { position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent,rgba(0,0,0,0.8))", padding: "16px 6px 4px" } },
                 React.createElement("div", { style: { fontSize: 9, color: "var(--w80)" } }, ph.userName)),
+              !selecting && nReacts > 0 && React.createElement("span", { className: "rdm-tile-r" }, (() => { const c = M.reactionCounts(ph); return M.REACTIONS.reduce((a, b) => c[b] > c[a] ? b : a, M.REACTIONS[0]); })() + " " + nReacts),
               selecting && React.createElement("div", { style: { position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: "50%", border: "2px solid #fff", background: isSel ? "#00ff41" : "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#000", fontWeight: 700 } }, isSel ? "✓" : ""),
-              !selecting && mayDelete && React.createElement("button", { onClick: () => { if (window.confirm("Remove this photo?")) removePhoto(party.id, ph.id); }, style: { position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.7)", color: "#f87171", border: "none", borderRadius: "50%", width: 24, height: 24, fontSize: 12, cursor: "pointer" } }, "✕"),
+              !selecting && mayDelete && React.createElement("button", { onClick: (e) => { e.stopPropagation(); if (window.confirm("Remove this photo?")) removePhoto(party.id, ph.id); }, style: { position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.7)", color: "#f87171", border: "none", borderRadius: "50%", width: 24, height: 24, fontSize: 12, cursor: "pointer" } }, "✕"),
               !selecting && !mayDelete && ph.removalRequest && React.createElement("div", { style: { position: "absolute", top: 4, left: 4, background: "rgba(251,191,36,0.92)", color: "#3a2b00", fontSize: 9, fontWeight: 800, borderRadius: 20, padding: "2px 7px 2px 6px" } }, "⏳ " + (iAmRequester ? "Asked" : "Requested")),
-              !selecting && !mayDelete && !ph.removalRequest && React.createElement("button", { onClick: () => openRequestSheet(ph.id), style: { position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.65)", border: "none", borderRadius: "50%", width: 24, height: 24, fontSize: 11, cursor: "pointer", boxShadow: "0 0 0 1.5px rgba(251,191,36,0.7)" } }, "\u{1F6A9}")
+              !selecting && !mayDelete && !ph.removalRequest && React.createElement("button", { onClick: (e) => { e.stopPropagation(); openRequestSheet(ph.id); }, style: { position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.65)", border: "none", borderRadius: "50%", width: 24, height: 24, fontSize: 11, cursor: "pointer", boxShadow: "0 0 0 1.5px rgba(251,191,36,0.7)" } }, "\u{1F6A9}")
             );
           })
         )
@@ -1807,6 +2035,41 @@ const PhotoAlbumTab = ({ party, addPhotos, removePhoto, requestPhotoRemoval, res
       React.createElement("div", { style: { flex: 1, fontSize: 14, color: "var(--w70)", fontWeight: 600 } }, `${selected.length} selected`),
       React.createElement("button", { className: "btn-primary", style: { margin: 0, width: "auto", padding: "10px 24px", opacity: selected.length ? 1 : 0.4 }, disabled: !selected.length, onClick: handleSave }, "\u{1F4BE} Save")
     ),
+    viewPhoto && (() => {
+      const counts = M.reactionCounts(viewPhoto);
+      const mine = viewPhoto.reactions && viewPhoto.reactions[currentUserId];
+      const mayDel = canDelete || viewPhoto.userId === currentUserId;
+      const by = app.getUser ? app.getUser(viewPhoto.userId) : null;
+      const byName = viewPhoto.userId === currentUserId ? "You" : ((viewPhoto.userName || (by ? by.firstName : "") || "Guest").split(" ")[0]);
+      return React.createElement("div", { className: "rdm-viewer", role: "dialog", "aria-modal": true, "aria-label": "Photo viewer" },
+        React.createElement("img", { className: "full", src: viewPhoto.dataUrl, alt: "" }),
+        React.createElement("div", { className: "tz l", onClick: () => stepViewer(-1) }),
+        React.createElement("div", { className: "tz r", onClick: () => stepViewer(1) }),
+        React.createElement("div", { className: "vt" },
+          React.createElement("div", { className: "rdm-bars" }, photos.length <= 30 && photos.map((p, j) => React.createElement("span", { key: p.id, className: j <= viewIdx ? "done" : "" }, React.createElement("i", null)))),
+          React.createElement("div", { className: "who" },
+            by && React.createElement(Avatar, { user: by, size: 32 }),
+            React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+              React.createElement("b", null, party.title),
+              React.createElement("small", null, byName + (viewPhoto.timestamp ? " \xB7 " + M.ago(viewPhoto.timestamp, Date.now()) : "") + " \xB7 " + (viewIdx + 1) + " of " + photos.length)
+            ),
+            React.createElement("button", { className: "x", "aria-label": "Close", onClick: () => setViewerId(null) }, "\xD7")
+          )
+        ),
+        React.createElement("div", { className: "vb" },
+          M.REACTIONS.map((emo) => React.createElement("button", {
+            key: emo + (popped && popped.emoji === emo ? "-" + popped.n : ""),
+            className: "rdm-react" + (mine === emo ? " mine" : "") + (popped && popped.emoji === emo ? " pop" : ""),
+            "aria-pressed": mine === emo,
+            "aria-label": emo + " " + (counts[emo] || 0),
+            onClick: () => handleReact(viewPhoto, emo)
+          }, emo + " " + (counts[emo] || 0))),
+          mayDel
+            ? React.createElement("button", { className: "act danger", onClick: () => { if (window.confirm("Remove this photo?")) removePhoto(party.id, viewPhoto.id); } }, "Delete")
+            : !viewPhoto.removalRequest && React.createElement("button", { className: "act", onClick: () => { const id = viewPhoto.id; setViewerId(null); openRequestSheet(id); } }, "\u{1F6A9} Ask to remove")
+        )
+      );
+    })(),
     targetPhoto && React.createElement("div", { onClick: closeRequestSheet, style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 199 } }),
     targetPhoto && React.createElement("div", { style: { position: "fixed", left: 0, right: 0, bottom: 0, background: "var(--surface)", border: "1px solid var(--surface-border)", borderRadius: "22px 22px 0 0", padding: "16px 16px calc(20px + env(safe-area-inset-bottom,8px))", zIndex: 200, animation: "slideUp 0.25s ease" } },
       React.createElement("div", { style: { width: 34, height: 4, borderRadius: 3, background: "var(--w15)", margin: "0 auto 16px" } }),
@@ -2145,209 +2408,206 @@ const HomeScreen = () => {
 };
 // Cork Board Style Pinboard with Draggable Polaroids & Persistent Positions
 const PinBoard = ({ currentUser, parties, navigate }) => {
-  const [positions, setPositions] = useState({});
-  const [dragging, setDragging] = useState(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [hasMoved, setHasMoved] = useState(false);
-  const surfaceRef = useRef(null);
+  const M = window.PL.memories;
+  const [positions, setPositions] = useState(() => ls.get("partico_pinboard_positions", {}) || {});
+  const [draggingId, setDraggingId] = useState(null);
+  const dragRef = useRef(null);
+  const zTop = useRef(Object.values(positions).reduce((m, p) => Math.max(m, (p && p.z) || 0), 50));
+  const boardRef = useRef(null);
+  const userId = currentUser?.id;
+  const pinned = M.boardParties(parties, userId);
+  const PIN_COLORS = ["#d62828", "#2563eb", "#16a34a", "#f59e0b", "#9333ea"];
+  const tall = pinned.length > 9;
 
-  // Load positions from localStorage on mount
+  // Hosts land on their manage screen, guests on the party page; both on photos when there are some.
+  const openParty = (party) => {
+    const hasPhotos = (party.photos || []).length > 0;
+    if (party.hostId === userId) navigate("partyManage", { partyId: party.id, tab: hasPhotos ? "photos" : undefined });
+    else navigate("partyDetail", { partyId: party.id, tab: hasPhotos ? "photos" : "info" });
+  };
+
+  // One pointer path for mouse and touch: a press that moves < 6px is a tap, otherwise a drag.
+  const onPointerDown = (e, party, pos) => {
+    if (e.button != null && e.button !== 0) return;
+    const board = boardRef.current;
+    if (!board) return;
+    const el = e.currentTarget;
+    dragRef.current = { id: party.id, party, el, sx: e.clientX, sy: e.clientY, ox: el.offsetLeft, oy: el.offsetTop, rot: pos.rotation || 0, moved: false, br: board.getBoundingClientRect() };
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  };
+  const onPointerMove = (e) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
+    if (!d.moved && Math.abs(dx) + Math.abs(dy) < 6) return;
+    if (!d.moved) { d.moved = true; d.z = ++zTop.current; setDraggingId(d.id); }
+    const w = d.br.width, h = d.br.height, pw = d.el.offsetWidth, ph = d.el.offsetHeight;
+    const x = Math.max(-pw * 0.2, Math.min(w - pw * 0.8, d.ox + dx));
+    const y = Math.max(0, Math.min(h - ph * 0.8, d.oy + dy));
+    d.left = (100 * x) / w; d.top = (100 * y) / h;
+    setPositions((prev) => ({ ...prev, [d.id]: { ...(prev[d.id] || {}), left: d.left, top: d.top, rotation: d.rot, z: d.z } }));
+  };
+  const onPointerUp = () => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (!d) return;
+    setDraggingId(null);
+    if (d.moved) {
+      setPositions((prev) => {
+        const next = { ...prev, [d.id]: { ...(prev[d.id] || {}), left: d.left, top: d.top, rotation: d.rot, z: d.z } };
+        ls.set("partico_pinboard_positions", next);
+        return next;
+      });
+    } else openParty(d.party);
+  };
+  const onPointerCancel = () => { dragRef.current = null; setDraggingId(null); };
+
+  return React.createElement("section", { className: "rdm-sec" },
+    React.createElement("div", { className: "rdm-h" }, React.createElement("h3", null, "\u{1F4CC} My Memory Board")),
+    React.createElement("div", { className: "rdm-frame" },
+      React.createElement("div", { ref: boardRef, className: "rdm-board" + (tall ? " tall" : "") },
+        pinned.length === 0
+          ? React.createElement("div", { style: { position: "absolute", inset: 0, display: "grid", placeItems: "center", "--text": "#4a2f1d", font: "600 20px var(--rd-hand)", textAlign: "center", padding: 30 } }, "Go to a party and it gets pinned here \u{1F4CC}")
+          : pinned.map((party, idx) => {
+              const saved = positions[party.id];
+              const pos = saved && saved.left != null ? { rotation: 0, ...saved } : M.pinPos(party.id, idx, pinned.length);
+              const photos = party.photos || [];
+              const img = photos.length ? photos[photos.length - 1].dataUrl : party.coverImage;
+              const isDragging = draggingId === party.id;
+              return React.createElement("div", {
+                key: party.id,
+                className: "rdm-pin" + (isDragging ? " drag" : ""),
+                role: "button",
+                tabIndex: 0,
+                "aria-label": party.title,
+                onPointerDown: (e) => onPointerDown(e, party, pos),
+                onPointerMove,
+                onPointerUp,
+                onPointerCancel,
+                onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openParty(party); } },
+                style: { left: pos.left + "%", top: pos.top + "%", transform: "rotate(" + (pos.rotation || 0) + "deg)" + (isDragging ? " scale(1.08)" : ""), "--pin": PIN_COLORS[idx % PIN_COLORS.length], animationDelay: idx * 0.07 + "s", zIndex: pos.z || idx + 1 }
+              },
+                img
+                  ? React.createElement("div", { className: "ph", style: { backgroundImage: "url(\"" + img + "\")" } })
+                  : React.createElement("div", { className: "ph none" }, "\u{1F389}"),
+                React.createElement("em", null, party.title)
+              );
+            })
+      )
+    ),
+    pinned.length > 0 && React.createElement("div", { className: "rdm-hint" }, "Drag to rearrange \xB7 tap to open the photos")
+  );
+};
+// Story-style recap: auto-advances every 4s, tap to skip ahead.
+const MemoriesRecap = ({ slides, currentUser }) => {
+  const [i, setI] = useState(0);
+  const n = slides.length;
+  useEffect(() => { if (i >= n) setI(0); }, [n]);
   useEffect(() => {
-    const savedPositions = ls.get("partico_pinboard_positions", {});
-    setPositions(savedPositions);
-  }, []);
-
-  // Get all parties the user is attending (has accepted invite) OR hosting
-  const attendedParties = parties.filter(p => {
-    if (p.hostId === currentUser?.id) return true;
-    if (p.invites && p.invites.some(i => i.userId === currentUser?.id && i.status === "accepted")) return true;
-    return false;
-  }).slice(0, 12); // Show up to 12 parties
-
-  if (attendedParties.length === 0) return null;
-
-  // Initialize default positions if not set
-  const getDefaultPosition = (idx) => {
-    const seed = currentUser?.id?.charCodeAt(0) || 0;
-    const pseudoRandom = (i) => {
-      const x = Math.sin(seed + i * 12.9898) * 43758.5453;
-      return x - Math.floor(x);
-    };
-    return {
-      left: pseudoRandom(idx * 2) * 80 + 10,
-      top: pseudoRandom(idx * 3) * 70 + 10,
-      rotation: (pseudoRandom(idx * 5) * 30) - 15,
-      delay: idx * 0.1
-    };
-  };
-
-  // Shared drag logic, works for both mouse and touch input
-  const startDrag = (clientX, clientY, partyId, targetRect) => {
-    setDragging(partyId);
-    setHasMoved(false);
-    setDragOffset({
-      x: clientX - targetRect.left,
-      y: clientY - targetRect.top,
-      startX: clientX,
-      startY: clientY
-    });
-  };
-
-  const moveDrag = (clientX, clientY) => {
-    if (!dragging) return;
-    const rect = surfaceRef.current && surfaceRef.current.getBoundingClientRect();
-    if (!rect) return;
-
-    // Check if we've actually moved significantly
-    const distance = Math.sqrt(
-      Math.pow(clientX - dragOffset.startX, 2) +
-      Math.pow(clientY - dragOffset.startY, 2)
-    );
-    if (distance > 5) {
-      setHasMoved(true);
-    }
-
-    const newX = ((clientX - rect.left - dragOffset.x) / rect.width) * 100;
-    const newY = ((clientY - rect.top - dragOffset.y) / rect.height) * 100;
-    const newPositions = {
-      ...positions,
-      [dragging]: {
-        ...positions[dragging],
-        left: Math.max(0, Math.min(90, newX)),
-        top: Math.max(0, Math.min(80, newY))
-      }
-    };
-    setPositions(newPositions);
-  };
-
-  const endDrag = () => {
-    // Save to localStorage when drag ends
-    if (dragging && hasMoved) {
-      ls.set("partico_pinboard_positions", positions);
-    }
-    setDragging(null);
-    // Don't reset hasMoved immediately - let the next click handler see it
-  };
-
-  const handleMouseDown = (e, partyId) => {
-    e.preventDefault();
-    startDrag(e.clientX, e.clientY, partyId, e.currentTarget.getBoundingClientRect());
-  };
-
-  const handleMouseMove = (e) => moveDrag(e.clientX, e.clientY);
-
-  const handleTouchStart = (e, partyId) => {
-    const t = e.touches[0];
-    if (!t) return;
-    startDrag(t.clientX, t.clientY, partyId, e.currentTarget.getBoundingClientRect());
-  };
-
-  const handleTouchMove = (e) => {
-    if (!dragging) return;
-    // Stop the page scrolling while dragging a polaroid
-    if (e.cancelable) e.preventDefault();
-    const t = e.touches[0];
-    if (!t) return;
-    moveDrag(t.clientX, t.clientY);
-  };
-
-  const handleClick = (e, partyId) => {
-    e.stopPropagation();
-    // Only navigate if we didn't drag the polaroid
-    if (!hasMoved) {
-      navigate("partyDetail", { partyId, tab: "photos" });
-    }
-    setHasMoved(false); // Reset for future interactions
-  };
-
-  return /* @__PURE__ */ React.createElement("div", { style: { margin: "30px 0", padding: "20px" } },
-    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 700, marginBottom: 20, textAlign: "center", color: "#fff", letterSpacing: 2 } }, "📌 MY MEMORY BOARD"),
-    /* Cork board with 3D wooden frame - REALISTIC OAK WOOD */
-    /* @__PURE__ */ React.createElement("div", {
-      style: {
-        position: "relative",
-        background: "#9B7D62",
-        borderRadius: 0,
-        padding: "13px",
-        minHeight: 540,
-        boxShadow: "0 0 0 1px #6B5344, 0 0 0 2px #8B7964, 0 20px 50px rgba(0,0,0,0.7), inset 0 1px 0 var(--w15), inset 0 -3px 6px rgba(0,0,0,0.4), inset -1px 0 2px rgba(0,0,0,0.3), inset 1px 0 2px var(--w10)",
-        backgroundImage: `url('data:image/svg+xml,<svg width="220" height="220" xmlns="http://www.w3.org/2000/svg"><defs><filter id="wG"><feTurbulence type="fractalNoise" baseFrequency="0.011 0.27" numOctaves="6" seed="22" stitchTiles="stitch" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.34 0"/></filter><filter id="wL"><feTurbulence type="fractalNoise" baseFrequency="0.014 0.33" numOctaves="5" seed="6" stitchTiles="stitch" result="n2"/><feColorMatrix in="n2" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.22 0"/></filter></defs><rect width="220" height="220" fill="%238f5e35"/><rect width="220" height="220" fill="%235c3a1d" filter="url(%23wG)"/><rect width="220" height="220" fill="%23a87c4c" filter="url(%23wL)"/></svg>')`,
-        backgroundSize: "220px 220px",
-        backgroundRepeat: "repeat",
-        border: "none"
-      }
-    }, /* Inner cork surface with realistic texture */
-    /* @__PURE__ */ React.createElement("div", {
-      ref: surfaceRef,
-      onMouseMove: handleMouseMove,
-      onMouseUp: endDrag,
-      onMouseLeave: endDrag,
-      style: {
-        position: "relative",
-        background: "#C9926D",
-        borderRadius: 0,
-        padding: 18,
-        minHeight: 480,
-        boxShadow: "inset 0 0 20px rgba(0,0,0,0.3), inset 0 2px 4px var(--w08)",
-        backgroundImage: `url('data:image/svg+xml,<svg width="220" height="220" xmlns="http://www.w3.org/2000/svg"><defs><filter id="corkBlobs"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7" stitchTiles="stitch" result="m"/><feColorMatrix in="m" type="matrix" values="0 0 0 0 0.40 0 0 0 0 0.26 0 0 0 0 0.15 0 0 0 0.45 0"/></filter><filter id="corkFine"><feTurbulence type="fractalNoise" baseFrequency="0.22" numOctaves="4" seed="14" stitchTiles="stitch" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0.43 0 0 0 0 0.28 0 0 0 0 0.16 0 0 0 0.6 0"/></filter><filter id="corkLite"><feTurbulence type="fractalNoise" baseFrequency="0.3" numOctaves="3" seed="3" stitchTiles="stitch" result="l"/><feColorMatrix in="l" type="matrix" values="0 0 0 0 0.85 0 0 0 0 0.72 0 0 0 0 0.55 0 0 0 0.25 0"/></filter></defs><rect width="220" height="220" fill="%23C99A72"/><rect width="220" height="220" filter="url(%23corkBlobs)"/><rect width="220" height="220" filter="url(%23corkLite)"/><rect width="220" height="220" filter="url(%23corkFine)"/></svg>')`,
-        backgroundSize: "220px 220px",
-        backgroundRepeat: "repeat",
-        overflow: "hidden",
-        userSelect: "none"
-      }
-    }, /* Pinned polaroid photos */
-    attendedParties.map((party, idx) => {
-      const defaultPos = getDefaultPosition(idx);
-      const pos = positions[party.id] || defaultPos;
-      const coverImg = party.coverImage || (party.photos && party.photos.length > 0 ? party.photos[0].dataUrl : null);
-      const isDragging = dragging === party.id;
-
-      return /* @__PURE__ */ React.createElement("div", {
-        key: party.id,
-        onMouseDown: (e) => handleMouseDown(e, party.id),
-        onTouchStart: (e) => handleTouchStart(e, party.id),
-        onTouchMove: handleTouchMove,
-        onTouchEnd: endDrag,
-        onTouchCancel: endDrag,
-        onClick: (e) => handleClick(e, party.id),
-        style: {
-          position: "absolute",
-          left: `${pos.left}%`,
-          top: `${pos.top}%`,
-          transform: `rotate(${pos.rotation}deg) ${isDragging ? 'scale(1.05)' : 'scale(1)'}`,
-          cursor: dragging === party.id ? "grabbing" : "grab",
-          touchAction: "none",
-          animation: `pop 0.6s cubic-bezier(0.34,1.56,0.64,1) ${pos.delay || idx * 0.1}s both`,
-          zIndex: isDragging ? 1000 : attendedParties.length - idx,
-          transition: isDragging ? "none" : "all 0.3s ease"
-        }
-      }, /* Polaroid card */
-      /* @__PURE__ */ React.createElement("div", { style: {
-        background: "#fff",
-        borderRadius: 2,
-        padding: 5,
-        boxShadow: isDragging ? "0 10px 24px rgba(0,0,0,0.7)" : "0 6px 16px rgba(0,0,0,0.5)",
-        width: 78,
-        cursor: "inherit"
-      }, onMouseEnter: (e) => {
-        if (!isDragging) e.currentTarget.style.boxShadow = "0 12px 30px rgba(0,0,0,0.7)";
-      }, onMouseLeave: (e) => {
-        if (!isDragging) e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.5)";
-      } }, /* Photo area */
-      /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: 92, background: "#e0e0e0", borderRadius: 1, overflow: "hidden", marginBottom: 4 } },
-        coverImg ? /* @__PURE__ */ React.createElement("img", { src: coverImg, style: { width: "100%", height: "100%", objectFit: "cover", display: "block", pointerEvents: "none" } }) :
-        /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg,#00ff41,#00d944)", fontSize: 28, pointerEvents: "none" } }, "🎉")
-      ), /* Party name in funky font */
-      /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", fontSize: 8, fontWeight: 800, color: "#333", fontFamily: "'Comic Sans MS', cursive, sans-serif", lineHeight: 1.2, fontStyle: "italic", transform: "skewX(-5deg)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingX: 4, pointerEvents: "none" } }, party.title)), /* Thumbtack visual */
-      /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: -6, left: "50%", transform: "translateX(-50%)", width: 13, height: 13, background: "radial-gradient(circle at 35% 35%, #ffd700, #ffb700 30%, #cc7722 70%, #884411)", borderRadius: "50%", boxShadow: "0 3px 6px rgba(0,0,0,0.7), inset -2px -2px 4px rgba(0,0,0,0.5), inset 2px 2px 3px var(--w70)", border: "1px solid #996633", zIndex: 10, pointerEvents: "none" } }, /* Thumbtack highlight */
-      /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", width: 4, height: 4, background: "var(--w90)", borderRadius: "50%", top: 2, left: 4 } }))
-      );
-    }))
+    if (n < 2) return;
+    const t = setTimeout(() => setI((x) => (x + 1) % n), 4000);
+    return () => clearTimeout(t);
+  }, [i, n]);
+  const cur = slides[Math.min(i, n - 1)];
+  if (!cur) return null;
+  const first = (ph) => ph.userId === currentUser?.id ? "you" : ((ph.userName || "a guest").split(" ")[0]);
+  const text = {
+    recap: { k: "Your recap", h: cur.recent ? "The last two months" : "Your latest parties", t: cur.parties + " part" + (cur.parties === 1 ? "y" : "ies") + " \xB7 " + cur.photos + " photo" + (cur.photos === 1 ? "" : "s") },
+    most: { k: "Most photos", h: cur.party.title, t: cur.count + " photo" + (cur.count === 1 ? "" : "s") + " \xB7 " + cur.guests + " guest" + (cur.guests === 1 ? "" : "s") },
+    reactions: { k: "Most reactions", h: cur.party.title, t: cur.count + " reaction" + (cur.count === 1 ? "" : "s") },
+    hottest: { k: "Hottest photo", h: "Taken by " + first(cur.photo), t: cur.count + " \u{1F525} at " + cur.party.title }
+  }[cur.kind];
+  return React.createElement("div", { className: "rdm-recap", role: "button", tabIndex: 0, "aria-label": "Recap, slide " + (i + 1) + " of " + n + ". Tap for next.", onClick: () => setI((x) => (x + 1) % n), onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setI((x) => (x + 1) % n); } } },
+    slides.map((s, j) => React.createElement("div", { key: s.kind, className: "slide" + (j === i ? " on" : "") }, React.createElement("div", { className: "ph", style: { backgroundImage: "url(\"" + s.photo.dataUrl + "\")" } }))),
+    React.createElement("div", { className: "over" },
+      React.createElement("div", { className: "rdm-bars" }, slides.map((s, j) => React.createElement("span", { key: s.kind + (j === i ? "-run" : ""), className: j < i ? "done" : j === i ? (n > 1 ? "run" : "done") : "" }, React.createElement("i", null)))),
+      React.createElement("div", null,
+        React.createElement("div", { className: "k" }, text.k),
+        React.createElement("h4", null, text.h),
+        React.createElement("p", null, text.t)
+      )
     )
   );
 };
-// Home's memories area. Starts as just the pin board; the memories redesign fills in recap, polaroids and albums.
-const MemoriesSection = ({ currentUser, parties, navigate }) => React.createElement(PinBoard, { currentUser, parties, navigate });
+// A tilted stack of the latest photos; tap flings the top one to the back.
+const MemoriesPolaroids = ({ items }) => {
+  const [order, setOrder] = useState(() => items.map((_, j) => j));
+  const [flinging, setFlinging] = useState(false);
+  const key = items.map((x) => x.photo.id).join(",");
+  useEffect(() => { setOrder(items.map((_, j) => j)); }, [key]);
+  const tilts = [-8, 6, -3, 4, -6];
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const top = order[order.length - 1];
+  const shuffle = () => {
+    if (flinging || order.length < 2) return;
+    const rot = () => setOrder((o) => [o[o.length - 1], ...o.slice(0, -1)]);
+    if (reduce) { rot(); return; }
+    setFlinging(true);
+    setTimeout(() => { rot(); setFlinging(false); }, 380);
+  };
+  return React.createElement(React.Fragment, null,
+    React.createElement("div", { className: "rdm-polas", role: "button", tabIndex: 0, "aria-label": "Polaroids. Tap to shuffle.", onClick: shuffle, onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); shuffle(); } } },
+      order.map((idx, pos) => {
+        const it = items[idx];
+        if (!it) return null;
+        const mid = (order.length - 1) / 2;
+        return React.createElement("div", { key: it.photo.id, className: "rdm-pola" + (flinging && idx === top ? " fling" : ""), style: { zIndex: pos + 1, transform: "rotate(" + tilts[pos % 5] + "deg) translate(" + (pos - mid) * 7 + "px," + (pos - mid) * -4 + "px)" } },
+          React.createElement("div", { className: "ph", style: { backgroundImage: "url(\"" + it.photo.dataUrl + "\")" } }),
+          React.createElement("em", null, it.party.title)
+        );
+      })
+    ),
+    React.createElement("div", { className: "rdm-hint", style: { marginTop: 4 } }, "Tap to shuffle")
+  );
+};
+// Home's memories area: pin board, then recap/polaroids, one-year-ago and albums when there are photos.
+const MemoriesSection = ({ currentUser, parties, navigate }) => {
+  const M = window.PL.memories;
+  const [mode, setMode] = useState("recap");
+  const userId = currentUser?.id;
+  const now = Date.now();
+  const slides = useMemo(() => M.recapSlides(parties, userId, now), [parties, userId]);
+  const albums = useMemo(() => M.albums(parties, userId, now), [parties, userId]);
+  const latest = useMemo(() => M.latestPhotos(parties, userId, 5), [parties, userId]);
+  const yearAgo = useMemo(() => M.onThisDay(parties, userId, now), [parties, userId]);
+  const totalPhotos = albums.reduce((s, a) => s + a.count, 0);
+  const openPhotos = (party) => {
+    if (party.hostId === userId) navigate("partyManage", { partyId: party.id, tab: "photos" });
+    else navigate("partyDetail", { partyId: party.id, tab: "photos" });
+  };
+  const fmtDay = (d) => d ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
+  return React.createElement("div", { className: "rdm-memories" },
+    React.createElement(PinBoard, { currentUser, parties, navigate }),
+    albums.length > 0 && React.createElement("section", { className: "rdm-sec" },
+      React.createElement("div", { className: "rdm-tabs", role: "tablist" },
+        [["recap", "Recap"], ["polas", "Polaroids"]].map(([id, label]) => React.createElement("button", { key: id, role: "tab", "aria-selected": mode === id, className: mode === id ? "on" : "", onClick: () => setMode(id) }, label))
+      ),
+      mode === "recap"
+        ? React.createElement(MemoriesRecap, { slides, currentUser })
+        : React.createElement(MemoriesPolaroids, { items: latest }),
+      yearAgo && React.createElement("button", { className: "rdm-onday", onClick: () => openPhotos(yearAgo.party) },
+        React.createElement("div", { className: "ph", style: { backgroundImage: "url(\"" + yearAgo.photo.dataUrl + "\")" } }),
+        React.createElement("div", { style: { minWidth: 0 } },
+          React.createElement("b", null, "One year ago this week"),
+          React.createElement("small", null, yearAgo.party.title + " \xB7 you" + (yearAgo.others > 0 ? " + " + yearAgo.others + " other" + (yearAgo.others === 1 ? "" : "s") : "") + " \xB7 " + yearAgo.count + " photo" + (yearAgo.count === 1 ? "" : "s"))
+        )
+      )
+    ),
+    albums.length > 0 && React.createElement("section", { className: "rdm-sec" },
+      React.createElement("div", { className: "rdm-h" }, React.createElement("h3", null, "Albums"), React.createElement("small", null, totalPhotos + " photo" + (totalPhotos === 1 ? "" : "s"))),
+      React.createElement("div", { className: "rdm-arow" },
+        albums.map((a) => React.createElement("button", { key: a.party.id, className: "rdm-album", onClick: () => openPhotos(a.party), "aria-label": a.party.title + ", " + a.count + " photos" },
+          React.createElement("div", { className: "ph", style: { backgroundImage: "url(\"" + a.cover.dataUrl + "\")" } }),
+          a.isNew && React.createElement("span", { className: "new" }, "NEW"),
+          React.createElement("div", { className: "cap" },
+            React.createElement("b", null, a.party.title),
+            React.createElement("small", null, (a.date ? fmtDay(a.date) + " \xB7 " : "") + a.count + " photo" + (a.count === 1 ? "" : "s"))
+          )
+        ))
+      )
+    )
+  );
+};
 const EVENT_TYPES = [
   { id: "party", label: "Party", emoji: "\u{1F38A}", color: "#00ff41", grad: "linear-gradient(135deg,#00ff41,#00d944)", fw: ["#00ff41","#fbbf24","#34d399","#60a5fa","#f87171"], font: "'Segoe UI',sans-serif", smartSections: ["what_to_bring","parking"] },
   { id: "birthday", label: "Birthday", emoji: "\u{1F382}", color: "#f59e0b", grad: "linear-gradient(135deg,#f59e0b,#ef4444)", fw: ["#f59e0b","#ef4444","#fde68a","#f87171"], font: "'Segoe UI',sans-serif", smartSections: ["gift_list","age_milestone","surprise_mode"] },
