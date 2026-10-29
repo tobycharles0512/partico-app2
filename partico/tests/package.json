@@ -1,0 +1,13 @@
+{
+  "name": "partico-frontend-tests",
+  "private": true,
+  "description": "Dev-only dependencies for the headless boot smoke test (boot.test.js).",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  }
+}
