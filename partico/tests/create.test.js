@@ -106,10 +106,12 @@ test('suggestedCards: by event type and its smart sections, in card order, no du
   assert.ok(!Array.from(C.suggestedCards('casual', [])).includes('smart'));
 });
 
-test('CARDS cover every optional field group of the old wizard', () => {
-  for (const id of ['dress', 'menu', 'drinks', 'questions', 'playlist', 'mood', 'parking', 'smart', 'effect', 'guests']) {
+test('CARDS cover every optional field group of the old wizard ("Who can join" is on the Invite step)', () => {
+  for (const id of ['dress', 'menu', 'drinks', 'questions', 'playlist', 'mood', 'parking', 'smart', 'effect']) {
     assert.ok(Array.from(C.CARDS).includes(id), id);
   }
+  assert.ok(!Array.from(C.CARDS).includes('guests'), 'who can join should not be an extras card');
+  assert.strictEqual(C.cardSummary('guests', form()), '');
 });
 
 test('cardSummary: empty when nothing set, a short line when something is', () => {

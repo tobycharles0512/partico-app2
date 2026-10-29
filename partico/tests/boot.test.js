@@ -315,8 +315,16 @@ test('app boots logged in and every main screen renders fixture data without err
       assert.ok(await app.waitForText('Boot Test Bash'), 'preview did not show the title');
       await app.clickButton(/^Next: extras$/);
       assert.ok(await app.waitForText('Dress code'), 'extras step not shown');
+      assert.ok(!app.text().includes('Who can join'), '"Who can join" should not be on the extras step');
       await app.clickButton(/^Next: invite friends$/);
+      assert.ok(await app.waitForText('Who can join'), '"Who can join" missing from the invite step');
+      // An open party needs a guest cap; the error shows right here on the Invite step.
+      await app.clickButton(/^Public$/);
       await app.clickButton(/Ava Thompson/);
+      await app.clickButton(/^Create & send 1 invite/);
+      assert.ok(await app.waitForText('Open parties need a max number of guests.'), 'no guest-cap error on the invite step');
+      assert.ok(app.text().includes('Who can join'), 'left the invite step on a guest-cap error');
+      await app.clickButton(/^Invite only$/);
       await app.clickButton(/^Create & send 1 invite/);
       const end = Date.now() + 3000;
       let party = null;
@@ -326,6 +334,7 @@ test('app boots logged in and every main screen renders fixture data without err
       assert.deepStrictEqual(party.dates, []);
       assert.deepStrictEqual(party.invites.map((i) => i.userId), ['u_ava']);
       assert.strictEqual(party.hostId, fx.ME);
+      assert.strictEqual(party.isPrivate, true);
       assert.ok(await app.waitForText("It's live!", 6000), 'launch never finished');
       assert.strictEqual(app.window.localStorage.getItem('partico_create_draft_' + fx.ME), null, 'draft not cleared after creating');
       await app.clickButton(/^Manage party$/);
@@ -338,6 +347,7 @@ test('app boots logged in and every main screen renders fixture data without err
       await app.clickButton(/Name & note/);
       const title = app.window.document.getElementById('rdc-title');
       await app.typeInto(title, TITLES.hosted + ' (edited)');
+      assert.ok(app.text().includes('Who can join'), 'edit page lost the "Who can join" section');
       await app.clickButton(/^Save changes$/);
       assert.strictEqual(app.appContext().screen, 'partyManage');
       const party = syncedParty((x) => x.id === 'p_hosted');

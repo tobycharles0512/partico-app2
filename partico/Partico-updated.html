@@ -1585,8 +1585,8 @@ PL.create = {};
   function filled(s) { return str(s).trim().length > 0; }
   function plural(n, w) { return n + " " + w + (n === 1 ? "" : "s"); }
   function options(f) { return ((f && f.dates) || []).filter(function (d) { return d && d.date; }); }
-  // Every optional extras card, in display order.
-  PL.create.CARDS = ["dress", "menu", "drinks", "questions", "playlist", "mood", "parking", "smart", "effect", "guests"];
+  // Every optional extras card, in display order. "Who can join" ("guests") lives on the Invite step instead.
+  PL.create.CARDS = ["dress", "menu", "drinks", "questions", "playlist", "mood", "parking", "smart", "effect"];
   PL.create.draftKey = function (userId) { return "partico_create_draft_" + (userId || "anon"); };
   PL.create.ymd = ymd;
   // "2026-11-14" -> "Sat 14 Nov"
@@ -1735,7 +1735,7 @@ PL.create = {};
     if (!f) return true;
     if (filled(f.title) || filled(f.description) || filled(f.address) || f.coverImage || f.venueLat) return false;
     if (options(f).length || (f.invitedUsers || []).length) return false;
-    return !PL.create.CARDS.some(function (id) { return id !== "guests" && id !== "effect" && id !== "drinks" && PL.create.cardSummary(id, f); })
+    return !PL.create.CARDS.some(function (id) { return id !== "effect" && id !== "drinks" && PL.create.cardSummary(id, f); })
       && !(f.drinkOptions || []).length;
   };
   // What to keep in localStorage: no half-typed inputs, no images too big for the quota.
@@ -4802,8 +4802,7 @@ const CreatePartyScreen = () => {
     const e = C.validateExtras(form);
     if (e.guests) {
       setErrors((x) => ({ ...x, ...e }));
-      setStep(1);
-      setOpen("guests");
+      setStep(2);
       showToast(e.guests, "error");
       scrollToErr();
       return false;
@@ -4978,7 +4977,10 @@ const CreatePartyScreen = () => {
         h("div", { className: "rdc-swatches", role: "group", "aria-label": "Fireworks colours" }, RDC_COLOURS.map((c) => h("button", { key: c, className: "rdc-swatch" + (form.fireworksColors.includes(c) ? " on" : ""), style: { background: c }, "aria-pressed": form.fireworksColors.includes(c), "aria-label": "Colour " + c, onClick: () => toggleColor(c) }))),
         h("div", { className: "rdc-seg three", role: "group", "aria-label": "Fireworks style" }, ["classic", "sparkle", "stars"].map((s) => h("button", { key: s, className: form.fireworksStyle === s ? "on" : "", "aria-pressed": form.fireworksStyle === s, onClick: () => set("fireworksStyle", s) }, s.charAt(0).toUpperCase() + s.slice(1))))),
       h("button", { className: "rdc-btn ghost sm", style: { justifySelf: "start" }, onClick: playPreview }, "\u{1F440} Preview it")) },
-    guests: { ic: "\u{1F465}", t: "Who can join", body: () => h(React.Fragment, null,
+    guests: { ic: "\u{1F465}", t: "Who can join", body: () => guestsBody() }
+  };
+  function guestsBody() {
+    return h(React.Fragment, null,
       h("div", { className: "rdc-seg three", role: "group", "aria-label": "Who can join" }, [["invite", "Invite only"], ["friends", "Friends"], ["public", "Public"]].map(([v, l]) => h("button", { key: v, className: privacy === v ? "on" : "", "aria-pressed": privacy === v, onClick: () => { patch(C.privacyPatch(v)); clearErr("guests"); } }, l))),
       h("span", { className: "rdc-hint" }, { invite: "Only people you invite can see it.", friends: "Shows on your friends' Friends tab. They can join.", public: "Anyone on Partico can find it and join." }[privacy]),
       privacy === "public" && h("div", { className: "rdc-seg" },
@@ -4986,8 +4988,8 @@ const CreatePartyScreen = () => {
         h("button", { className: form.audience === "mutual" ? "on" : "", "aria-pressed": form.audience === "mutual", onClick: () => set("audience", "mutual") }, "Mutual friends")),
       privacy !== "invite" && h("input", { className: "input-field", type: "number", min: "1", inputMode: "numeric", placeholder: "Max guests (needed for open parties)", "aria-label": "Max guests", "aria-invalid": !!errors.guests, value: form.maxCapacity, onChange: (e) => { set("maxCapacity", e.target.value); clearErr("guests"); } }),
       privacy !== "invite" && h("span", { className: "rdc-hint" }, "First come, first served. Once it's full, no one else can join."),
-      err("guests")) }
-  };
+      err("guests"));
+  }
   const ESS = {
     name: { ic: "✏️", t: "Name & note", body: () => h(React.Fragment, null, fName(), fNote()) },
     look: { ic: "\u{1F3A8}", t: "Type & cover", body: () => h(React.Fragment, null, fType(), fCover()) },
@@ -5033,6 +5035,7 @@ const CreatePartyScreen = () => {
   };
   const others = allOtherUsers.filter((u) => !friends.find((f) => f.id === u.id));
   const inviteBody = () => h(React.Fragment, null,
+    h("div", { className: "rdc-field" }, lbl("Who can join"), guestsBody()),
     h("div", { className: "rdc-field" },
       h("div", { className: "rdc-lbl" }, "Who's invited", h("small", null, nInvited + " selected", friends.length ? " · " : "", friends.length ? h("button", { className: "rdc-link", style: { fontSize: 11 }, onClick: selectAll }, allFriendsOn ? "Clear friends" : "Select all friends") : null)),
       h("input", { className: "input-field", type: "search", placeholder: "\u{1F50D} Search friends or anyone on Partico", "aria-label": "Search people", value: searchQ, onChange: (e) => setSearchQ(e.target.value), autoComplete: "off" }),
@@ -5087,7 +5090,9 @@ const CreatePartyScreen = () => {
           h("div", { className: "rdc-xgrp" }, "The basics"),
           Object.keys(ESS).map((id) => card(id, ESS[id])),
           h("div", { className: "rdc-xgrp" }, "Extras"),
-          [...sugIds, ...restIds].map((id) => card(id, XC[id], sugIds.includes(id))))),
+          [...sugIds, ...restIds].map((id) => card(id, XC[id], sugIds.includes(id))),
+          h("div", { className: "rdc-xgrp" }, "Guests"),
+          card("guests", XC.guests))),
       foot(h("div", { className: "two" },
         h("button", { className: "rdc-btn ghost", onClick: () => navigate("partyManage", { partyId: editPartyId }) }, "Cancel"),
         h("button", { className: "rdc-btn g", onClick: handleSave }, "Save changes"))));
@@ -5115,7 +5120,7 @@ const CreatePartyScreen = () => {
       fName(), fType(), fCover(), fWhen(), fWhere(), fNote()),
     foot(
       h("button", { className: "rdc-btn g", onClick: () => { if (checkEssentials()) goStep(1); } }, "Next: extras"),
-      h("div", { className: "sub" }, "Casual plans? ", h("button", { className: "rdc-link", onClick: () => { if (checkEssentials() && checkExtras()) goStep(2); } }, "Skip straight to inviting"))));
+      h("div", { className: "sub" }, "Casual plans? ", h("button", { className: "rdc-link", onClick: () => { if (checkEssentials()) goStep(2); } }, "Skip straight to inviting"))));
   if (step === 1) return shell(
     top("Extras", () => goStep(0), "Back", "←", true, true),
     h("div", { className: "rdc-body" },
@@ -5125,7 +5130,7 @@ const CreatePartyScreen = () => {
         h("div", { className: "rdc-xgrp" }, sugIds.length ? "More options" : "Add what you need"),
         restIds.map((id) => card(id, XC[id], false)))),
     foot(
-      h("button", { className: "rdc-btn g", onClick: () => { if (checkExtras()) goStep(2); } }, "Next: invite friends"),
+      h("button", { className: "rdc-btn g", onClick: () => goStep(2) }, "Next: invite friends"),
       h("div", { className: "sub" }, (extrasAdded ? extrasAdded + (extrasAdded === 1 ? " extra" : " extras") + " added. " : "") + "Everything here is optional.")));
   return shell(
     top("Invite friends", () => goStep(1), "Back", "←", true, true),
