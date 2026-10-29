@@ -102,3 +102,43 @@ test('initialChoice: pre-selects a previous answer, never "pending"', () => {
   assert.strictEqual(PL.invite.initialChoice({ status: 'pending' }), '');
   assert.strictEqual(PL.invite.initialChoice(null), '');
 });
+
+// Editing an RSVP in place on the party page (no re-run of the invite flow).
+test('editPayload changes only what was edited and keeps host approval when the plus one is unchanged', () => {
+  const PL = loadLogic('logic-invite');
+  const inv = { userId: 'me', status: 'accepted', plusOneRequested: true, plusOneName: 'Sam', plusOneApproved: true, dietary: 'Vegan \u{1F331}', drinkPreferences: ['Beer'] };
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(PL.invite.editPayload(inv, { status: 'maybe' }))), { status: 'maybe' });
+  const same = JSON.parse(JSON.stringify(PL.invite.editPayload(inv, { plusOne: 'yes', plusOneName: ' Sam ', dietary: 'Halal ✅' })));
+  assert.deepStrictEqual(same, { plusOneRequested: true, plusOneName: 'Sam', dietary: 'Halal ✅' });
+});
+
+test('editPayload asks the host to approve again when the plus one changes, and clears it when removed', () => {
+  const PL = loadLogic('logic-invite');
+  const inv = { status: 'accepted', plusOneRequested: true, plusOneName: 'Sam', plusOneApproved: true };
+  const renamed = JSON.parse(JSON.stringify(PL.invite.editPayload(inv, { plusOne: 'yes', plusOneName: 'Alex' })));
+  assert.deepStrictEqual(renamed, { plusOneRequested: true, plusOneName: 'Alex', plusOneApproved: false });
+  const removed = JSON.parse(JSON.stringify(PL.invite.editPayload(inv, { plusOne: 'no' })));
+  assert.deepStrictEqual(removed, { plusOneRequested: false, plusOneName: '', plusOneApproved: false });
+  const added = JSON.parse(JSON.stringify(PL.invite.editPayload({ status: 'accepted' }, { plusOne: 'yes', plusOneName: 'Jo', drinkPreferences: ['Wine'], dateVotes: ['d1'] })));
+  assert.deepStrictEqual(added, { plusOneRequested: true, plusOneName: 'Jo', plusOneApproved: false, drinkPreferences: ['Wine'], dateVotes: ['d1'] });
+});
+
+test('editPayload sends a decline reason and drops the plus one request when declining', () => {
+  const PL = loadLogic('logic-invite');
+  const inv = { status: 'accepted', plusOneRequested: true, plusOneName: 'Sam', plusOneApproved: true };
+  const out = JSON.parse(JSON.stringify(PL.invite.editPayload(inv, { status: 'declined', cancelReason: 'Work/school clash' })));
+  assert.deepStrictEqual(out, { status: 'declined', cancelReason: 'Work/school clash', plusOneRequested: false, plusOneName: '', plusOneApproved: false });
+});
+
+test('canEditInline: only answered invites to parties that have not happened yet', () => {
+  const PL = loadLogic('logic-invite');
+  const now = new Date(2026, 9, 29, 10);
+  const future = { dates: [{ date: '2026-11-03', time: '19:30' }] };
+  const past = { confirmedDate: { date: '2026-10-01', time: '20:00' } };
+  const tbd = { dates: [] };
+  assert.strictEqual(PL.invite.canEditInline(future, { status: 'accepted' }, now), true);
+  assert.strictEqual(PL.invite.canEditInline(tbd, { status: 'maybe' }, now), true, 'no date yet still editable');
+  assert.strictEqual(PL.invite.canEditInline(future, { status: 'pending' }, now), false, 'pending opens the invite instead');
+  assert.strictEqual(PL.invite.canEditInline(past, { status: 'accepted' }, now), false);
+  assert.strictEqual(PL.invite.canEditInline(future, null, now), false);
+});
