@@ -98,6 +98,7 @@ function makeFetch(log) {
     const method = (opts.method || 'GET').toUpperCase();
     const p = url.pathname;
     log.calls.push(method + ' ' + p);
+    log.requests.push({ method, path: p, body: opts.body });
     const auth = (opts.headers && (opts.headers.Authorization || opts.headers.authorization)) || '';
     if (p.startsWith('/api/') && !p.startsWith('/api/auth/') && auth !== 'Bearer ' + fx.AUTH_TOKEN) {
       return jsonResponse(401, { error: 'No token provided' });
@@ -115,7 +116,7 @@ function makeFetch(log) {
 async function bootApp() {
   const { JSDOM, VirtualConsole } = require('jsdom');
   const errors = [];
-  const log = { calls: [], unhandled: [] };
+  const log = { calls: [], unhandled: [], requests: [] };
   const fmt = (args) => args.map((a) => (a && a.stack) || (typeof a === 'object' ? safeJson(a) : String(a))).join(' ');
   const vc = new VirtualConsole();
   vc.on('error', (...args) => errors.push('console.error: ' + fmt(args)));
@@ -298,6 +299,53 @@ test('app boots logged in and every main screen renders fixture data without err
       while (!app.log.calls.includes('GET /api/users/search') && Date.now() < searchBy) await new Promise((r) => setTimeout(r, 25));
       assert.ok(app.log.calls.includes('GET /api/users/search'), 'search did not call the backend');
       noErrors('on friends tabs');
+    });
+    // The party POSTed to /api/parties/sync for `match`, or null.
+    const syncedParty = (match) => {
+      const r = app.log.requests.filter((x) => x.method === 'POST' && x.path === '/api/parties/sync').map((x) => JSON.parse(x.body).party).reverse().find(match);
+      return r || null;
+    };
+    await t.test('createParty: essentials validate, then the new flow creates a party with a date and invites', { timeout: 20000 }, async () => {
+      const doc = app.window.document;
+      await app.go('createParty', {});
+      await app.clickButton(/^Next: extras$/);
+      assert.ok(await app.waitForText('Give your party a name.'), 'no inline error for a missing name');
+      await app.typeInto(doc.getElementById('rdc-title'), 'Boot Test Bash');
+      await app.typeInto(doc.querySelector('.rdc input[type="date"]'), '2099-12-31');
+      assert.ok(await app.waitForText('Boot Test Bash'), 'preview did not show the title');
+      await app.clickButton(/^Next: extras$/);
+      assert.ok(await app.waitForText('Dress code'), 'extras step not shown');
+      await app.clickButton(/^Next: invite friends$/);
+      await app.clickButton(/Ava Thompson/);
+      await app.clickButton(/^Create & send 1 invite/);
+      const end = Date.now() + 3000;
+      let party = null;
+      while (!(party = syncedParty((x) => x.title === 'Boot Test Bash')) && Date.now() < end) await sleep(25);
+      assert.ok(party, 'no POST /api/parties/sync for the new party');
+      assert.strictEqual(party.confirmedDate && party.confirmedDate.date, '2099-12-31');
+      assert.deepStrictEqual(party.dates, []);
+      assert.deepStrictEqual(party.invites.map((i) => i.userId), ['u_ava']);
+      assert.strictEqual(party.hostId, fx.ME);
+      assert.ok(await app.waitForText("It's live!", 6000), 'launch never finished');
+      assert.strictEqual(app.window.localStorage.getItem('partico_create_draft_' + fx.ME), null, 'draft not cleared after creating');
+      await app.clickButton(/^Manage party$/);
+      assert.strictEqual(app.appContext().screen, 'partyManage');
+      noErrors('creating a party');
+    });
+    await t.test('createParty (edit): one page, Save changes calls updateParty and returns to manage', async () => {
+      await app.go('createParty', { editPartyId: 'p_hosted' });
+      assert.ok(await app.waitForText(TITLES.hosted), 'edit page did not show the party title');
+      await app.clickButton(/Name & note/);
+      const title = app.window.document.getElementById('rdc-title');
+      await app.typeInto(title, TITLES.hosted + ' (edited)');
+      await app.clickButton(/^Save changes$/);
+      assert.strictEqual(app.appContext().screen, 'partyManage');
+      const party = syncedParty((x) => x.id === 'p_hosted');
+      assert.ok(party, 'no sync POST for the edited party');
+      assert.strictEqual(party.title, TITLES.hosted + ' (edited)');
+      assert.ok(party.invites.length > 0, 'edit dropped the invites');
+      assert.ok(await app.waitForText('Changes saved'), 'no "Changes saved" toast on the manage screen');
+      noErrors('editing a party');
     });
     assert.deepStrictEqual(app.log.unhandled, [], 'app called endpoints the fixture backend does not know about');
   } finally {

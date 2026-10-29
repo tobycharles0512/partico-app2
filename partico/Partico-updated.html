@@ -802,6 +802,162 @@ input.input-field[type="date"],input.input-field[type="time"]{min-width:0;font-s
 .pa-resend{text-align:center;font-size:13px;margin-top:14px;--text:rgba(255,255,255,0.45);}
 .pa-resend b{cursor:pointer;--text:#00ff41;}
 </style>
+<style id="rd-create">
+/* create / edit party */
+.rdc{--rdc-g:#00ff41;--rdc-fg:#fff;--rdc-on:#000;--rdc-panel:var(--w05);--rdc-line:var(--w10);--rdc-err:#ff5a5a;--rdc-amber:#ffb020;background:var(--bg);display:flex;flex-direction:column;min-height:100%}
+:root[data-theme="light"] .rdc{--rdc-g:#0a8f2c;--rdc-fg:#0d0d0d;--rdc-on:#fff;--rdc-err:#c81e1e;--rdc-amber:#b86e00}
+:where(.rdc) button{font-family:inherit;cursor:pointer;border:none;background:none}
+.rdc button:focus-visible,.rdc input:focus-visible,.rdc textarea:focus-visible,.rdc label:focus-within{outline:2px solid var(--rdc-g);outline-offset:2px}
+.rdc-top{position:sticky;top:0;z-index:40;background:var(--header);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding:calc(env(safe-area-inset-top,0px) + 44px) 16px 10px;display:grid;gap:10px;border-bottom:1px solid var(--w06)}
+.rdc-bar{display:flex;align-items:center;gap:10px}
+.rdc-bar h2{flex:1;font:800 19px var(--rd-display);letter-spacing:-.01em;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdc-icon{width:38px;height:38px;border-radius:13px;background:var(--w07)!important;border:1px solid var(--rdc-line)!important;display:grid;place-items:center;flex:none;font-size:16px}
+.rdc-saved{font-size:11px;font-weight:700;--text:var(--w40);display:flex;align-items:center;gap:5px;transition:opacity .3s}
+.rdc-saved i{width:7px;height:7px;border-radius:50%;background:var(--w30);transition:background .3s}
+.rdc-saved.on{--text:var(--rdc-g)}
+.rdc-saved.on i{background:var(--rdc-g)}
+.rdc-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.rdc-steps span{font-size:11px;font-weight:700;--text:var(--w40);display:grid;gap:5px}
+.rdc-steps span:before{content:"";height:4px;border-radius:2px;background:var(--w10);transition:background .3s}
+.rdc-steps span.done:before,.rdc-steps span.on:before{background:var(--rdc-g)}
+.rdc-steps span.on{--text:var(--text)}
+/* live invite preview */
+.rdc-pv{border-radius:22px;overflow:hidden;position:relative;isolation:isolate;height:180px;padding:16px;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:0 18px 40px rgba(0,0,0,.35);transition:height .35s cubic-bezier(.2,.8,.2,1)}
+.rdc-pv.small{height:112px;padding:12px 14px}
+.rdc-pv .bgi{position:absolute;inset:0;z-index:-2;background-size:cover;background-position:center;transition:background .4s}
+.rdc-pv:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(0,0,0,.05) 20%,rgba(0,0,0,.75))}
+.rdc-pv .tag{position:absolute;top:12px;left:12px;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:5px 9px;border-radius:999px;background:rgba(0,0,0,.4);backdrop-filter:blur(8px)}
+.rdc-pv.small .tag{display:none}
+.rdc-pv .emo{position:absolute;top:8px;right:12px;font-size:34px;filter:drop-shadow(0 4px 10px rgba(0,0,0,.35));animation:rdPopIn .4s cubic-bezier(.34,1.56,.64,1) both}
+.rdc-pv.small .emo{font-size:26px}
+.rdc-pv h3{font:800 26px/1.02 var(--rd-display);letter-spacing:-.02em;text-wrap:balance;text-shadow:0 2px 14px rgba(0,0,0,.35);overflow-wrap:anywhere}
+.rdc-pv.small h3{font-size:19px}
+.rdc-pv h3 .ph{opacity:.5}
+.rdc-pv .meta{font-size:12.5px;--text:rgba(255,255,255,.88);margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 10px}
+.rdc-pv .meta .ph{opacity:.55;font-style:italic}
+/* body + fields */
+.rdc-body{padding:16px;display:grid;gap:18px;flex:1;align-content:start}
+.rdc-field{display:grid;gap:8px;min-width:0}
+.rdc-lbl{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;--text:var(--w55);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.rdc-lbl small{font-size:11px;text-transform:none;letter-spacing:0;font-weight:600;--text:var(--w40)}
+.rdc .input-field{border-radius:14px;padding:12px 14px}
+.rdc .input-field:focus{border-color:var(--rdc-g);outline:none}
+.rdc textarea.input-field{min-height:72px;resize:vertical;font-family:inherit}
+.rdc-big{font:700 20px var(--rd-display)!important;padding:14px!important}
+.rdc-err{--text:var(--rdc-err);font-size:12.5px;font-weight:600}
+.rdc-hint{font-size:12px;--text:var(--w45)}
+.rdc-row2{display:grid;grid-template-columns:1.3fr 1fr;gap:8px}
+.rdc-types{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:2px 16px 4px;scroll-snap-type:x proximity}
+.rdc-types::-webkit-scrollbar{display:none}
+.rdc-type{flex:none;display:grid;justify-items:center;gap:4px;width:76px;padding:10px 4px;border-radius:16px;border:1.5px solid var(--rdc-line)!important;background:var(--rdc-panel)!important;transition:border-color .2s,background .2s;scroll-snap-align:start}
+.rdc-type span{font-size:24px}
+.rdc-type small{font-size:10.5px;font-weight:700;--text:var(--w55);text-align:center;line-height:1.15}
+.rdc-type.on{border-color:var(--c)!important;background:color-mix(in srgb,var(--c) 18%,transparent)!important}
+.rdc-type.on small{--text:var(--text)}
+.rdc-covers{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.rdc-cover{width:56px;height:56px;border-radius:14px;border:2px solid transparent!important;background-size:cover!important;background-position:center!important;flex:none;transition:transform .15s}
+.rdc-cover.on{border-color:var(--rdc-g)!important;transform:scale(1.05)}
+.rdc-cover.up{display:grid;place-items:center;background-color:var(--rdc-panel);border:1.5px dashed var(--w25)!important;font-size:20px;cursor:pointer}
+.rdc-cover.up.on{border-style:solid!important}
+.rdc-seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--rdc-panel);border:1px solid var(--rdc-line);border-radius:14px;padding:4px}
+.rdc-seg.three{grid-template-columns:repeat(3,1fr)}
+.rdc-seg button{border-radius:10px;padding:9px 4px;font-weight:700;font-size:13px;--text:var(--w55);transition:background .2s}
+.rdc-seg button.on{background:var(--rdc-fg)!important;--text:var(--rdc-on)}
+.rdc-opts{display:grid;gap:6px}
+.rdc-optrow{display:flex;align-items:center;gap:8px;background:var(--rdc-panel);border:1px solid var(--rdc-line);border-radius:12px;padding:8px 8px 8px 12px;font-size:14px;animation:rdFadeUp .25s ease both}
+.rdc-optrow span{flex:1;min-width:0;overflow-wrap:anywhere}
+.rdc-x{background:var(--w08)!important;width:28px;height:28px;border-radius:9px;--text:var(--w55);flex:none}
+.rdc-addrow{display:flex;gap:6px}
+.rdc-addrow .input-field{flex:1;min-width:0}
+.rdc-chips{display:flex;flex-wrap:wrap;gap:6px}
+.rdc-chip{padding:7px 12px;border-radius:999px;border:1px solid var(--rdc-line)!important;background:var(--rdc-panel)!important;font-size:13px;transition:background .15s,border-color .15s}
+.rdc-chip.on{background:color-mix(in srgb,var(--rdc-g) 16%,transparent)!important;border-color:var(--rdc-g)!important}
+.rdc-chip.ghost{border-style:dashed!important;--text:var(--w55)}
+.rdc-banner{display:flex;align-items:center;gap:10px;font-size:13px;background:linear-gradient(120deg,rgba(0,255,65,.12),rgba(139,92,246,.12));border:1px solid var(--rdc-line);border-radius:14px;padding:10px 12px;animation:rdFadeUp .35s ease both}
+.rdc-banner span{flex:1;--text:var(--w60)}
+.rdc-banner b{--text:var(--text)}
+.rdc-link{padding:0!important;--text:var(--rdc-g);font-weight:700;font-size:13px}
+.rdc-toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px}
+.rdc-toggle small{display:block;font-size:12px;--text:var(--w45)}
+.rdc-sw{width:46px;height:28px;border-radius:14px;background:var(--w15)!important;position:relative;flex:none;transition:background .2s}
+.rdc-sw:after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.rdc-sw.on{background:var(--rdc-g)!important}
+.rdc-sw.on:after{transform:translateX(18px)}
+.rdc-btn{border-radius:999px;padding:14px 16px;font-weight:800;font-size:15px;transition:transform .12s,opacity .2s;width:100%}
+.rdc-btn:active{transform:scale(.97)}
+.rdc-btn.g{background:#00ff41!important;--text:#000}
+.rdc-btn.ghost{background:var(--w07)!important;border:1px solid var(--rdc-line)!important}
+.rdc-btn.sm{padding:8px 14px;font-size:13px;width:auto}
+.rdc-btn[disabled]{opacity:.45;cursor:default}
+.rdc-thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.rdc-thumb{position:relative;padding-top:100%;border-radius:10px;overflow:hidden;background:var(--w05)}
+.rdc-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.rdc-thumb button{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.65)!important;--text:#fff;font-size:12px}
+.rdc-swatches{display:flex;flex-wrap:wrap;gap:8px}
+.rdc-swatch{width:32px;height:32px;border-radius:50%;border:3px solid transparent!important;transition:box-shadow .2s}
+.rdc-swatch.on{border-color:var(--bg)!important;box-shadow:0 0 0 2px var(--rdc-g)}
+.rdc-sub{display:grid;gap:8px;padding-top:4px;border-top:1px solid var(--w06)}
+/* extras cards */
+.rdc-xlist{display:grid;gap:8px}
+.rdc-xgrp{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;--text:var(--w40);margin:6px 2px 0}
+.rdc-xc{background:var(--rdc-panel);border:1px solid var(--rdc-line);border-radius:18px;overflow:hidden;transition:border-color .2s}
+.rdc-xc.open{border-color:color-mix(in srgb,var(--rdc-g) 55%,transparent)}
+.rdc-xc.bad{border-color:var(--rdc-err)}
+.rdc-xh{display:flex;align-items:center;gap:12px;padding:12px 14px!important;width:100%;text-align:left}
+.rdc-xh .ic{width:38px;height:38px;border-radius:12px;background:var(--w06);display:grid;place-items:center;font-size:19px;flex:none}
+.rdc-xh .t{flex:1;min-width:0}
+.rdc-xh b{display:block;font-size:15px}
+.rdc-xh small{display:block;font-size:12.5px;--text:var(--w55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdc-xh .st{font-size:12px;font-weight:800;--text:var(--rdc-g);white-space:nowrap}
+.rdc-xh .st.add{--text:var(--w40)}
+.rdc-sugg{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;--text:var(--rdc-amber);margin-left:6px}
+.rdc-xb{padding:2px 14px 14px;display:grid;gap:10px;animation:rdFadeUp .3s ease both;min-width:0}
+.rdc-xb .rdc-done{justify-self:end}
+/* invite step */
+.rdc-frs{display:grid;gap:2px}
+.rdc-fr{display:flex;align-items:center;gap:12px;padding:8px 6px!important;border-radius:14px;width:100%;text-align:left;transition:background .15s}
+.rdc-fr:hover{background:var(--w04)!important}
+.rdc-fr .t{flex:1;min-width:0}
+.rdc-fr b{display:block;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdc-fr small{font-size:12px;--text:var(--w45)}
+.rdc-fr .badge{font-size:10px;font-weight:700;--text:var(--rdc-g);margin-left:6px}
+.rdc-tick{width:24px;height:24px;border-radius:50%;border:2px solid var(--w25);display:grid;place-items:center;font-size:13px;font-weight:900;flex:none;transition:background .15s,border-color .15s}
+.rdc-fr.on .rdc-tick{background:#00ff41;border-color:#00ff41;--text:#000}
+.rdc-linkcard{background:var(--rdc-panel);border:1px solid var(--rdc-line);border-radius:16px;padding:12px;display:flex;align-items:center;gap:10px}
+.rdc-linkcard code{flex:1;min-width:0;font-size:13px;--text:var(--w60);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:all;-webkit-user-select:all}
+.rdc-linkcard p{flex:1;font-size:13px;--text:var(--w55)}
+/* footer */
+.rdc-foot{position:sticky;bottom:0;z-index:45;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,var(--bg) 28%);display:grid;gap:6px}
+.rdc-foot .sub{text-align:center;font-size:12px;--text:var(--w45)}
+.rdc-foot .two{display:grid;grid-template-columns:auto 1fr;gap:8px}
+/* effect preview overlay */
+.rdc-fxov{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding-bottom:80px;--text:#fff;font-weight:700}
+/* launch */
+.rdc-launch{position:fixed;inset:0;z-index:400;background:radial-gradient(circle at 50% 40%,#1c1c22,#050505 70%);display:grid;place-items:center;overflow:hidden;--text:#fff}
+.rdc-stage{position:relative;width:250px;height:170px}
+.rdc-lcard{position:absolute;left:12px;right:12px;bottom:10px;height:150px;border-radius:12px;overflow:hidden;z-index:2;animation:rdcCardIn 1s cubic-bezier(.65,0,.35,1) both}
+.rdc-lcard .bgi{position:absolute;inset:0;background-size:cover;background-position:center}
+.rdc-lcard .nm{position:absolute;left:0;right:0;bottom:0;padding:24px 10px 8px;background:linear-gradient(transparent,rgba(0,0,0,.75));font:800 15px var(--rd-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@keyframes rdcCardIn{0%{transform:translateY(-230px) scale(1.5)}55%{transform:translateY(-110px) scale(1)}100%{transform:translateY(0) scale(1)}}
+.rdc-eb{position:absolute;inset:0;background:#d9d1bd;border-radius:10px;box-shadow:0 24px 50px rgba(0,0,0,.6)}
+.rdc-ef{position:absolute;inset:0;z-index:3;background:#efe8d6;border-radius:10px;clip-path:polygon(0 0,50% 52%,100% 0,100% 100%,0 100%)}
+.rdc-efl{position:absolute;left:0;right:0;top:0;height:96px;background:#e3dbc6;clip-path:polygon(0 0,100% 0,50% 100%);transform-origin:top;z-index:4;animation:rdcFlap .55s 1s ease both}
+@keyframes rdcFlap{0%{transform:rotateX(180deg);z-index:1}49%{z-index:1}50%{z-index:4}100%{transform:rotateX(0);z-index:4}}
+.rdc-seal{position:absolute;left:50%;top:80px;width:40px;height:40px;margin-left:-20px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#5dff85,#00b82f);z-index:5;display:grid;place-items:center;font-size:17px;--text:#003b12;box-shadow:0 4px 10px rgba(0,0,0,.4);animation:rdcStamp .4s 1.55s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes rdcStamp{from{transform:scale(2.4);opacity:0}}
+.rdc-stage.fly{animation:rdcFly .8s cubic-bezier(.6,0,.8,.4) forwards}
+@keyframes rdcFly{30%{transform:translateY(12px) rotate(-3deg)}100%{transform:translate(160px,-620px) rotate(18deg) scale(.6);opacity:0}}
+.rdc-lmsg{position:absolute;bottom:22%;left:0;right:0;text-align:center;font:800 20px var(--rd-display);animation:rdFadeUp .5s 1.7s both}
+/* live */
+.rdc-live{padding:calc(env(safe-area-inset-top,0px) + 56px) 16px 40px;display:grid;gap:16px;text-align:center;animation:rdFadeUp .45s ease both}
+.rdc-live .big{font-size:44px;animation:rdPopIn .6s cubic-bezier(.34,1.56,.64,1) both}
+.rdc-live h1{font:800 34px/1 var(--rd-display);letter-spacing:-.02em}
+.rdc-live p{--text:var(--w60)}
+.rdc-live .rdc-pv{text-align:left}
+@media (prefers-reduced-motion:reduce){
+  .rdc *,.rdc *:before,.rdc *:after,.rdc-launch *,.rdc-live *{animation:none!important;transition:none!important}
+}
+</style>
 </head>
 <body>
 <!-- Pre-loader sits OUTSIDE #root so React mounting clears #root but not this -->
@@ -1413,6 +1569,189 @@ PL.profile = {};
       if (d && d.getTime() <= t) out.push({ party: p, date: d, hosted: hosted });
     });
     return out.sort(function (a, b) { return b.date - a.date; });
+  };
+})();
+</script>
+<script id="logic-create">
+window.PL = window.PL || {};
+PL.create = {};
+// Create / edit party flow: pure helpers (no React, no DOM).
+(function () {
+  var DN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var MN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function ymd(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function str(s) { return s == null ? "" : String(s); }
+  function filled(s) { return str(s).trim().length > 0; }
+  function plural(n, w) { return n + " " + w + (n === 1 ? "" : "s"); }
+  function options(f) { return ((f && f.dates) || []).filter(function (d) { return d && d.date; }); }
+  // Every optional extras card, in display order.
+  PL.create.CARDS = ["dress", "menu", "drinks", "questions", "playlist", "mood", "parking", "smart", "effect", "guests"];
+  PL.create.draftKey = function (userId) { return "partico_create_draft_" + (userId || "anon"); };
+  PL.create.ymd = ymd;
+  // "2026-11-14" -> "Sat 14 Nov"
+  PL.create.fmtDay = function (s) {
+    if (!s) return "";
+    var d = new Date(String(s).slice(0, 10) + "T12:00");
+    if (isNaN(d.getTime())) return "";
+    return DN[d.getDay()] + " " + d.getDate() + " " + MN[d.getMonth()];
+  };
+  // "19:30" -> "7:30pm", "20:00" -> "8pm"
+  PL.create.fmtTime = function (t) {
+    if (!t) return "";
+    var a = String(t).split(":"), h = +a[0], m = +a[1] || 0;
+    if (isNaN(h)) return "";
+    return (h % 12 || 12) + (m ? ":" + pad(m) : "") + (h < 12 ? "am" : "pm");
+  };
+  // The date line on the invite preview.
+  PL.create.whenText = function (f) {
+    var o = options(f);
+    if (f && f.useSingleDate) {
+      var d = o[0];
+      if (!d) return "";
+      var t = PL.create.fmtTime(d.time);
+      return PL.create.fmtDay(d.date) + (t ? " · " + t : "");
+    }
+    return o.length ? plural(o.length, "date option") + " · guests vote" : "";
+  };
+  PL.create.sortOptions = function (dates) {
+    var key = function (d) { return str(d && d.date) + "T" + str(d && d.time); };
+    return (dates || []).slice().sort(function (a, b) { var x = key(a), y = key(b); return x < y ? -1 : x > y ? 1 : 0; });
+  };
+  // Inline errors for the Essentials step: { field: message }. Empty object = good to go.
+  PL.create.validateEssentials = function (f, now) {
+    var e = {}, today = ymd(now ? new Date(now) : new Date()), o = options(f);
+    if (!filled(f && f.title)) e.title = "Give your party a name.";
+    if (f && f.useSingleDate) {
+      if (!o[0]) e.date = "Pick a date, or let guests vote on a few.";
+      else if (String(o[0].date).slice(0, 10) < today) e.date = "That date has already passed.";
+    } else {
+      if (o.length < 2) e.date = "Add at least two date options for guests to vote on.";
+      else if (o.some(function (d) { return String(d.date).slice(0, 10) < today; })) e.date = "One of your date options has already passed. Remove it or pick another.";
+    }
+    return e;
+  };
+  // Parties anyone can find need a guest cap (the old wizard's canNext rule).
+  PL.create.validateExtras = function (f) {
+    var e = {};
+    if (f && f.isPrivate === false && !(parseInt(f.maxCapacity, 10) > 0)) e.guests = "Open parties need a max number of guests.";
+    return e;
+  };
+  // Who can join: "invite" (private) | "friends" | "public" (everyone or mutual friends).
+  PL.create.privacyOf = function (f) {
+    if (!f || f.isPrivate !== false) return "invite";
+    return f.audience === "friends" ? "friends" : "public";
+  };
+  PL.create.privacyPatch = function (v) {
+    if (v === "friends") return { isPrivate: false, audience: "friends" };
+    if (v === "public") return { isPrivate: false, audience: "everyone" };
+    return { isPrivate: true };
+  };
+  // Which extras cards to put first for an event type (plus its smart sections).
+  var TYPE_CARDS = {
+    party: ["playlist", "drinks"], birthday: ["playlist", "drinks"], wedding: ["dress", "menu", "mood"],
+    dinner: ["menu", "drinks"], casual: [], graduation: ["dress"], housewarming: ["drinks", "playlist"],
+    halloween: ["dress", "mood", "playlist"], christmas: ["menu", "drinks", "dress"], bbq: ["menu", "drinks"],
+    engagement: ["dress", "menu"], hen_stag: ["dress", "drinks"], nye: ["playlist", "drinks", "dress", "effect"],
+    baby_shower: ["menu", "questions"], game_night: ["drinks"], club_night: ["playlist", "drinks", "dress"],
+    brunch: ["menu", "drinks"], kids_party: ["questions", "menu"]
+  };
+  var SECTION_CARDS = { dress_code: "dress", parking: "parking", menu_preview: "menu", dietary: "menu" };
+  PL.create.suggestedCards = function (eventType, smartSections) {
+    var want = {}, secs = smartSections || [];
+    (TYPE_CARDS[eventType] || []).forEach(function (id) { want[id] = true; });
+    secs.forEach(function (s) { if (SECTION_CARDS[s]) want[SECTION_CARDS[s]] = true; });
+    if (secs.length) want.smart = true;
+    return PL.create.CARDS.filter(function (id) { return want[id]; });
+  };
+  var EFFECT_LABELS = { auto: "Match the party", confetti: "Confetti", fireworks: "Fireworks", bubbles: "Bubbles", petals: "Petals", none: "No effect" };
+  PL.create.EFFECT_LABELS = EFFECT_LABELS;
+  function drinkName(d) { var s = str(d).replace(/^[^A-Za-z0-9]+/, "").trim(); return s || str(d); }
+  // One-line summary for a card's header; "" means nothing added yet.
+  PL.create.cardSummary = function (id, f, ctx) {
+    f = f || {}; ctx = ctx || {};
+    var parts, n;
+    switch (id) {
+      case "name": return [str(f.title).trim(), str(f.description).trim()].filter(Boolean).join(" · ");
+      case "look": return (ctx.typeLabel || "Party") + (f.coverImage ? " · your photo" : " · theme colours");
+      case "when": return PL.create.whenText(f);
+      case "where": return str(f.address).trim();
+      case "dress":
+        parts = [];
+        if (filled(f.dresscode)) parts.push(str(f.dresscode).trim());
+        n = (f.inspirationImages || []).length; if (n) parts.push(plural(n, "photo"));
+        n = (f.inspirationLinks || []).filter(filled).length; if (n) parts.push(plural(n, "link"));
+        return parts.join(" · ");
+      case "menu":
+        var items = f.menuItems || [];
+        if (items.length) return items.slice(0, 2).join(", ") + (items.length > 2 ? " +" + (items.length - 2) : "");
+        return filled(f.dietary) ? "Dietary notes added" : "";
+      case "drinks":
+        var ds = (f.drinkOptions || []).map(drinkName);
+        if (ds.length) return ds.join(", ") + (f.askDrinkPref ? " · asking guests" : "");
+        return f.askDrinkPref ? "Asking guests what they like" : "";
+      case "questions": n = (f.customQuestions || []).length; return n ? plural(n, "question") : "";
+      case "playlist":
+        if (!filled(f.playlistUrl)) return "";
+        return /spotify/i.test(f.playlistUrl) ? "Spotify playlist" : /apple/i.test(f.playlistUrl) ? "Apple Music playlist" : "Playlist linked";
+      case "mood": n = (f.moodBoard || []).length; return n ? plural(n, "photo") : "";
+      case "parking":
+        if (filled(f.parkingAddress)) return str(f.parkingAddress).trim();
+        return f.parkingLat && f.parkingLng ? "Pinned on the map" : "";
+      case "smart":
+        var ss = f.smartSections || {};
+        n = Object.keys(ss).filter(function (k) { return filled(ss[k]); }).length;
+        return n ? plural(n, "section") + " filled in" : "";
+      case "effect":
+        parts = [];
+        if (f.inviteEffect && f.inviteEffect !== "auto") parts.push(EFFECT_LABELS[f.inviteEffect] || f.inviteEffect);
+        if (f.fireworksEnabled === false) parts.push("Fireworks off");
+        else if (f.fireworksStyle && f.fireworksStyle !== "classic") parts.push(f.fireworksStyle.charAt(0).toUpperCase() + f.fireworksStyle.slice(1) + " fireworks");
+        return parts.join(" · ");
+      case "guests":
+        var p = PL.create.privacyOf(f);
+        if (p === "invite") return "";
+        var max = parseInt(f.maxCapacity, 10) > 0 ? " · max " + parseInt(f.maxCapacity, 10) : "";
+        if (p === "friends") return "Friends can find it" + max;
+        return "Public" + (f.audience === "mutual" ? " · mutual friends" : "") + max;
+    }
+    return "";
+  };
+  // Preview card place line: the venue name (first part of the address).
+  PL.create.placeName = function (address) { return str(address).split(",")[0].trim(); };
+  PL.create.inviteLabel = function (n) { return n ? "Create & send " + plural(n, "invite") + " \u{1F48C}" : "Create party"; };
+  // What the opening-effect preview plays: EventParticles for `particles` (an event type id) and/or FireworksCanvas.
+  PL.create.effectPlan = function (effect, eventType, fireworksEnabled) {
+    switch (effect) {
+      case "none": return { particles: null, fireworks: false };
+      case "fireworks": return { particles: null, fireworks: true };
+      case "confetti": return { particles: "birthday", fireworks: false };
+      case "bubbles": return { particles: "brunch", fireworks: false };
+      case "petals": return { particles: "wedding", fireworks: false };
+    }
+    return { particles: !eventType || eventType === "custom" ? "party" : eventType, fireworks: fireworksEnabled !== false };
+  };
+  PL.create.isBlank = function (f) {
+    if (!f) return true;
+    if (filled(f.title) || filled(f.description) || filled(f.address) || f.coverImage || f.venueLat) return false;
+    if (options(f).length || (f.invitedUsers || []).length) return false;
+    return !PL.create.CARDS.some(function (id) { return id !== "guests" && id !== "effect" && id !== "drinks" && PL.create.cardSummary(id, f); })
+      && !(f.drinkOptions || []).length;
+  };
+  // What to keep in localStorage: no half-typed inputs, no images too big for the quota.
+  var TRANSIENT = ["menuInput", "drinkInput", "questionInput", "dateInput", "timeInput"];
+  PL.create.draftFor = function (f, opts) {
+    opts = opts || {};
+    var maxImg = opts.maxImageChars || 400000, maxTotal = opts.maxTotalChars || 1500000;
+    var out = {};
+    Object.keys(f || {}).forEach(function (k) { if (TRANSIENT.indexOf(k) < 0) out[k] = f[k]; });
+    var big = function (s) { return typeof s === "string" && s.slice(0, 5) === "data:" && s.length > maxImg; };
+    if (big(out.coverImage)) out.coverImage = null;
+    out.moodBoard = (out.moodBoard || []).filter(function (s) { return !big(s); });
+    out.inspirationImages = (out.inspirationImages || []).filter(function (s) { return !big(s); });
+    if (JSON.stringify(out).length > maxTotal) { out.moodBoard = []; out.inspirationImages = []; }
+    if (JSON.stringify(out).length > maxTotal) out.coverImage = null;
+    return out;
   };
 })();
 </script>
@@ -4159,6 +4498,7 @@ const partyToForm = (p) => ({
   title: p.title || "",
   description: p.description || "",
   isPrivate: p.isPrivate !== false,
+  audience: p.audience || "everyone",
   dates: p.confirmedDate ? [p.confirmedDate] : (p.dates || []),
   confirmedDate: p.confirmedDate || null,
   useSingleDate: !!p.confirmedDate,
@@ -4218,197 +4558,157 @@ const buildPartyData = (f, md) => ({
   smartSections: f.smartSections || {},
   inviteFont: f.inviteFont || "",
   inviteEffect: f.inviteEffect || "auto",
-  maxCapacity: f.isPrivate ? null : (parseInt(f.maxCapacity) || null)
+  maxCapacity: f.isPrivate ? null : (parseInt(f.maxCapacity) || null),
+  audience: f.isPrivate === false ? (f.audience || "everyone") : "everyone"
 });
+// A fresh create-party form (same flat shape partyToForm/buildPartyData use).
+const rdcBlankForm = () => ({
+  title: "",
+  description: "",
+  isPrivate: true,
+  audience: "everyone",
+  dates: [],
+  confirmedDate: null,
+  useSingleDate: true,
+  address: "",
+  parkingAddress: "",
+  venueLat: null,
+  venueLng: null,
+  parkingLat: null,
+  parkingLng: null,
+  dresscode: "",
+  inspirationLinks: [""],
+  inspirationImages: [],
+  menuItems: [],
+  dietary: "",
+  menuInput: "",
+  drinkOptions: [],
+  askDrinkPref: true,
+  drinkInput: "",
+  customQuestions: [],
+  questionInput: "",
+  fireworksEnabled: true,
+  fireworksColors: ["#00ff41", "#fbbf24", "#34d399", "#60a5fa", "#f87171"],
+  fireworksStyle: "classic",
+  eventType: "party",
+  customEventName: "",
+  coverImage: null,
+  playlistUrl: "",
+  moodBoard: [],
+  smartSections: {},
+  inviteFont: "",
+  inviteEffect: "auto",
+  maxCapacity: "",
+  invitedUsers: [],
+  dateInput: "",
+  timeInput: ""
+});
+// Read image files, scale them down to `max` px on the long side, return JPEG data URLs.
+const rdcReadImages = (files, max, quality) => Promise.all(Array.from(files || []).map((file) => new Promise((res) => {
+  const r = new FileReader();
+  r.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      res(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => res(ev.target.result);
+    img.src = ev.target.result;
+  };
+  r.onerror = () => res(null);
+  r.readAsDataURL(file);
+}))).then((imgs) => imgs.filter(Boolean));
+const RDC_DRINKS = ["\u{1F942} Champagne", "\u{1F377} Wine", "\u{1F37A} Beer", "\u{1F379} Cocktails", "\u{1F964} Soft Drinks", "\u{1F4A7} Water", "\u{1F943} Spirits", "\u{1F378} Gin"];
+const RDC_COLOURS = ["#00ff41", "#00d944", "#fbbf24", "#34d399", "#60a5fa", "#f87171", "#fb923c", "#ffffff", "#f472b6"];
+const RDC_DRESS = ["Smart casual", "Dress to impress", "Black tie", "Fancy dress", "All black", "Come as you are"];
+const RDC_QUESTIONS = ["Any song requests? \u{1F3B5}", "Any allergies?", "Need somewhere to stay?", "Bringing anyone?"];
+const RDC_EFFECTS = ["auto", "confetti", "fireworks", "bubbles", "petals", "none"];
 const CreatePartyScreen = () => {
   const { navigate, createParty, updateParty, getParty, screenData, currentUser, users, cacheProfiles } = useApp();
+  const h = React.createElement;
+  const C = PL.create;
   const editPartyId = screenData?.editPartyId || null;
+  const isEdit = !!editPartyId;
   const editingParty = editPartyId ? getParty(editPartyId) : null;
-  const [step, setStep] = useState(0);
-  const [mode, setMode] = useState(editingParty ? "big" : null); // null = picker, "casual" = quick flow, "big" = full flow
+  const draftKey = C.draftKey(currentUser?.id);
+  const reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  // First render: the party being edited, else a saved draft, else a blank form.
+  const [init] = useState(() => {
+    if (editingParty) return { form: { ...partyToForm(editingParty) }, restored: false };
+    if (!isEdit) {
+      const d = ls.get(draftKey);
+      if (d && typeof d === "object" && !C.isBlank(d)) return { form: { ...rdcBlankForm(), ...d, menuInput: "", drinkInput: "", questionInput: "", dateInput: "", timeInput: "" }, restored: true };
+    }
+    return { form: rdcBlankForm(), restored: false };
+  });
+  const [form, setForm] = useState(init.form);
+  const [restored, setRestored] = useState(init.restored);
+  const [step, setStep] = useState(0); // 0 essentials, 1 extras, 2 invite
+  const [open, setOpen] = useState(null); // the expanded card id
+  const [errors, setErrors] = useState({});
   const [toast, setToast] = useState(null);
+  const [saved, setSaved] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [fx, setFx] = useState(null); // opening-effect preview plan
+  const [launch, setLaunch] = useState(null); // { party, fly }
+  const [live, setLive] = useState(null); // the created party
+  const [copied, setCopied] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const rootRef = useRef(null);
+  const titleRef = useRef(null);
+  const linkRef = useRef(null);
+  const coverImgRef = useRef(null);
+  const imgRef = useRef(null);
+  const moodRef = useRef(null);
+  const doneRef = useRef(false);
+  const toastTimer = useRef(null);
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 2500);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
   };
-  const [form, setForm] = useState(() => editingParty ? partyToForm(editingParty) : {
-    title: "",
-    description: "",
-    isPrivate: true,
-    audience: "everyone",
-    dates: [],
-    confirmedDate: null,
-    useSingleDate: false,
-    address: "",
-    parkingAddress: "",
-    venueLat: null,
-    venueLng: null,
-    parkingLat: null,
-    parkingLng: null,
-    dresscode: "",
-    inspirationLinks: [""],
-    inspirationImages: [],
-    menuItems: [],
-    dietary: "",
-    menuInput: "",
-    drinkOptions: [],
-    askDrinkPref: true,
-    drinkInput: "",
-    customQuestions: [],
-    questionInput: "",
-    fireworksEnabled: true,
-    fireworksColors: ["#00ff41", "#fbbf24", "#34d399", "#60a5fa", "#f87171"],
-    fireworksStyle: "classic",
-    eventType: "party",
-    customEventName: "",
-    coverImage: null,
-    playlistUrl: "",
-    moodBoard: [],
-    smartSections: {},
-    inviteFont: "",
-    inviteEffect: "auto",
-    maxCapacity: "",
-    invitedUsers: [],
-    dateInput: "",
-    timeInput: ""
-  });
-  const [showFireworksPreview, setShowFireworksPreview] = useState(false);
-  const fileRef = useRef(null);
-  const imgRef = useRef(null);
-  const coverImgRef = useRef(null);
-  const onCoverImg = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const r = new FileReader();
-    r.onload = (ev) => {
-      const img = new Image();
-      img.onload = () => {
-        const MAX = 900;
-        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-        set("coverImage", canvas.toDataURL("image/jpeg", 0.75));
-      };
-      img.onerror = () => set("coverImage", ev.target.result);
-      img.src = ev.target.result;
-    };
-    r.readAsDataURL(file);
-    e.target.value = "";
-  };
-  const drinkPresets = ["\u{1F942} Champagne", "\u{1F377} Wine", "\u{1F37A} Beer", "\u{1F379} Cocktails", "\u{1F964} Soft Drinks", "\u{1F4A7} Water", "\u{1F943} Spirits", "\u{1F378} Gin"];
-  const colorPresets = ["#00ff41", "#00d944", "#fbbf24", "#34d399", "#60a5fa", "#f87171", "#fb923c", "#ffffff", "#f472b6"];
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  const moodRef = useRef(null);
-  const onMoodImg = (e) => {
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-    const promises = files.map((f) => new Promise((res) => {
-      const r = new FileReader();
-      r.onload = (ev) => {
-        const img = new Image();
-        img.onload = () => {
-          const MAX = 600;
-          const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width * scale;
-          canvas.height = img.height * scale;
-          canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-          res(canvas.toDataURL("image/jpeg", 0.7));
-        };
-        img.onerror = () => res(ev.target.result);
-        img.src = ev.target.result;
-      };
-      r.onerror = () => res(null);
-      r.readAsDataURL(f);
-    }));
-    Promise.all(promises).then((imgs) => {
-      const valid = imgs.filter(Boolean);
-      setForm((f) => ({ ...f, moodBoard: [...f.moodBoard, ...valid] }));
-    });
-  };
-  const currentEventType = form.eventType === "custom" ? { label: form.customEventName || "Custom", smartSections: [], color: "#00ff41", emoji: "✏️" } : (EVENT_TYPES.find(t => t.id === form.eventType) || EVENT_TYPES[0]);
-  const suggestedSections = currentEventType.smartSections || [];
-  const stepLabels = ["Basics", "Invite Card", "Dates", "Location", "Dress Code", "Menu", "Drinks", "Questions", "Invite"];
-  // Casual events only need the essentials; big events get the full flow
-  const stepOrder = editPartyId ? [0, 1, 2, 3, 4, 5, 6, 7] : (mode === "casual" ? [0, 2, 3, 8] : [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-  const totalSteps = stepOrder.length;
-  const stepIdx = stepOrder[step] !== undefined ? stepOrder[step] : 0;
-  const addDate = () => {
-    if (!form.dateInput) return;
-    const newDate = { id: uid(), date: form.dateInput, time: form.timeInput, votes: [] };
-    set("dates", [...form.dates, newDate]);
-    set("dateInput", "");
-    set("timeInput", "");
-  };
-  const removeDate = (id) => set("dates", form.dates.filter((d) => d.id !== id));
-  const addMenuItem = () => {
-    if (!form.menuInput.trim()) return;
-    set("menuItems", [...form.menuItems, form.menuInput.trim()]);
-    set("menuInput", "");
-  };
-  const addDrink = (d) => {
-    if (form.drinkOptions.includes(d)) {
-      set("drinkOptions", form.drinkOptions.filter((x) => x !== d));
-    } else {
-      set("drinkOptions", [...form.drinkOptions, d]);
-    }
-  };
-  const addCustomDrink = () => {
-    const v = (form.drinkInput || "").trim();
-    if (!v) return;
-    if (form.drinkOptions.some((d) => d.toLowerCase() === v.toLowerCase())) { set("drinkInput", ""); return; }
-    set("drinkOptions", [...form.drinkOptions, v]);
-    set("drinkInput", "");
-  };
-  const addQuestion = () => {
-    if (!form.questionInput.trim()) return;
-    set("customQuestions", [...form.customQuestions, { id: uid(), text: form.questionInput.trim() }]);
-    set("questionInput", "");
-  };
-  const toggleInvite = (userId) => {
-    if (form.invitedUsers.includes(userId)) {
-      set("invitedUsers", form.invitedUsers.filter((x) => x !== userId));
-    } else {
-      set("invitedUsers", [...form.invitedUsers, userId]);
-    }
-  };
-  const toggleColor = (c) => {
-    if (form.fireworksColors.includes(c)) {
-      if (form.fireworksColors.length > 1) set("fireworksColors", form.fireworksColors.filter((x) => x !== c));
-    } else {
-      set("fireworksColors", [...form.fireworksColors, c]);
-    }
-  };
-  const onInspirationImg = (e) => {
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-    const promises = files.map((f) => new Promise((res) => {
-      const r = new FileReader();
-      r.onload = (ev) => {
-        const img = new Image();
-        img.onload = () => {
-          const MAX = 800;
-          const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width * scale;
-          canvas.height = img.height * scale;
-          canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-          res(canvas.toDataURL("image/jpeg", 0.7));
-        };
-        img.onerror = () => res(ev.target.result);
-        img.src = ev.target.result;
-      };
-      r.onerror = () => res(null);
-      r.readAsDataURL(f);
-    }));
-    Promise.all(promises).then((imgs) => {
-      const valid = imgs.filter(Boolean);
-      setForm((f) => ({ ...f, inspirationImages: [...f.inspirationImages, ...valid] }));
-    });
-  };
-  const [searchQ, setSearchQ] = useState("");
+  const patch = (o) => setForm((f) => ({ ...f, ...o }));
+  const clearErr = (k) => setErrors((e) => (e[k] ? (({ [k]: _, ...rest }) => rest)(e) : e));
+  const scrollToErr = () => setTimeout(() => {
+    const el = rootRef.current && rootRef.current.querySelector(".rdc-err");
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+  }, 40);
+  // Autosave the in-progress create form (never an edit) as a draft.
+  useEffect(() => {
+    if (isEdit || doneRef.current) return;
+    const t = setTimeout(() => {
+      if (doneRef.current) return;
+      if (C.isBlank(form)) { ls.del(draftKey); return; }
+      ls.set(draftKey, C.draftFor(form));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 900);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [form]);
+  // New step: back to the top.
+  useEffect(() => {
+    const sc = rootRef.current;
+    if (sc) sc.scrollTop = 0;
+  }, [step, live]);
+  // Launch: card drops into the envelope, seal stamps, envelope flies off, then "It's live".
+  useEffect(() => {
+    if (!launch) return;
+    const party = launch.party;
+    const t1 = setTimeout(() => setLaunch((l) => (l ? { ...l, fly: true } : l)), reduce ? 0 : 2300);
+    const t2 = setTimeout(() => {
+      setLaunch(null);
+      setLive(party);
+      const n = (party.invites || []).length;
+      showToast(n ? "Invites sent to " + n + " \u{1F48C}" : "Party created \u{1F389}");
+    }, reduce ? 400 : 3050);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [launch ? launch.party.id : null]);
   // Search ALL Partico users on the server so non-friends can be invited too
   useEffect(() => {
     if (!searchQ || searchQ.length < 2) return;
@@ -4424,162 +4724,415 @@ const CreatePartyScreen = () => {
   const allOtherUsers = users.filter((u) => u.id !== currentUser?.id);
   const filteredUsers = searchQ ? allOtherUsers.filter((u) => `${u.username || ""} ${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(searchQ.toLowerCase())) : allOtherUsers;
   const friends = (currentUser?.friends || []).map((fid) => users.find((u) => u.id === fid)).filter(Boolean);
+  const theme = form.eventType === "custom" ? { label: form.customEventName || "Custom", smartSections: [], color: "#00ff41", emoji: "\u{1F389}", grad: getEventTheme("party").grad } : getEventTheme(form.eventType);
+  const suggestedSections = theme.smartSections || [];
+  // ---------- image + list handlers ----------
+  const onCoverImg = (e) => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    rdcReadImages([file], 900, 0.75).then((imgs) => { if (imgs[0]) set("coverImage", imgs[0]); });
+  };
+  const onMoodImg = (e) => {
+    const files = Array.from(e.target.files);
+    e.target.value = "";
+    rdcReadImages(files, 600, 0.7).then((imgs) => setForm((f) => ({ ...f, moodBoard: [...f.moodBoard, ...imgs] })));
+  };
+  const onInspirationImg = (e) => {
+    const files = Array.from(e.target.files);
+    e.target.value = "";
+    rdcReadImages(files, 800, 0.7).then((imgs) => setForm((f) => ({ ...f, inspirationImages: [...f.inspirationImages, ...imgs] })));
+  };
+  const addMenuItem = () => {
+    const v = (form.menuInput || "").trim();
+    if (!v) return;
+    patch({ menuItems: [...form.menuItems, v], menuInput: "" });
+  };
+  const toggleDrink = (d) => setForm((f) => ({ ...f, drinkOptions: f.drinkOptions.includes(d) ? f.drinkOptions.filter((x) => x !== d) : [...f.drinkOptions, d] }));
+  const addCustomDrink = () => {
+    const v = (form.drinkInput || "").trim();
+    if (!v) return;
+    if (form.drinkOptions.some((d) => d.toLowerCase() === v.toLowerCase())) { set("drinkInput", ""); return; }
+    patch({ drinkOptions: [...form.drinkOptions, v], drinkInput: "" });
+  };
+  const addQuestion = (text) => {
+    const v = (text != null ? text : form.questionInput || "").trim();
+    if (!v) return;
+    setForm((f) => ({ ...f, customQuestions: [...f.customQuestions, { id: uid(), text: v }], questionInput: text != null ? f.questionInput : "" }));
+  };
+  const toggleColor = (c) => {
+    if (form.fireworksColors.includes(c)) {
+      if (form.fireworksColors.length > 1) set("fireworksColors", form.fireworksColors.filter((x) => x !== c));
+    } else set("fireworksColors", [...form.fireworksColors, c]);
+  };
+  const toggleInvite = (userId) => setForm((f) => ({ ...f, invitedUsers: f.invitedUsers.includes(userId) ? f.invitedUsers.filter((x) => x !== userId) : [...f.invitedUsers, userId] }));
+  // ---------- dates ----------
+  const today = C.ymd(new Date());
+  const single = form.dates[0] || null;
+  const setSingle = (k, v) => {
+    clearErr("date");
+    setForm((f) => {
+      if (k === "time" && !(f.dates[0] && f.dates[0].date)) return { ...f, timeInput: v };
+      const d0 = f.dates[0] || { id: uid(), date: "", time: f.timeInput || "20:00", votes: [] };
+      const nd = { ...d0, [k]: v };
+      return { ...f, dates: nd.date ? [nd, ...f.dates.slice(1)] : f.dates.slice(1) };
+    });
+  };
+  const setDateMode = (useSingle) => {
+    clearErr("date");
+    setForm((f) => ({ ...f, useSingleDate: useSingle, dates: C.sortOptions(f.dates) }));
+  };
+  const addOption = () => {
+    const d = form.dateInput, t = form.timeInput || "20:00";
+    if (!d) { setErrors((e) => ({ ...e, date: "Pick a date first." })); return; }
+    if (d < today) { setErrors((e) => ({ ...e, date: "That date has already passed." })); return; }
+    if (form.dates.some((x) => x.date === d && (x.time || "") === t)) { setErrors((e) => ({ ...e, date: "You've already added that one." })); return; }
+    clearErr("date");
+    patch({ dates: C.sortOptions([...form.dates, { id: uid(), date: d, time: t, votes: [] }]), dateInput: "" });
+  };
+  const removeOption = (id) => set("dates", form.dates.filter((d) => d.id !== id));
+  // ---------- navigation + submit ----------
+  const goStep = (n) => { setOpen(null); setStep(n); };
+  const checkEssentials = () => {
+    const e = C.validateEssentials(form, new Date());
+    if (Object.keys(e).length) { setErrors(e); setStep(0); scrollToErr(); return false; }
+    return true;
+  };
+  const checkExtras = () => {
+    const e = C.validateExtras(form);
+    if (e.guests) {
+      setErrors((x) => ({ ...x, ...e }));
+      setStep(1);
+      setOpen("guests");
+      showToast(e.guests, "error");
+      scrollToErr();
+      return false;
+    }
+    return true;
+  };
   const handleCreate = () => {
-    if (!form.title.trim()) {
-      showToast("Please enter a party name", "error");
-      return;
-    }
-    if (editPartyId) {
-      updateParty(editPartyId, buildPartyData(form, mode));
-      showToast("Changes saved! ✅");
-      navigate("partyManage", { partyId: editPartyId });
-      return;
-    }
+    if (!checkEssentials() || !checkExtras()) return;
     const party = createParty({
       ...form,
-      eventSize: mode || "big",
+      eventSize: "big",
       confirmedDate: form.useSingleDate && form.dates.length > 0 ? form.dates[0] : null,
-      dates: form.useSingleDate ? [] : [...form.dates]
+      dates: form.useSingleDate ? [] : C.sortOptions(form.dates)
     });
-    if (party) {
-      navigate("partyManage", { partyId: party.id });
-    }
+    if (!party) { showToast("Couldn't create the party. Try again.", "error"); return; }
+    doneRef.current = true;
+    ls.del(draftKey);
+    setRestored(false);
+    setLaunch({ party, fly: false });
   };
-  const steps = [
-    // Step 0: Basics
-    /* @__PURE__ */ React.createElement("div", { key: "basics" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, marginBottom: 4 } }, "\u{1F389} Party Basics"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 20 } }, "Let's start with the essentials"), React.createElement("div", { style: { marginBottom: 20 } }, React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: "var(--w60)", marginBottom: 10, letterSpacing: 0.3 } }, "What kind of event?"), React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 } }, EVENT_TYPES.map((t) => React.createElement("div", { key: t.id, onClick: () => set("eventType", t.id), style: { padding: "12px 6px", borderRadius: 14, border: `2px solid ${form.eventType === t.id ? t.color : "var(--w10)"}`, background: form.eventType === t.id ? `${t.color}28` : "var(--w04)", cursor: "pointer", textAlign: "center", transition: "all 0.2s" } }, React.createElement("div", { style: { fontSize: 24, marginBottom: 4 } }, t.emoji), React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: form.eventType === t.id ? t.color : "var(--w60)", lineHeight: 1.2 } }, t.label))), React.createElement("div", { key: "custom", onClick: () => set("eventType", "custom"), style: { padding: "12px 6px", borderRadius: 14, border: `2px solid ${form.eventType === "custom" ? "#00ff41" : "var(--w10)"}`, background: form.eventType === "custom" ? "rgba(0,255,65,0.16)" : "var(--w04)", cursor: "pointer", textAlign: "center", transition: "all 0.2s" } }, React.createElement("div", { style: { fontSize: 24, marginBottom: 4 } }, "✏️"), React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: form.eventType === "custom" ? "#00ff41" : "var(--w60)", lineHeight: 1.2 } }, "Custom"))), form.eventType === "custom" && React.createElement(Input, { label: "Event name *", placeholder: "e.g. Reunion, Baby Shower", value: form.customEventName, onChange: (e) => set("customEventName", e.target.value) })), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: "var(--w60)", marginBottom: 8 } }, "\u{1F5BC}\uFE0F Cover Image (optional)"), /* @__PURE__ */ React.createElement("input", { ref: coverImgRef, type: "file", accept: "image/*", style: { display: "none" }, onChange: onCoverImg }), form.coverImage ? /* @__PURE__ */ React.createElement("div", { style: { position: "relative", borderRadius: 14, overflow: "hidden", marginBottom: 6 } }, /* @__PURE__ */ React.createElement("img", { src: form.coverImage, style: { width: "100%", height: 160, objectFit: "cover", display: "block" }, alt: "Cover" }), /* @__PURE__ */ React.createElement("button", { onClick: () => set("coverImage", null), style: { position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.7)", color: "#fff", border: "none", borderRadius: "50%", width: 28, height: 28, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" } }, "\u2715")) : /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", onClick: () => coverImgRef.current?.click(), style: { fontSize: 13 } }, "\u{1F5BC}\uFE0F Upload Cover Image")), /* @__PURE__ */ React.createElement(Input, { label: "Party Name *", placeholder: "e.g. Summer BBQ 2025", value: form.title, onChange: (e) => set("title", e.target.value) }), /* @__PURE__ */ React.createElement(TextArea, { label: "Description", placeholder: "Tell your guests what to expect...", value: form.description, onChange: (e) => set("description", e.target.value) }), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: "var(--w60)", marginBottom: 8 } }, "Privacy"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, [{ v: true, label: "\u{1F512} Private", desc: "You choose guests" }, { v: false, label: "\u{1F30D} Public", desc: "Anyone can join" }].map((opt) => /* @__PURE__ */ React.createElement("div", { key: opt.v, onClick: () => set("isPrivate", opt.v), style: { flex: 1, padding: "12px", borderRadius: 12, border: `2px solid ${form.isPrivate === opt.v ? "#00ff41" : "var(--w15)"}`, background: form.isPrivate === opt.v ? "rgba(0,255,65,0.15)" : "var(--w05)", cursor: "pointer", textAlign: "center", transition: "all 0.2s" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700 } }, opt.label), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--w50)", marginTop: 2 } }, opt.desc))))), !form.isPrivate && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, marginBottom: 4 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: "var(--w60)", marginBottom: 8 } }, "Who can discover this?"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, [{ v: "everyone", label: "\u{1F30D} Everyone on Partico", desc: "Anyone on the app can find and join" }, { v: "mutual", label: "\u{1F91D} Mutual friends", desc: "People you have friends in common with" }, { v: "friends", label: "\u{1F465} My friends only", desc: "Only your friends — shows on their Friends tab" }].map((opt) => /* @__PURE__ */ React.createElement("div", { key: opt.v, onClick: () => set("audience", opt.v), style: { padding: "10px 12px", borderRadius: 12, border: `2px solid ${(form.audience || "everyone") === opt.v ? "#00ff41" : "var(--w15)"}`, background: (form.audience || "everyone") === opt.v ? "rgba(0,255,65,0.15)" : "var(--w05)", cursor: "pointer", transition: "all 0.2s" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700 } }, opt.label), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--w50)", marginTop: 2 } }, opt.desc))))), !form.isPrivate && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, marginBottom: 14 } }, /* @__PURE__ */ React.createElement(Input, { label: "Max Guests *", type: "number", placeholder: "e.g. 50", value: form.maxCapacity, onChange: (e) => set("maxCapacity", e.target.value), min: "1" }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w40)", marginTop: -8 } }, "First come, first served \u2014 once full, no one else can join")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { background: "rgba(0,255,65,0.1)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700 } }, "\u2728 Invite Fireworks"), /* @__PURE__ */ React.createElement("div", { onClick: () => set("fireworksEnabled", !form.fireworksEnabled), style: { width: 44, height: 24, borderRadius: 12, background: form.fireworksEnabled ? "#00ff41" : "var(--w20)", position: "relative", cursor: "pointer", transition: "background 0.2s" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: 2, left: form.fireworksEnabled ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s" } }))), form.fireworksEnabled && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w50)", marginBottom: 8 } }, "Pick colours:"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 } }, colorPresets.map((c) => /* @__PURE__ */ React.createElement("div", { key: c, onClick: () => toggleColor(c), style: { width: 32, height: 32, borderRadius: "50%", background: c, border: `3px solid ${form.fireworksColors.includes(c) ? "#fff" : "transparent"}`, cursor: "pointer", boxShadow: form.fireworksColors.includes(c) ? "0 0 0 2px #00ff41" : "none", transition: "all 0.2s" } }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10 } }, ["classic", "sparkle", "stars"].map((s) => /* @__PURE__ */ React.createElement("div", { key: s, onClick: () => set("fireworksStyle", s), style: { flex: 1, padding: "8px", borderRadius: 10, border: `2px solid ${form.fireworksStyle === s ? "#00ff41" : "var(--w15)"}`, background: form.fireworksStyle === s ? "rgba(0,255,65,0.2)" : "transparent", cursor: "pointer", textAlign: "center", fontSize: 12, fontWeight: 600, transition: "all 0.2s", textTransform: "capitalize" } }, s))), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { fontSize: 13 }, onClick: () => setShowFireworksPreview(true) }, "\u{1F440} Preview Fireworks")))),
-    // Step 1: Invite Card Customisation
-    /* @__PURE__ */ React.createElement("div", { key: "invitecard" },
-      React.createElement("div", { style: { fontSize: 22, fontWeight: 800, marginBottom: 4 } }, "\u{1F3A8} Invite Card"),
-      React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 20 } }, "Customise how your invite looks and feels"),
-      // Invite Effect
-      React.createElement("div", { style: { marginBottom: 18 } },
-        React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: "var(--w60)", marginBottom: 8 } }, "\u2728 Invite Effect"),
-        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 } },
-          [{ id: "auto", label: "Auto", desc: "Match event type" }, { id: "confetti", label: "Confetti", desc: "Colourful burst" }, { id: "fireworks", label: "Fireworks", desc: "Classic sparkle" }, { id: "bubbles", label: "Bubbles", desc: "Floating bubbles" }, { id: "petals", label: "Petals", desc: "Falling petals" }, { id: "none", label: "None", desc: "Keep it clean" }].map(eff =>
-            React.createElement("div", { key: eff.id, onClick: () => set("inviteEffect", eff.id), style: { padding: "10px 6px", borderRadius: 12, border: `2px solid ${form.inviteEffect === eff.id ? "#00ff41" : "var(--w10)"}`, background: form.inviteEffect === eff.id ? "rgba(0,255,65,0.15)" : "var(--w04)", cursor: "pointer", textAlign: "center", transition: "all 0.2s" } },
-              React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: form.inviteEffect === eff.id ? "#00ff41" : "#fff" } }, eff.label),
-              React.createElement("div", { style: { fontSize: 9, color: "var(--w40)", marginTop: 2 } }, eff.desc)
-            )
-          )
-        )
-      ),
-      // Smart Sections
-      suggestedSections.length > 0 && React.createElement("div", { style: { marginBottom: 18 } },
-        React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: "var(--w60)", marginBottom: 4 } }, "\u{1F4A1} Suggested Sections"),
-        React.createElement("div", { style: { fontSize: 11, color: "var(--w35)", marginBottom: 10 } }, "These are recommended for " + currentEventType.label + " events"),
-        suggestedSections.map(secId => {
-          const sec = SMART_SECTION_LABELS[secId];
-          if (!sec) return null;
-          return React.createElement("div", { key: secId, style: { marginBottom: 10 } },
-            React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: "var(--w70)", marginBottom: 4 } }, sec.emoji, " ", sec.label),
-            React.createElement("textarea", { className: "input-field", style: { resize: "vertical", minHeight: 50, fontSize: 13 }, placeholder: sec.placeholder, value: form.smartSections[secId] || "", onChange: (e) => setForm(f => ({ ...f, smartSections: { ...f.smartSections, [secId]: e.target.value } })) })
-          );
-        })
-      )
-    ),
-    // Step 2: Dates
-    /* @__PURE__ */ React.createElement("div", { key: "dates" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, marginBottom: 4 } }, "\u{1F5D3}\uFE0F When's the Party?"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 20 } }, "Set one date \u2014 or let your crew vote on their fave \u{1F389}"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 18 } }, [{ v: false, emoji: "\u{1F5F3}\uFE0F", title: "Let guests vote", sub: "Crew picks the date" }, { v: true, emoji: "\u2705", title: "Single date", sub: "It's locked in" }].map((opt) => /* @__PURE__ */ React.createElement("div", { key: String(opt.v), onClick: () => set("useSingleDate", opt.v), style: { flex: 1, minWidth: 0, padding: "14px 8px", borderRadius: 16, border: `2px solid ${form.useSingleDate === opt.v ? "#00ff41" : "var(--w15)"}`, background: form.useSingleDate === opt.v ? "rgba(0,255,65,0.15)" : "var(--w05)", cursor: "pointer", textAlign: "center", transition: "all 0.2s", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 26, lineHeight: 1 } }, opt.emoji), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: form.useSingleDate === opt.v ? "#00ff41" : "var(--text)" } }, opt.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--w45)", lineHeight: 1.3 } }, opt.sub)))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { className: "field-row", style: { marginBottom: 8 } }, /* @__PURE__ */ React.createElement(Input, { label: "Date", type: "date", value: form.dateInput, onChange: (e) => set("dateInput", e.target.value), style: { marginBottom: 0 } }), /* @__PURE__ */ React.createElement(Input, { label: "Time", type: "time", value: form.timeInput, onChange: (e) => set("timeInput", e.target.value), style: { marginBottom: 0 } })), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", onClick: addDate, style: { fontSize: 14 } }, "➕ Add ", form.useSingleDate ? "Date" : "Date Option")), form.dates.map((d) => /* @__PURE__ */ React.createElement("div", { key: d.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "12px 14px", background: "rgba(0,255,65,0.1)", borderRadius: 12, marginBottom: 8, border: "1px solid rgba(0,255,65,0.3)" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, "\u{1F389} ", fmtDate(d.date), d.time ? ` at ${d.time}` : ""), /* @__PURE__ */ React.createElement("button", { onClick: () => removeDate(d.id), style: { flexShrink: 0, background: "rgba(248,113,113,0.2)", color: "#f87171", border: "none", borderRadius: 8, padding: "4px 10px", fontSize: 12, cursor: "pointer" } }, "\u2715"))), form.dates.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "var(--w30)", fontSize: 14, padding: 20 } }, "No dates yet — add one above! \u{1F5D3}️")),
-    // Step 2: Location
-    /* @__PURE__ */ React.createElement("div", { key: "location" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, marginBottom: 4 } }, "\u{1F4CD} Location"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 16 } }, "Search or tap the map to drop your venue pin"), /* @__PURE__ */ React.createElement(
-      MapPicker,
-      {
-        label: "\u{1F3E0} Venue Location",
-        lat: form.venueLat,
-        lng: form.venueLng,
-        height: 230,
-        placeholder: "Search address or tap map to pin venue",
-        onPick: (p) => {
-          setForm((f) => ({ ...f, venueLat: p.lat, venueLng: p.lng, address: p.address || f.address }));
-        }
-      }
-    ), /* @__PURE__ */ React.createElement(TextArea, { label: "Venue address text (optional)", placeholder: "e.g. 123 Party Street, London, W1A 1AA", value: form.address, onChange: (e) => set("address", e.target.value) }), form.venueLat && /* @__PURE__ */ React.createElement("a", { href: `https://www.google.com/maps?q=${form.venueLat},${form.venueLng}`, target: "_blank", rel: "noreferrer", style: { display: "block", marginBottom: 12, padding: "10px", background: "rgba(96,165,250,0.15)", border: "1px solid rgba(96,165,250,0.3)", borderRadius: 12, textAlign: "center", color: "#60a5fa", fontSize: 14, fontWeight: 600, textDecoration: "none" } }, "\u{1F5FA}\uFE0F Open Venue in Google Maps"), /* @__PURE__ */ React.createElement("div", { style: { height: 1, background: "var(--w08)", margin: "16px 0" } }), /* @__PURE__ */ React.createElement(
-      MapPicker,
-      {
-        label: "\u{1F17F}\uFE0F Parking Location (optional)",
-        lat: form.parkingLat,
-        lng: form.parkingLng,
-        height: 200,
-        placeholder: "Search or tap map to pin parking spot",
-        onPick: (p) => {
-          setForm((f) => ({ ...f, parkingLat: p.lat, parkingLng: p.lng, parkingAddress: p.address || f.parkingAddress }));
-        }
-      }
-    ), /* @__PURE__ */ React.createElement(TextArea, { label: "Parking notes (optional)", placeholder: "e.g. Multi-storey on High Street, first 2 hours free", value: form.parkingAddress, onChange: (e) => set("parkingAddress", e.target.value) })),
-    // Step 3: Dress Code
-    /* @__PURE__ */ React.createElement("div", { key: "dress" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, marginBottom: 4 } }, "\u{1F457} Dress Code"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 20 } }, "What should guests wear?"), /* @__PURE__ */ React.createElement(TextArea, { label: "Dress Code Description", placeholder: "e.g. Smart casual, Black tie, Hawaiian theme...", value: form.dresscode, onChange: (e) => set("dresscode", e.target.value) }), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: "var(--w60)", marginBottom: 8 } }, "Inspiration Images"), /* @__PURE__ */ React.createElement("input", { ref: imgRef, type: "file", accept: "image/*", multiple: true, style: { display: "none" }, onChange: onInspirationImg }), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", onClick: () => imgRef.current?.click(), style: { fontSize: 13, marginBottom: 10 } }, "\u{1F4F7} Upload Inspiration Photos"), form.inspirationImages.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 } }, form.inspirationImages.map((img, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { position: "relative", paddingTop: "100%", borderRadius: 8, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("img", { src: img, style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }, alt: "" }), /* @__PURE__ */ React.createElement("button", { onClick: () => set("inspirationImages", form.inspirationImages.filter((_, ii) => ii !== i)), style: { position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.7)", color: "#fff", border: "none", borderRadius: "50%", width: 22, height: 22, fontSize: 12, cursor: "pointer" } }, "\u2715")))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "var(--w60)", marginBottom: 6 } }, "Or add inspiration links:"), form.inspirationLinks.map((link, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", gap: 6, marginBottom: 6 } }, /* @__PURE__ */ React.createElement("input", { className: "input-field", style: { flex: 1 }, placeholder: "https://...", value: link, onChange: (e) => {
-      const nl = [...form.inspirationLinks];
-      nl[i] = e.target.value;
-      set("inspirationLinks", nl);
-    } }), i > 0 && /* @__PURE__ */ React.createElement("button", { onClick: () => set("inspirationLinks", form.inspirationLinks.filter((_, ii) => ii !== i)), style: { background: "rgba(248,113,113,0.2)", color: "#f87171", border: "none", borderRadius: 8, padding: "0 10px", cursor: "pointer" } }, "\u2715"))), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { fontSize: 13 }, onClick: () => set("inspirationLinks", [...form.inspirationLinks, ""]) }, "+ Add Link")))),
-    // Step 4: Menu
-    /* @__PURE__ */ React.createElement("div", { key: "menu" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, marginBottom: 4 } }, "\u{1F37D}\uFE0F Menu"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 20 } }, "What food are you serving?"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 12 } }, /* @__PURE__ */ React.createElement("input", { className: "input-field", style: { flex: 1 }, placeholder: "Add a menu item...", value: form.menuInput, onChange: (e) => set("menuInput", e.target.value), onKeyDown: (e) => e.key === "Enter" && addMenuItem() }), /* @__PURE__ */ React.createElement("button", { onClick: addMenuItem, style: { background: "linear-gradient(135deg,#00ff41,#00d944)", color: "#fff", border: "none", borderRadius: 12, padding: "0 16px", fontWeight: 700, fontSize: 18, cursor: "pointer" } }, "+")), form.menuItems.map((item, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "var(--w07)", borderRadius: 10, marginBottom: 6 } }, /* @__PURE__ */ React.createElement("span", null, "\u{1F374} ", item), /* @__PURE__ */ React.createElement("button", { onClick: () => set("menuItems", form.menuItems.filter((_, ii) => ii !== i)), style: { background: "rgba(248,113,113,0.2)", color: "#f87171", border: "none", borderRadius: 6, padding: "2px 8px", cursor: "pointer" } }, "\u2715"))), /* @__PURE__ */ React.createElement(TextArea, { label: "Dietary Notes", placeholder: "Any allergies guests should know about? e.g. Nut-free venue, Vegetarian options available...", value: form.dietary, onChange: (e) => set("dietary", e.target.value) })),
-    // Step 5: Drinks
-    /* @__PURE__ */ React.createElement("div", { key: "drinks" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, marginBottom: 4 } }, "\u{1F379} Drinks"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 20 } }, "What will you be serving?"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 } }, drinkPresets.map((d) => /* @__PURE__ */ React.createElement("div", { key: d, onClick: () => addDrink(d), style: { padding: "8px 14px", borderRadius: 20, border: `2px solid ${form.drinkOptions.includes(d) ? "#00ff41" : "var(--w15)"}`, background: form.drinkOptions.includes(d) ? "rgba(0,255,65,0.2)" : "var(--w05)", cursor: "pointer", fontSize: 13, fontWeight: 600, transition: "all 0.2s" } }, d))), form.drinkOptions.filter((d) => !drinkPresets.includes(d)).length > 0 && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 } }, form.drinkOptions.filter((d) => !drinkPresets.includes(d)).map((d) => /* @__PURE__ */ React.createElement("div", { key: d, onClick: () => addDrink(d), style: { padding: "8px 14px", borderRadius: 20, border: "2px solid #00ff41", background: "rgba(0,255,65,0.2)", cursor: "pointer", fontSize: 13, fontWeight: 600, transition: "all 0.2s" } }, d, " ✕"))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { background: "rgba(0,255,65,0.06)", border: "1px solid rgba(0,255,65,0.2)", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, marginBottom: 6 } }, "✏️ Add your choice of drink or brand"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w50)", marginBottom: 10 } }, "Name specific beers, wines, cocktails — anything. Guests pick exactly what they'd like, so you stock what everyone actually wants."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("input", { className: "input-field", style: { flex: 1 }, placeholder: "e.g. Corona, Aperol Spritz, Diet Coke…", value: form.drinkInput, onChange: (e) => set("drinkInput", e.target.value), onKeyDown: (e) => e.key === "Enter" && addCustomDrink() }), /* @__PURE__ */ React.createElement("button", { onClick: addCustomDrink, style: { background: "linear-gradient(135deg,#00ff41,#00d944)", color: "#fff", border: "none", borderRadius: 12, padding: "0 16px", fontWeight: 700, fontSize: 18, cursor: "pointer" } }, "+"))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { background: "rgba(0,255,65,0.08)", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, marginBottom: 2 } }, "Ask guests drink preference?"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w50)" } }, "Helps you buy the right amount")), /* @__PURE__ */ React.createElement("div", { onClick: () => set("askDrinkPref", !form.askDrinkPref), style: { width: 44, height: 24, borderRadius: 12, background: form.askDrinkPref ? "#00ff41" : "var(--w20)", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: 2, left: form.askDrinkPref ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s" } }))))),
-    // Step 6: Questions
-    /* @__PURE__ */ React.createElement("div", { key: "questions" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, marginBottom: 4 } }, "\u2753 Custom Questions"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 20 } }, "Ask your guests anything extra"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 12 } }, /* @__PURE__ */ React.createElement("input", { className: "input-field", style: { flex: 1 }, placeholder: "e.g. Any dietary requirements?", value: form.questionInput, onChange: (e) => set("questionInput", e.target.value), onKeyDown: (e) => e.key === "Enter" && addQuestion() }), /* @__PURE__ */ React.createElement("button", { onClick: addQuestion, style: { background: "linear-gradient(135deg,#00ff41,#00d944)", color: "#fff", border: "none", borderRadius: 12, padding: "0 16px", fontWeight: 700, fontSize: 18, cursor: "pointer" } }, "+")), form.customQuestions.map((q, i) => /* @__PURE__ */ React.createElement("div", { key: q.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "var(--w07)", borderRadius: 10, marginBottom: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14 } }, "\u2753 ", q.text), /* @__PURE__ */ React.createElement("button", { onClick: () => set("customQuestions", form.customQuestions.filter((_, ii) => ii !== i)), style: { background: "rgba(248,113,113,0.2)", color: "#f87171", border: "none", borderRadius: 6, padding: "2px 8px", cursor: "pointer" } }, "\u2715"))), form.customQuestions.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "var(--w30)", fontSize: 14, padding: 20 } }, "No custom questions yet \u2014 they'll still be asked for dietary requirements and drink preferences automatically")),
-    // Step 7: Invite
-    /* @__PURE__ */ React.createElement("div", { key: "invite" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, marginBottom: 2 } }, "\u{1F465} Invite Guests"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 14 } }, "Your friends are at the top \u2014 just tap to add"), form.invitedUsers.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { background: "linear-gradient(135deg,rgba(0,255,65,0.2),rgba(124,58,237,0.2))", border: "1px solid rgba(0,255,65,0.4)", borderRadius: 14, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#00ff41" } }, "\u2705 ", form.invitedUsers.length, " guest", form.invitedUsers.length !== 1 ? "s" : "", " selected"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: -6 } }, form.invitedUsers.slice(0, 5).map((uid2) => {
-      const u = allOtherUsers.find((x) => x.id === uid2) || friends.find((x) => x.id === uid2);
-      return u ? /* @__PURE__ */ React.createElement("div", { key: uid2, style: { width: 28, height: 28, borderRadius: "50%", background: avatarColor(u.id), border: "2px solid #0d0d0d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, marginLeft: -6 } }, initials(u)) : null;
-    }))), /* @__PURE__ */ React.createElement("input", { className: "input-field", style: { marginBottom: 12 }, placeholder: "\u{1F50D} Search all users by name, email...", value: searchQ, onChange: (e) => setSearchQ(e.target.value) }), !searchQ && /* @__PURE__ */ React.createElement(React.Fragment, null, friends.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "rgba(0,255,65,0.8)", letterSpacing: 1, marginBottom: 8 } }, "YOUR FRIENDS (", friends.length, ")"), friends.map((u) => {
-      const selected = form.invitedUsers.includes(u.id);
-      return /* @__PURE__ */ React.createElement("div", { key: u.id, onClick: () => toggleInvite(u.id), style: { display: "flex", alignItems: "center", gap: 12, padding: "11px 12px", background: selected ? "rgba(0,255,65,0.15)" : "rgba(0,255,65,0.06)", borderRadius: 12, marginBottom: 6, cursor: "pointer", border: `2px solid ${selected ? "#00ff41" : "rgba(0,255,65,0.2)"}`, transition: "all 0.2s" } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 40 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--w40)" } }, maskEmail(u.email))), /* @__PURE__ */ React.createElement("div", { style: { width: 26, height: 26, borderRadius: "50%", border: `2px solid ${selected ? "#00ff41" : "var(--w25)"}`, background: selected ? "#00ff41" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0, transition: "all 0.2s", fontWeight: 700 } }, selected ? "\u2713" : ""));
-    })), friends.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "card", style: { marginBottom: 14, textAlign: "center", padding: "20px", background: "rgba(0,255,65,0.06)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 24, marginBottom: 6 } }, "\u{1F465}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 600, marginBottom: 4 } }, "No friends yet"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w40)", marginBottom: 10 } }, "Add friends first to invite them quickly"), /* @__PURE__ */ React.createElement("button", { onClick: () => navigate("friends"), style: { background: "rgba(0,255,65,0.2)", border: "1px solid rgba(0,255,65,0.4)", color: "#00ff41", borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "Go to Friends \u2192")), allOtherUsers.filter((u) => !friends.find((f) => f.id === u.id)).length > 0 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--w35)", letterSpacing: 1, marginBottom: 8 } }, "OTHER USERS ON PARTICO"), allOtherUsers.filter((u) => !friends.find((f) => f.id === u.id)).slice(0, 8).map((u) => {
-      const selected = form.invitedUsers.includes(u.id);
-      return /* @__PURE__ */ React.createElement("div", { key: u.id, onClick: () => toggleInvite(u.id), style: { display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: selected ? "rgba(0,255,65,0.1)" : "var(--w04)", borderRadius: 12, marginBottom: 6, cursor: "pointer", border: `2px solid ${selected ? "#00ff41" : "transparent"}`, transition: "all 0.2s" } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 38 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 14 } }, u.firstName, " ", u.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--w40)" } }, maskEmail(u.email))), /* @__PURE__ */ React.createElement("div", { style: { width: 24, height: 24, borderRadius: "50%", border: `2px solid ${selected ? "#00ff41" : "var(--w20)"}`, background: selected ? "#00ff41" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0, transition: "all 0.2s" } }, selected ? "\u2713" : ""));
-    }))), searchQ && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--w35)", letterSpacing: 1, marginBottom: 8 } }, "SEARCH RESULTS"), filteredUsers.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { color: "var(--w30)", textAlign: "center", padding: 24, fontSize: 14 } }, 'No users found for "', searchQ, '"') : filteredUsers.map((u) => {
-      const selected = form.invitedUsers.includes(u.id);
-      const isFriend = friends.find((f) => f.id === u.id);
-      return /* @__PURE__ */ React.createElement("div", { key: u.id, onClick: () => toggleInvite(u.id), style: { display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: selected ? "rgba(0,255,65,0.12)" : "var(--w04)", borderRadius: 12, marginBottom: 6, cursor: "pointer", border: `2px solid ${selected ? "#00ff41" : "transparent"}`, transition: "all 0.2s" } }, /* @__PURE__ */ React.createElement(Avatar, { user: u, size: 38 }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 14 } }, u.firstName, " ", u.lastName, isFriend && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, color: "#34d399", fontWeight: 700, marginLeft: 6, background: "rgba(52,211,153,0.15)", borderRadius: 10, padding: "1px 6px" } }, "Friend")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--w40)" } }, maskEmail(u.email))), /* @__PURE__ */ React.createElement("div", { style: { width: 24, height: 24, borderRadius: "50%", border: `2px solid ${selected ? "#00ff41" : "var(--w20)"}`, background: selected ? "#00ff41" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0, transition: "all 0.2s" } }, selected ? "\u2713" : ""));
-    })))
-  ];
-  const canNext = [
-    form.title.trim().length > 0 && (form.isPrivate || !!form.maxCapacity),
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true
-  ];
-  // Mode picker: choose between a quick casual hangout and a full big event
-  if (!mode) {
-    const pick = (m) => {
-      if (m === "casual") {
-        setForm((f) => ({ ...f, eventType: "casual", askDrinkPref: false }));
-      }
-      setStep(0);
-      setMode(m);
+  const handleSave = () => {
+    const e = { ...C.validateExtras(form) };
+    if (!form.title.trim()) e.title = "Give your party a name.";
+    if (Object.keys(e).length) {
+      setErrors(e);
+      setOpen(e.title ? "name" : "guests");
+      scrollToErr();
+      return;
+    }
+    updateParty(editPartyId, buildPartyData(form, editingParty && editingParty.eventSize));
+    navigate("partyManage", { partyId: editPartyId, toast: "Changes saved ✅" });
+  };
+  const startOver = () => {
+    ls.del(draftKey);
+    setForm(rdcBlankForm());
+    setRestored(false);
+    setErrors({});
+    setOpen(null);
+    setTimeout(() => titleRef.current && titleRef.current.focus(), 30);
+  };
+  const playPreview = () => {
+    const plan = C.effectPlan(form.inviteEffect, form.eventType, form.fireworksEnabled);
+    if (reduce) { showToast("Effects are paused while Reduce Motion is on"); return; }
+    if (!plan.particles && !plan.fireworks) { showToast("No effect: the invite just opens"); return; }
+    setFx(plan);
+  };
+  const copyLink = (text) => {
+    const ok = () => { setCopied(true); showToast("Invite link copied"); };
+    const fail = () => {
+      try {
+        const r = document.createRange();
+        r.selectNodeContents(linkRef.current);
+        const s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(r);
+      } catch (e) {}
+      showToast("Link selected. Copy it from there");
     };
-    const modeCard = (emoji, title, meta, m, accent) => React.createElement("div", {
-      key: m,
-      onClick: () => pick(m),
-      style: { background: "var(--surface)", border: `2px solid ${accent}55`, borderRadius: 20, padding: "26px 20px", cursor: "pointer", marginBottom: 14, transition: "all 0.2s", textAlign: "center" }
-    },
-      React.createElement("div", { style: { fontSize: 40, marginBottom: 12, filter: `drop-shadow(0 0 16px ${accent}88)` } }, emoji),
-      React.createElement("div", { style: { fontSize: 21, fontWeight: 800, marginBottom: 12, color: "var(--text)" } }, title),
-      React.createElement("div", { style: { display: "inline-block", background: `${accent}1a`, border: `1px solid ${accent}66`, color: accent, borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 700 } }, meta)
-    );
-    return React.createElement("div", { className: "screen", style: { background: "var(--bg)", display: "flex", flexDirection: "column" } },
-      React.createElement("div", { style: { padding: "50px 20px 16px", display: "flex", alignItems: "center", gap: 12 } },
-        React.createElement("button", { onClick: () => navigate("home"), style: { background: "var(--surface)", border: "1px solid var(--surface-border)", color: "var(--text)", borderRadius: 10, width: 36, height: 36, fontSize: 18, cursor: "pointer" } }, "\u2190"),
-        React.createElement("div", { style: { fontWeight: 800, fontSize: 18, color: "var(--text)" } }, "Host with Partico")
-      ),
-      React.createElement("div", { style: { padding: "16px 22px 40px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" } },
-        React.createElement("div", { style: { fontSize: 28, fontWeight: 900, color: "#39FF14", marginBottom: 6, textAlign: "center" } }, "What are you planning?"),
-        React.createElement("div", { style: { fontSize: 14, color: "#666666", marginBottom: 28, textAlign: "center" } }, "Pick a vibe \u2014 we'll only ask what's needed."),
-        modeCard("\u26A1", "Casual hangout", "4 quick steps \u00B7 under a minute", "casual", "#39FF14"),
-        modeCard("\u{1F389}", "Big event", "Full planning \u00B7 the works", "big", "#00C9B1"),
-        React.createElement("div", { style: { textAlign: "center", fontSize: 12, color: "#666666", marginTop: 18 } }, "You can always edit your event after creating it")
-      )
-    );
+    try { navigator.clipboard.writeText(text).then(ok, fail); } catch (e) { fail(); }
+  };
+  // ---------- small building blocks ----------
+  const err = (k) => errors[k] ? h("div", { className: "rdc-err", role: "alert" }, errors[k]) : null;
+  const lbl = (text, small, htmlFor) => h(htmlFor ? "label" : "div", { className: "rdc-lbl", htmlFor }, text, small ? h("small", null, small) : null);
+  const ta = (props) => h("textarea", { className: "input-field", ...props });
+  const sw = (on, onClick, label) => h("button", { className: "rdc-sw" + (on ? " on" : ""), onClick, role: "switch", "aria-checked": on, "aria-label": label });
+  const listRows = (items, textOf, onRemove) => items.length ? h("div", { className: "rdc-opts" }, items.map((it, i) => h("div", { className: "rdc-optrow", key: it.id || i }, h("span", null, textOf(it)), h("button", { className: "rdc-x", onClick: () => onRemove(i), "aria-label": "Remove " + textOf(it) }, "✕")))) : null;
+  const addRow = (value, onChange, onAdd, placeholder, label) => h("form", { className: "rdc-addrow", onSubmit: (e) => { e.preventDefault(); onAdd(); } },
+    h("input", { className: "input-field", value, onChange: (e) => onChange(e.target.value), placeholder, "aria-label": label, maxLength: 80, autoComplete: "off" }),
+    h("button", { className: "rdc-btn ghost sm", type: "submit" }, "Add"));
+  const thumbs = (imgs, onRemove) => imgs.length ? h("div", { className: "rdc-thumbs" }, imgs.map((src, i) => h("div", { className: "rdc-thumb", key: i }, h("img", { src, alt: "" }), h("button", { onClick: () => onRemove(i), "aria-label": "Remove photo" }, "✕")))) : null;
+  const whenLine = C.whenText(form);
+  const place = C.placeName(form.address);
+  const preview = (small) => h("div", { className: "rdc-pv cover-dark" + (small ? " small" : ""), role: "img", "aria-label": "Invite preview: " + (form.title || "untitled party") + (whenLine ? ", " + whenLine : "") + (place ? ", at " + place : "") },
+    h("div", { className: "bgi", style: homeCoverStyle({ coverImage: form.coverImage, eventType: form.eventType }) }),
+    h("span", { className: "tag" }, "You're invited"),
+    h("span", { className: "emo", key: form.eventType, "aria-hidden": true }, theme.emoji),
+    h("h3", null, form.title.trim() ? form.title : h("span", { className: "ph" }, "Your party name")),
+    h("div", { className: "meta" },
+      h("span", null, whenLine || h("span", { className: "ph" }, "Pick a date")),
+      h("span", null, place ? "\u{1F4CD} " + place : h("span", { className: "ph" }, "Add a place"))));
+  // ---------- essentials fields ----------
+  const fName = () => h("div", { className: "rdc-field" }, lbl("Party name", null, "rdc-title"),
+    h("input", { id: "rdc-title", ref: titleRef, className: "input-field rdc-big", maxLength: 60, placeholder: "e.g. Toby's 22nd", value: form.title, autoComplete: "off", "aria-invalid": !!errors.title, onChange: (e) => { set("title", e.target.value); clearErr("title"); } }),
+    err("title"));
+  const fType = () => h("div", { className: "rdc-field" }, lbl("What kind of party?"),
+    h("div", { className: "rdc-types", role: "group", "aria-label": "Party type" },
+      EVENT_TYPES.map((t) => h("button", { key: t.id, className: "rdc-type" + (form.eventType === t.id ? " on" : ""), style: { "--c": t.color }, "aria-pressed": form.eventType === t.id, onClick: () => set("eventType", t.id) }, h("span", { "aria-hidden": true }, t.emoji), h("small", null, t.label))),
+      h("button", { key: "custom", className: "rdc-type" + (form.eventType === "custom" ? " on" : ""), style: { "--c": "#00ff41" }, "aria-pressed": form.eventType === "custom", onClick: () => set("eventType", "custom") }, h("span", { "aria-hidden": true }, "✏️"), h("small", null, "Custom"))),
+    form.eventType === "custom" && h("input", { className: "input-field", placeholder: "Name it, e.g. Reunion, Baby Shower", "aria-label": "Custom event name", value: form.customEventName, maxLength: 40, onChange: (e) => set("customEventName", e.target.value) }));
+  const fCover = () => h("div", { className: "rdc-field" }, lbl("Cover", "Sets the look of your invite"),
+    h("input", { ref: coverImgRef, type: "file", accept: "image/*", style: { display: "none" }, onChange: onCoverImg }),
+    h("div", { className: "rdc-covers" },
+      h("button", { className: "rdc-cover" + (!form.coverImage ? " on" : ""), style: { background: theme.grad }, "aria-pressed": !form.coverImage, "aria-label": theme.label + " colours", onClick: () => set("coverImage", null) }),
+      h("button", { className: "rdc-cover up" + (form.coverImage ? " on" : ""), style: form.coverImage ? { backgroundImage: "url(" + JSON.stringify(form.coverImage) + ")" } : null, "aria-label": form.coverImage ? "Change cover photo" : "Upload a cover photo", onClick: () => coverImgRef.current && coverImgRef.current.click() }, form.coverImage ? "" : "\u{1F4F7}"),
+      form.coverImage ? h("button", { className: "rdc-link", onClick: () => set("coverImage", null) }, "Use " + theme.label.toLowerCase() + " colours") : h("span", { className: "rdc-hint" }, "Or upload your own photo")));
+  const fWhen = () => h("div", { className: "rdc-field" }, lbl("When"),
+    h("div", { className: "rdc-seg", role: "group", "aria-label": "How to set the date" },
+      h("button", { className: form.useSingleDate ? "on" : "", "aria-pressed": !!form.useSingleDate, onClick: () => setDateMode(true) }, "Pick a date"),
+      h("button", { className: !form.useSingleDate ? "on" : "", "aria-pressed": !form.useSingleDate, onClick: () => setDateMode(false) }, "Let guests vote")),
+    form.useSingleDate
+      ? h("div", { className: "rdc-row2" },
+          h("input", { type: "date", className: "input-field", "aria-label": "Date", min: today, value: (single && single.date) || "", "aria-invalid": !!errors.date, onChange: (e) => setSingle("date", e.target.value) }),
+          h("input", { type: "time", className: "input-field", "aria-label": "Time", value: (single && single.date ? single.time : form.timeInput) || "20:00", onChange: (e) => setSingle("time", e.target.value) }))
+      : h(React.Fragment, null,
+          listRows(C.sortOptions(form.dates), (d) => C.fmtDay(d.date) + (d.time ? " · " + C.fmtTime(d.time) : ""), (i) => removeOption(C.sortOptions(form.dates)[i].id)),
+          h("div", { className: "rdc-row2" },
+            h("input", { type: "date", className: "input-field", "aria-label": "Date option", min: today, value: form.dateInput, onChange: (e) => { set("dateInput", e.target.value); clearErr("date"); } }),
+            h("input", { type: "time", className: "input-field", "aria-label": "Time option", value: form.timeInput || "20:00", onChange: (e) => set("timeInput", e.target.value) })),
+          h("button", { className: "rdc-btn ghost sm", onClick: addOption }, "+ Add date option"),
+          h("span", { className: "rdc-hint" }, "Guests tick the dates that work. You pick the winner later.")),
+    err("date"));
+  const fWhere = () => h("div", { className: "rdc-field" }, lbl("Where", null, "rdc-addr"),
+    h("input", { id: "rdc-addr", className: "input-field", placeholder: "Venue name or address", value: form.address, autoComplete: "off", onChange: (e) => set("address", e.target.value) }),
+    h("div", { style: { display: "flex", gap: 14, flexWrap: "wrap" } },
+      h("button", { className: "rdc-link", "aria-expanded": mapOpen || !!form.venueLat, onClick: () => setMapOpen((o) => !o) }, (mapOpen || form.venueLat) ? (form.venueLat ? "\u{1F4CD} Pinned on the map" : "Hide map") : "\u{1F4CD} Pin it on the map"),
+      form.venueLat ? h("a", { className: "rdc-link", href: `https://www.google.com/maps?q=${form.venueLat},${form.venueLng}`, target: "_blank", rel: "noreferrer", style: { textDecoration: "none" } }, "Open in Google Maps") : null),
+    (mapOpen || form.venueLat) ? h(MapPicker, { lat: form.venueLat, lng: form.venueLng, height: 210, placeholder: "Search address or tap the map to pin the venue", onPick: (p) => setForm((f) => ({ ...f, venueLat: p.lat, venueLng: p.lng, address: p.address || f.address })) }) : null);
+  const fNote = () => h("div", { className: "rdc-field" }, lbl("A note to guests", "optional", "rdc-desc"),
+    ta({ id: "rdc-desc", maxLength: 500, placeholder: "What should people expect?", value: form.description, onChange: (e) => set("description", e.target.value) }));
+  // ---------- extras cards ----------
+  const smartIds = [...suggestedSections, ...Object.keys(form.smartSections || {}).filter((k) => SMART_SECTION_LABELS[k] && String(form.smartSections[k] || "").trim())].filter((k, i, a) => a.indexOf(k) === i && SMART_SECTION_LABELS[k]);
+  const privacy = C.privacyOf(form);
+  const XC = {
+    dress: { ic: "\u{1F457}", t: "Dress code", body: () => h(React.Fragment, null,
+      ta({ placeholder: "e.g. Smart casual, black tie, Hawaiian theme...", "aria-label": "Dress code", value: form.dresscode, onChange: (e) => set("dresscode", e.target.value) }),
+      h("div", { className: "rdc-chips" }, RDC_DRESS.map((d) => h("button", { key: d, className: "rdc-chip" + (form.dresscode === d ? " on" : ""), "aria-pressed": form.dresscode === d, onClick: () => set("dresscode", d) }, d))),
+      h("div", { className: "rdc-sub" }, lbl("Inspiration photos"),
+        h("input", { ref: imgRef, type: "file", accept: "image/*", multiple: true, style: { display: "none" }, onChange: onInspirationImg }),
+        thumbs(form.inspirationImages, (i) => set("inspirationImages", form.inspirationImages.filter((_, ii) => ii !== i))),
+        h("button", { className: "rdc-btn ghost sm", onClick: () => imgRef.current && imgRef.current.click() }, "\u{1F4F7} Upload photos")),
+      h("div", { className: "rdc-sub" }, lbl("Inspiration links"),
+        form.inspirationLinks.map((link, i) => h("div", { key: i, className: "rdc-addrow" },
+          h("input", { className: "input-field", placeholder: "https://...", "aria-label": "Inspiration link " + (i + 1), value: link, onChange: (e) => { const nl = [...form.inspirationLinks]; nl[i] = e.target.value; set("inspirationLinks", nl); } }),
+          form.inspirationLinks.length > 1 ? h("button", { className: "rdc-x", "aria-label": "Remove link", onClick: () => set("inspirationLinks", form.inspirationLinks.filter((_, ii) => ii !== i)) }, "✕") : null)),
+        h("button", { className: "rdc-link", style: { justifySelf: "start" }, onClick: () => set("inspirationLinks", [...form.inspirationLinks, ""]) }, "+ Add a link"))) },
+    menu: { ic: "\u{1F37D}️", t: "Food & menu", body: () => h(React.Fragment, null,
+      listRows(form.menuItems, (m) => m, (i) => set("menuItems", form.menuItems.filter((_, ii) => ii !== i))),
+      addRow(form.menuInput, (v) => set("menuInput", v), addMenuItem, "Add a dish, e.g. Lasagne", "Menu item"),
+      ta({ placeholder: "Dietary notes, e.g. nut-free venue, veggie options...", "aria-label": "Dietary notes", value: form.dietary, onChange: (e) => set("dietary", e.target.value) })) },
+    drinks: { ic: "\u{1F379}", t: "Drinks", body: () => h(React.Fragment, null,
+      h("div", { className: "rdc-chips" },
+        RDC_DRINKS.map((d) => h("button", { key: d, className: "rdc-chip" + (form.drinkOptions.includes(d) ? " on" : ""), "aria-pressed": form.drinkOptions.includes(d), onClick: () => toggleDrink(d) }, d)),
+        form.drinkOptions.filter((d) => !RDC_DRINKS.includes(d)).map((d) => h("button", { key: d, className: "rdc-chip on", "aria-label": "Remove " + d, onClick: () => toggleDrink(d) }, d, " ✕"))),
+      addRow(form.drinkInput, (v) => set("drinkInput", v), addCustomDrink, "Your own, e.g. Corona, Aperol Spritz", "Custom drink"),
+      h("div", { className: "rdc-toggle" }, h("span", null, "Ask guests what they'd like", h("small", null, "Helps you buy the right amount")), sw(!!form.askDrinkPref, () => set("askDrinkPref", !form.askDrinkPref), "Ask guests about drinks"))) },
+    questions: { ic: "\u{1F4AC}", t: "Questions for guests", body: () => h(React.Fragment, null,
+      listRows(form.customQuestions, (q) => q.text, (i) => set("customQuestions", form.customQuestions.filter((_, ii) => ii !== i))),
+      addRow(form.questionInput, (v) => set("questionInput", v), () => addQuestion(), "Ask anything", "Question"),
+      h("div", { className: "rdc-chips" }, RDC_QUESTIONS.filter((q) => !form.customQuestions.some((x) => x.text === q)).map((q) => h("button", { key: q, className: "rdc-chip ghost", onClick: () => addQuestion(q) }, "+ " + q))),
+      h("span", { className: "rdc-hint" }, "Dietary needs and drink preferences are asked automatically.")) },
+    playlist: { ic: "\u{1F3B5}", t: "Playlist", body: () => h(React.Fragment, null,
+      h("input", { className: "input-field", type: "url", placeholder: "Paste a Spotify or Apple Music link", "aria-label": "Playlist link", value: form.playlistUrl, onChange: (e) => set("playlistUrl", e.target.value) }),
+      h("span", { className: "rdc-hint" }, "Guests can open it from the invite.")) },
+    mood: { ic: "\u{1F5BC}️", t: "Mood board", body: () => h(React.Fragment, null,
+      h("input", { ref: moodRef, type: "file", accept: "image/*", multiple: true, style: { display: "none" }, onChange: onMoodImg }),
+      thumbs(form.moodBoard, (i) => set("moodBoard", form.moodBoard.filter((_, ii) => ii !== i))),
+      h("button", { className: "rdc-btn ghost sm", style: { justifySelf: "start" }, onClick: () => moodRef.current && moodRef.current.click() }, "\u{1F4F7} Add photos"),
+      h("span", { className: "rdc-hint" }, "Set the vibe: outfits, decor, colours.")) },
+    parking: { ic: "\u{1F17F}️", t: "Parking & directions", body: () => h(React.Fragment, null,
+      h(MapPicker, { lat: form.parkingLat, lng: form.parkingLng, height: 190, placeholder: "Search or tap the map to pin parking", onPick: (p) => setForm((f) => ({ ...f, parkingLat: p.lat, parkingLng: p.lng, parkingAddress: p.address || f.parkingAddress })) }),
+      ta({ placeholder: "e.g. Multi-storey on High Street, first 2 hours free", "aria-label": "Parking notes", value: form.parkingAddress, onChange: (e) => set("parkingAddress", e.target.value) })) },
+    smart: { ic: "\u{1F4A1}", t: theme.label + " details", body: () => h(React.Fragment, null,
+      smartIds.map((secId) => {
+        const sec = SMART_SECTION_LABELS[secId];
+        return h("div", { key: secId, className: "rdc-field" }, lbl(sec.emoji + " " + sec.label, null, "rdc-ss-" + secId),
+          ta({ id: "rdc-ss-" + secId, placeholder: sec.placeholder, value: form.smartSections[secId] || "", onChange: (e) => { const v = e.target.value; setForm((f) => ({ ...f, smartSections: { ...f.smartSections, [secId]: v } })); } }));
+      })) },
+    effect: { ic: "✨", t: "Opening effect", body: () => h(React.Fragment, null,
+      h("div", { className: "rdc-chips", role: "group", "aria-label": "Opening effect" }, RDC_EFFECTS.map((id) => h("button", { key: id, className: "rdc-chip" + (form.inviteEffect === id ? " on" : ""), "aria-pressed": form.inviteEffect === id, onClick: () => set("inviteEffect", id) }, C.EFFECT_LABELS[id]))),
+      h("div", { className: "rdc-toggle" }, h("span", null, "Fireworks when they open it", h("small", null, "Pick the colours and style")), sw(form.fireworksEnabled !== false, () => set("fireworksEnabled", form.fireworksEnabled === false), "Invite fireworks")),
+      form.fireworksEnabled !== false && h(React.Fragment, null,
+        h("div", { className: "rdc-swatches", role: "group", "aria-label": "Fireworks colours" }, RDC_COLOURS.map((c) => h("button", { key: c, className: "rdc-swatch" + (form.fireworksColors.includes(c) ? " on" : ""), style: { background: c }, "aria-pressed": form.fireworksColors.includes(c), "aria-label": "Colour " + c, onClick: () => toggleColor(c) }))),
+        h("div", { className: "rdc-seg three", role: "group", "aria-label": "Fireworks style" }, ["classic", "sparkle", "stars"].map((s) => h("button", { key: s, className: form.fireworksStyle === s ? "on" : "", "aria-pressed": form.fireworksStyle === s, onClick: () => set("fireworksStyle", s) }, s.charAt(0).toUpperCase() + s.slice(1))))),
+      h("button", { className: "rdc-btn ghost sm", style: { justifySelf: "start" }, onClick: playPreview }, "\u{1F440} Preview it")) },
+    guests: { ic: "\u{1F465}", t: "Who can join", body: () => h(React.Fragment, null,
+      h("div", { className: "rdc-seg three", role: "group", "aria-label": "Who can join" }, [["invite", "Invite only"], ["friends", "Friends"], ["public", "Public"]].map(([v, l]) => h("button", { key: v, className: privacy === v ? "on" : "", "aria-pressed": privacy === v, onClick: () => { patch(C.privacyPatch(v)); clearErr("guests"); } }, l))),
+      h("span", { className: "rdc-hint" }, { invite: "Only people you invite can see it.", friends: "Shows on your friends' Friends tab. They can join.", public: "Anyone on Partico can find it and join." }[privacy]),
+      privacy === "public" && h("div", { className: "rdc-seg" },
+        h("button", { className: form.audience !== "mutual" ? "on" : "", "aria-pressed": form.audience !== "mutual", onClick: () => set("audience", "everyone") }, "Everyone"),
+        h("button", { className: form.audience === "mutual" ? "on" : "", "aria-pressed": form.audience === "mutual", onClick: () => set("audience", "mutual") }, "Mutual friends")),
+      privacy !== "invite" && h("input", { className: "input-field", type: "number", min: "1", inputMode: "numeric", placeholder: "Max guests (needed for open parties)", "aria-label": "Max guests", "aria-invalid": !!errors.guests, value: form.maxCapacity, onChange: (e) => { set("maxCapacity", e.target.value); clearErr("guests"); } }),
+      privacy !== "invite" && h("span", { className: "rdc-hint" }, "First come, first served. Once it's full, no one else can join."),
+      err("guests")) }
+  };
+  const ESS = {
+    name: { ic: "✏️", t: "Name & note", body: () => h(React.Fragment, null, fName(), fNote()) },
+    look: { ic: "\u{1F3A8}", t: "Type & cover", body: () => h(React.Fragment, null, fType(), fCover()) },
+    when: { ic: "\u{1F4C5}", t: "When", body: fWhen },
+    where: { ic: "\u{1F4CD}", t: "Where", body: fWhere }
+  };
+  const toggleCard = (id) => {
+    const next = open === id ? null : id;
+    setOpen(next);
+    if (next) setTimeout(() => {
+      const el = document.getElementById("rdc-xc-" + id);
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+    }, 40);
+  };
+  const card = (id, def, suggested) => {
+    const isOpen = open === id;
+    const s = C.cardSummary(id, form, { typeLabel: theme.label });
+    const bad = id === "guests" ? !!errors.guests : id === "name" ? !!errors.title : false;
+    return h("div", { key: id, id: "rdc-xc-" + id, className: "rdc-xc" + (isOpen ? " open" : "") + (bad ? " bad" : "") },
+      h("button", { className: "rdc-xh", "aria-expanded": isOpen, "aria-controls": "rdc-xb-" + id, onClick: () => toggleCard(id) },
+        h("span", { className: "ic", "aria-hidden": true }, def.ic),
+        h("span", { className: "t" }, h("b", null, def.t, suggested ? h("span", { className: "rdc-sugg" }, "Suggested") : null), h("small", null, s || "Not added")),
+        h("span", { className: "st" + (s ? "" : " add") }, isOpen ? "" : s ? (isEdit ? "Edit" : "✓ Added") : "Add")),
+      isOpen && h("div", { className: "rdc-xb", id: "rdc-xb-" + id }, def.body(), h("button", { className: "rdc-btn g sm rdc-done", onClick: () => setOpen(null) }, "Done")));
+  };
+  const cardIds = C.CARDS.filter((id) => id !== "smart" || smartIds.length);
+  const sugIds = C.suggestedCards(form.eventType, suggestedSections).filter((id) => cardIds.includes(id));
+  const restIds = cardIds.filter((id) => !sugIds.includes(id));
+  const extrasAdded = cardIds.filter((id) => C.cardSummary(id, form)).length;
+  // ---------- invite list ----------
+  const friendRow = (u, badge) => {
+    const on = form.invitedUsers.includes(u.id);
+    return h("button", { key: u.id, className: "rdc-fr" + (on ? " on" : ""), "aria-pressed": on, onClick: () => toggleInvite(u.id) },
+      h(Avatar, { user: u, size: 40 }),
+      h("span", { className: "t" }, h("b", null, u.firstName, " ", u.lastName, badge ? h("span", { className: "badge" }, "Friend") : null), h("small", null, u.username ? "@" + u.username : maskEmail(u.email))),
+      h("span", { className: "rdc-tick", "aria-hidden": true }, on ? "✓" : ""));
+  };
+  const nInvited = form.invitedUsers.length;
+  const allFriendsOn = friends.length > 0 && friends.every((u) => form.invitedUsers.includes(u.id));
+  const selectAll = () => {
+    const ids = friends.map((u) => u.id);
+    set("invitedUsers", allFriendsOn ? form.invitedUsers.filter((x) => !ids.includes(x)) : [...form.invitedUsers, ...ids.filter((x) => !form.invitedUsers.includes(x))]);
+  };
+  const others = allOtherUsers.filter((u) => !friends.find((f) => f.id === u.id));
+  const inviteBody = () => h(React.Fragment, null,
+    h("div", { className: "rdc-field" },
+      h("div", { className: "rdc-lbl" }, "Who's invited", h("small", null, nInvited + " selected", friends.length ? " · " : "", friends.length ? h("button", { className: "rdc-link", style: { fontSize: 11 }, onClick: selectAll }, allFriendsOn ? "Clear friends" : "Select all friends") : null)),
+      h("input", { className: "input-field", type: "search", placeholder: "\u{1F50D} Search friends or anyone on Partico", "aria-label": "Search people", value: searchQ, onChange: (e) => setSearchQ(e.target.value), autoComplete: "off" }),
+      !searchQ
+        ? h(React.Fragment, null,
+            friends.length > 0
+              ? h("div", { className: "rdc-frs" }, friends.map((u) => friendRow(u)))
+              : h("div", { className: "rdc-banner" }, h("span", null, h("b", null, "No friends yet. "), "Search for people above, or add friends first."), h("button", { className: "rdc-link", onClick: () => navigate("friends") }, "Friends")),
+            others.length > 0 && h(React.Fragment, null, h("div", { className: "rdc-xgrp" }, "Others on Partico"), h("div", { className: "rdc-frs" }, others.slice(0, 8).map((u) => friendRow(u)))))
+        : filteredUsers.length === 0
+          ? h("p", { className: "rdc-hint", style: { margin: 6 } }, "No one matches “" + searchQ + "”.")
+          : h("div", { className: "rdc-frs" }, filteredUsers.map((u) => friendRow(u, !!friends.find((f) => f.id === u.id))))),
+    h("div", { className: "rdc-field" }, lbl("Or share a link"),
+      h("div", { className: "rdc-linkcard" }, h("span", { "aria-hidden": true, style: { fontSize: 20 } }, "\u{1F517}"), h("p", null, "Your invite link is ready to copy the moment you create the party."))));
+  // ---------- frame ----------
+  const stepNames = ["Essentials", "Extras", "Invite"];
+  const backBtn = (onClick, label, glyph) => h("button", { className: "rdc-icon", onClick, "aria-label": label }, glyph);
+  const top = (title, onBack, backLabel, backGlyph, withSteps, small) => h("div", { className: "rdc-top" },
+    h("div", { className: "rdc-bar" },
+      backBtn(onBack, backLabel, backGlyph),
+      h("h2", null, title),
+      !isEdit && !live && !C.isBlank(form) ? h("span", { className: "rdc-saved" + (saved ? " on" : ""), "aria-live": "polite" }, h("i", null), h("span", null, "Draft saved")) : null),
+    withSteps ? h("div", { className: "rdc-steps", "aria-label": "Step " + (step + 1) + " of 3" }, stepNames.map((n, i) => h("span", { key: n, className: i < step ? "done" : i === step ? "on" : "", "aria-current": i === step ? "step" : undefined }, n))) : null,
+    preview(small));
+  const foot = (...kids) => h("div", { className: "rdc-foot" }, ...kids);
+  const overlays = h(React.Fragment, null,
+    toast && h(Toast, { msg: toast.msg, type: toast.type }),
+    fx && h("div", { className: "rdc-fxov", role: "button", tabIndex: 0, "aria-label": "Close preview", onClick: () => setFx(null), onKeyDown: (e) => { if (e.key === "Escape" || e.key === "Enter") setFx(null); } },
+      fx.particles && h(EventParticles, { key: "p" + fx.particles, eventType: fx.particles, onDone: () => { if (!fx.fireworks) setFx(null); } }),
+      fx.fireworks && h(FireworksCanvas, { colors: form.fireworksColors, duration: 3e3, fwStyle: form.fireworksStyle, onDone: () => setFx(null) }),
+      "Tap to close preview"),
+    launch && h("div", { className: "rdc-launch", role: "status", "aria-live": "polite" },
+      h("div", { className: "rdc-stage" + (launch.fly ? " fly" : "") },
+        h("div", { className: "rdc-eb" }),
+        h("div", { className: "rdc-lcard" }, h("div", { className: "bgi", style: homeCoverStyle({ coverImage: form.coverImage, eventType: form.eventType }) }), h("div", { className: "nm" }, form.title)),
+        h("div", { className: "rdc-ef" }),
+        h("div", { className: "rdc-efl" }),
+        h("div", { className: "rdc-seal", "aria-hidden": true }, "✦")),
+      h("div", { className: "rdc-lmsg" }, nInvited ? "Sending to " + nInvited + (nInvited === 1 ? " person…" : " people…") : "Sealing your invite…")));
+  const shell = (...kids) => h("div", { className: "screen rdc", ref: rootRef }, overlays, ...kids);
+
+  // ---------- edit mode: one page, every section opens in place ----------
+  if (isEdit) {
+    if (!editingParty) return shell(
+      top("Edit party", () => navigate("home"), "Back", "←", false, true),
+      h("div", { className: "rdc-body" }, h("p", { className: "rdc-hint" }, "We couldn't find that party. It may have been deleted.")));
+    return shell(
+      top("Edit party", () => navigate("partyManage", { partyId: editPartyId }), "Cancel", "←", false, true),
+      h("div", { className: "rdc-body" },
+        h("p", { className: "rdc-hint" }, "Tap any section to change just that part. Guests see the update straight away."),
+        h("div", { className: "rdc-xlist" },
+          h("div", { className: "rdc-xgrp" }, "The basics"),
+          Object.keys(ESS).map((id) => card(id, ESS[id])),
+          h("div", { className: "rdc-xgrp" }, "Extras"),
+          [...sugIds, ...restIds].map((id) => card(id, XC[id], sugIds.includes(id))))),
+      foot(h("div", { className: "two" },
+        h("button", { className: "rdc-btn ghost", onClick: () => navigate("partyManage", { partyId: editPartyId }) }, "Cancel"),
+        h("button", { className: "rdc-btn g", onClick: handleSave }, "Save changes"))));
   }
-  return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: "var(--bg)" } }, toast && /* @__PURE__ */ React.createElement(Toast, { msg: toast.msg, type: toast.type }), showFireworksPreview && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, zIndex: 200 }, onClick: () => setShowFireworksPreview(false) }, /* @__PURE__ */ React.createElement(FireworksCanvas, { colors: form.fireworksColors, duration: 3e3, fwStyle: form.fireworksStyle, onDone: () => setShowFireworksPreview(false) }), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", bottom: 80, left: 0, right: 0, textAlign: "center", color: "#fff", fontSize: 16, fontWeight: 700 } }, "Tap to close preview")), /* @__PURE__ */ React.createElement("div", { style: { padding: "50px 20px 16px", background: "var(--header)", backdropFilter: "blur(20px)", borderBottom: "1px solid var(--w08)", position: "sticky", top: 0, zIndex: 50 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => navigate("home"), style: { background: "var(--w08)", border: "none", color: "#fff", borderRadius: 10, width: 36, height: 36, fontSize: 18, cursor: "pointer" } }, "\u2190"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 18 } }, editPartyId ? "Edit Event \u270F\uFE0F" : (mode === "casual" ? "Quick Hangout \u26A1" : "Host an Event"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4 } }, stepOrder.map((l, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { flex: 1, height: 4, borderRadius: 2, background: i <= step ? "linear-gradient(90deg,#00ff41,#00d944)" : "var(--w10)", transition: "background 0.3s" } }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w40)", marginTop: 6 } }, "Step ", step + 1, " of ", totalSteps, ": ", stepLabels[stepIdx])), /* @__PURE__ */ React.createElement("div", { style: { padding: "20px 20px 120px" } }, /* @__PURE__ */ React.createElement("div", { style: { animation: "fadeIn 0.3s ease" }, key: step }, steps[stepIdx])), /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 20px", background: "var(--bar)", borderTop: "1px solid var(--w08)", display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", style: { flex: "0 0 auto", width: 100 }, onClick: () => step > 0 ? setStep((s) => s - 1) : (editPartyId ? navigate("partyManage", { partyId: editPartyId }) : setMode(null)) }, "\u2190 Back"), step < totalSteps - 1 ? /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1, opacity: canNext[stepIdx] ? 1 : 0.5 }, onClick: () => {
-    if (canNext[stepIdx]) setStep((s) => s + 1);
-  } }, "Next \u2192") : /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1, background: "linear-gradient(135deg,#16a34a,#15803d)" }, onClick: handleCreate }, editPartyId ? "\u{1F4BE} Save Changes" : (mode === "casual" ? "\u26A1 Create Hangout!" : "\u{1F389} Create Event!"))));
+
+  // ---------- after creating: it's live ----------
+  if (live) {
+    const link = live.inviteLink || buildWebLink("join-party?partyId=" + live.id);
+    const n = (live.invites || []).length;
+    return shell(h("div", { className: "rdc-live" },
+      h("div", { className: "big", "aria-hidden": true }, "\u{1F389}"),
+      h("h1", null, "It's live!"),
+      h("p", null, n ? "Invites are on their way to " + n + (n === 1 ? " person." : " people.") : "Share the link to get people in."),
+      preview(false),
+      h("div", { className: "rdc-linkcard", style: { textAlign: "left" } }, h("code", { ref: linkRef }, link), h("button", { className: "rdc-btn ghost sm", onClick: () => copyLink(link) }, copied ? "Copied ✓" : "Copy")),
+      h("button", { className: "rdc-btn g", onClick: () => navigate("partyManage", { partyId: live.id }) }, "Manage party"),
+      h("button", { className: "rdc-btn ghost", onClick: () => navigate("home") }, "Back to home")));
+  }
+
+  // ---------- create: Essentials -> Extras -> Invite ----------
+  if (step === 0) return shell(
+    top("New party", () => navigate("home"), "Close", "✕", true, false),
+    h("div", { className: "rdc-body" },
+      restored && h("div", { className: "rdc-banner" }, h("span", null, h("b", null, "Picking up your draft. "), "Everything you typed was saved."), h("button", { className: "rdc-link", onClick: startOver }, "Start over")),
+      fName(), fType(), fCover(), fWhen(), fWhere(), fNote()),
+    foot(
+      h("button", { className: "rdc-btn g", onClick: () => { if (checkEssentials()) goStep(1); } }, "Next: extras"),
+      h("div", { className: "sub" }, "Casual plans? ", h("button", { className: "rdc-link", onClick: () => { if (checkEssentials() && checkExtras()) goStep(2); } }, "Skip straight to inviting"))));
+  if (step === 1) return shell(
+    top("Extras", () => goStep(0), "Back", "←", true, true),
+    h("div", { className: "rdc-body" },
+      h("div", { className: "rdc-xlist" },
+        sugIds.length > 0 && h("div", { className: "rdc-xgrp" }, "Suggested for " + theme.label.toLowerCase()),
+        sugIds.map((id) => card(id, XC[id], true)),
+        h("div", { className: "rdc-xgrp" }, sugIds.length ? "More options" : "Add what you need"),
+        restIds.map((id) => card(id, XC[id], false)))),
+    foot(
+      h("button", { className: "rdc-btn g", onClick: () => { if (checkExtras()) goStep(2); } }, "Next: invite friends"),
+      h("div", { className: "sub" }, (extrasAdded ? extrasAdded + (extrasAdded === 1 ? " extra" : " extras") + " added. " : "") + "Everything here is optional.")));
+  return shell(
+    top("Invite friends", () => goStep(1), "Back", "←", true, true),
+    h("div", { className: "rdc-body" }, inviteBody()),
+    foot(
+      h("button", { className: "rdc-btn g", onClick: handleCreate, disabled: !!launch }, C.inviteLabel(nInvited)),
+      h("div", { className: "sub" }, nInvited ? "They'll get your invite straight away." : "You can invite people any time from the party page.")));
 };
 const InvitationScreen = () => {
   const { screenData, navigate, currentUser, getParty, getUser, respondToInvite, getMyInvite, trackInviteView, sendMessage } = useApp();
@@ -5042,7 +5595,8 @@ const InvitationScreen = () => {
 const PartyManageScreen = () => {
   const { screenData, navigate, currentUser, getParty, getUser, updateParty, deleteParty, inviteToParty, removeInvite, addPhoto, addPhotos, removePhoto, requestPhotoRemoval, resolvePhotoRemoval, users, parties, sendPop, getPartyPops, nudgeGuest, getThread } = useApp();
   const [tab, setTab] = useState(screenData?.tab || "overview");
-  const [toast, setToast] = useState(null);
+  const [toast, setToast] = useState(screenData?.toast ? { msg: screenData.toast, type: "success" } : null);
+  useEffect(() => { if (!screenData?.toast) return; const t = setTimeout(() => setToast(null), 2500); return () => clearTimeout(t); }, []);
   const [popMsg, setPopMsg] = useState("");
   const [searchQ, setSearchQ] = useState("");
   const [editField, setEditField] = useState(null);
