@@ -340,7 +340,117 @@ input.input-field[type="date"],input.input-field[type="time"]{min-width:0;font-s
 }
 </style>
 <style id="rd-invite">
-/* invite */
+/* invite: envelope reveal -> invite details -> RSVP steps -> result. All classes prefixed rdi-. */
+.rdi-dim{--text:var(--w60)}
+.rdi-faint{--text:var(--w40)}
+.rdi-green{--text:#00ff41}
+.rdi-iconbtn{width:38px;height:38px;border-radius:12px;background:var(--w08);border:1px solid var(--w10);display:grid;place-items:center;font-size:17px;flex:none;cursor:pointer}
+/* envelope */
+.rdi-reveal{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:60px 24px 40px;overflow:hidden;isolation:isolate}
+.rdi-bgc{position:absolute;inset:-60px;filter:blur(40px) saturate(1.4);opacity:.55;z-index:-1;background-size:cover;background-position:center}
+.rdi-reveal .rdi-x{position:absolute;top:50px;right:14px;z-index:6}
+.rdi-env{width:240px;height:156px;position:relative;margin:70px 0 10px;perspective:700px}
+.rdi-eb{position:absolute;inset:0;background:#d9d1bd;border-radius:8px;box-shadow:0 24px 50px rgba(0,0,0,.5)}
+.rdi-letter{position:absolute;left:14px;right:14px;bottom:8px;height:150px;border-radius:6px;overflow:hidden;background:#f6f3ea;z-index:2;transform:translateY(-84px);animation:rdiLetterUp 1s .9s cubic-bezier(.2,.8,.2,1) both;cursor:pointer;box-shadow:0 -6px 20px rgba(0,0,0,.35);border:none;padding:0;display:block}
+.rdi-ph{position:absolute;inset:0;background-size:cover;background-position:center;display:grid;place-items:center}
+.rdi-ph .rdi-emo{font-size:46px;line-height:1;margin-bottom:22px;filter:drop-shadow(0 4px 10px rgba(0,0,0,.35))}
+.rdi-lt{position:absolute;left:0;right:0;bottom:0;padding:22px 10px 9px;background:linear-gradient(transparent,rgba(0,0,0,.75));font-size:15px;font-weight:800;line-height:1.1;text-align:left;transition:opacity .25s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rdi-fx{position:fixed;inset:0;pointer-events:none;z-index:20;mix-blend-mode:screen}
+.rdi-letter-fly{position:fixed;overflow:hidden;border-radius:6px;box-shadow:0 30px 60px rgba(0,0,0,.6);background:#f6f3ea;z-index:3000;pointer-events:none;margin:0}
+.rdi-front{position:absolute;inset:0;z-index:3;background:#efe8d6;border-radius:8px;clip-path:polygon(0 0,50% 52%,100% 0,100% 100%,0 100%);pointer-events:none}
+.rdi-flap{position:absolute;left:0;right:0;top:0;height:92px;background:#e3dbc6;clip-path:polygon(0 0,100% 0,50% 100%);transform-origin:top;z-index:1;transform:rotateX(180deg);animation:rdiFlapOpen .6s .3s ease both;pointer-events:none}
+.rdi-seal{position:absolute;left:50%;top:78px;width:34px;height:34px;margin-left:-17px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#5dff85,#00b82f);z-index:5;display:grid;place-items:center;font-size:15px;opacity:0;animation:rdiSealPop .5s ease both;box-shadow:0 3px 8px rgba(0,0,0,.4);pointer-events:none;--text:#0d0d0d}
+.rdi-rtext{display:grid;gap:6px;animation:rdFadeUp .6s 1.6s ease both;max-width:340px}
+.rdi-rtext small{font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:800;--text:#00ff41}
+.rdi-rtext h1{font-family:var(--rd-display);font-size:34px;line-height:1;margin:0;letter-spacing:-.02em;text-wrap:balance}
+.rdi-rtext p{margin:0;font-size:14px;line-height:1.5;--text:var(--w60)}
+.rdi-rtext p b{--text:var(--w90)}
+.rdi-reveal .rdi-go{animation:rdFadeUp .6s 2s ease both;width:auto;padding:14px 26px;font-size:15px;font-weight:700}
+.rdi-reveal.leaving .rdi-eb,.rdi-reveal.leaving .rdi-front,.rdi-reveal.leaving .rdi-seal,.rdi-reveal.leaving .rdi-flap{transition:opacity .25s ease;opacity:0}
+.rdi-reveal.leaving .rdi-rtext,.rdi-reveal.leaving .rdi-go,.rdi-reveal.leaving .rdi-x{animation:none;opacity:0;transition:opacity .2s ease}
+.rdi-reveal.leaving .rdi-bgc{transition:opacity .4s ease;opacity:0}
+@keyframes rdiLetterUp{from{transform:translateY(0)}}
+@keyframes rdiFlapOpen{0%{transform:rotateX(0);z-index:4}49%{z-index:4}50%{z-index:1}100%{transform:rotateX(180deg);z-index:1}}
+@keyframes rdiSealPop{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.8)}}
+@keyframes rdiFade{from{opacity:0}}
+@keyframes rdiScreenIn{from{opacity:0;transform:translateX(18px)}}
+/* flow chrome */
+.rdi-flowbar{position:sticky;top:0;z-index:50;display:grid;gap:10px;padding:46px 14px 12px;background:var(--header);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--w08)}
+.rdi-flowbar .rdi-r{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;font-weight:700}
+.rdi-flowbar .rdi-mid{flex:1;min-width:0;text-align:center;--text:var(--w60)}
+.rdi-flowbar .rdi-mid b{display:block;font-size:14px;--text:var(--w90);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdi-pbar{height:4px;border-radius:2px;background:var(--w10);overflow:hidden}
+.rdi-pbar i{display:block;height:100%;background:#00ff41;border-radius:2px;transition:width .4s cubic-bezier(.2,.8,.2,1)}
+.rdi-fbody{padding:14px 16px 130px;display:grid;gap:16px;max-width:560px;margin:0 auto;animation:rdiScreenIn .35s cubic-bezier(.2,.8,.2,1);position:relative;z-index:1}
+.rdi-fbody h2{font-family:var(--rd-display);font-size:28px;line-height:1.05;margin:0;letter-spacing:-.02em;text-wrap:balance}
+.rdi-lead{margin:-8px 0 0;font-size:14px;line-height:1.5;--text:var(--w60)}
+.rdi-subh{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin:4px 0 -6px;--text:var(--w50)}
+.rdi-morph-in .rdi-fbody{animation:none}
+.rdi-morph-in .rdi-fbody>*:not(.rdi-icover){animation:rdFadeUp .5s .45s ease both}
+.rdi-morph-in .rdi-flowbar{animation:rdiFade .4s .35s both}
+.rdi-icover{height:190px;border-radius:22px;overflow:hidden;position:relative;display:flex;align-items:flex-end;padding:16px;isolation:isolate}
+.rdi-icover>.rdi-ph{z-index:-2}
+.rdi-icover:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(transparent 30%,rgba(0,0,0,.8))}
+.rdi-icover h1{font-size:30px;line-height:1;margin:0;letter-spacing:-.02em;text-wrap:balance;font-weight:800}
+.rdi-icover .rdi-ph .rdi-emo{font-size:64px;margin-bottom:40px}
+.rdi-facts{display:grid;gap:8px}
+.rdi-fact{display:flex;gap:12px;align-items:center;background:var(--w05);border:1px solid var(--w10);border-radius:16px;padding:12px;text-decoration:none}
+.rdi-fact .rdi-ic{width:36px;height:36px;border-radius:12px;background:var(--w06);display:grid;place-items:center;font-size:17px;flex:none}
+.rdi-fact b{display:block;font-size:14px;line-height:1.35}
+.rdi-fact small{display:block;font-size:12px;--text:var(--w60)}
+.rdi-fact small.rdi-link{--text:#00ff41;font-weight:600}
+.rdi-card{background:var(--w05);border:1px solid var(--w10);border-radius:18px;padding:14px}
+.rdi-card h4{margin:0 0 6px;font-size:13px;font-weight:800;--text:var(--w60)}
+.rdi-card p{margin:0;font-size:14px;line-height:1.55;white-space:pre-wrap;--text:var(--w80)}
+.rdi-opts{display:grid;gap:8px}
+.rdi-opt{display:flex;align-items:center;gap:12px;text-align:left;padding:14px;border-radius:18px;border:1.5px solid var(--w10);background:var(--w05);cursor:pointer;transition:all .2s;width:100%;font:inherit}
+.rdi-opt .rdi-e{font-size:26px;width:36px;text-align:center;flex:none}
+.rdi-opt b{display:block;font-size:16px}
+.rdi-opt small{font-size:12px;--text:var(--w60)}
+.rdi-opt .rdi-tick{margin-left:auto;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;flex:none;--text:#0d0d0d}
+.rdi-opt.on.accepted{border-color:#00ff41;background:rgba(0,255,65,.1)}
+.rdi-opt.on.accepted .rdi-tick{background:#00ff41}
+.rdi-opt.on.maybe{border-color:#ffb020;background:rgba(255,176,32,.1)}
+.rdi-opt.on.maybe .rdi-tick{background:#ffb020}
+.rdi-opt.on.declined{border-color:#ff5a5a;background:rgba(255,90,90,.1)}
+.rdi-opt.on.declined .rdi-tick{background:#ff5a5a}
+.rdi-opt:active{transform:scale(.98)}
+.rdi-chips{display:flex;flex-wrap:wrap;gap:8px}
+.rdi-chips button{padding:9px 14px;border-radius:999px;border:1px solid var(--w12);background:var(--w05);font-size:14px;cursor:pointer;transition:all .15s;font-family:inherit}
+.rdi-chips button.on{background:rgba(0,255,65,.14);border-color:rgba(0,255,65,.5)}
+.rdi-chips button:active{transform:scale(.96)}
+.rdi-yn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rdi-yn button{padding:16px;border-radius:18px;border:1.5px solid var(--w10);background:var(--w05);font-weight:800;font-size:15px;cursor:pointer;font-family:inherit}
+.rdi-yn button.on{border-color:#00ff41;background:rgba(0,255,65,.1)}
+.rdi-qa{display:grid;gap:6px}
+.rdi-qa label{font-size:14px;font-weight:700}
+.rdi-addrow{display:flex;gap:6px}
+.rdi-addrow input{flex:1;min-width:0}
+.rdi-addrow button{flex:none;border-radius:12px;padding:0 16px;font-weight:700;background:var(--w08);border:1px solid var(--w15)}
+.rdi-embed{border-radius:14px;overflow:hidden;border:1px solid var(--w10)}
+.rdi-mood{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.rdi-mood div{padding-top:100%;position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--w10)}
+.rdi-mood img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.rdi-ffoot{position:fixed;left:0;right:0;bottom:0;padding:22px 16px calc(18px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,var(--bg) 32%);z-index:50;display:grid;gap:6px}
+.rdi-ffoot>*{max-width:528px;width:100%;margin:0 auto}
+.rdi-ffoot .btn-primary:disabled{opacity:.45;cursor:not-allowed;animation:none}
+.rdi-skip{font-size:12px;text-align:center;--text:var(--w40)}
+/* result */
+.rdi-result{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;padding:60px 22px 40px;max-width:480px;margin:0 auto;position:relative;z-index:1}
+.rdi-big{font-size:64px;line-height:1;animation:rdPopIn .7s cubic-bezier(.34,1.56,.64,1) both}
+.rdi-result h1{font-family:var(--rd-display);font-size:36px;margin:0;line-height:1;letter-spacing:-.02em}
+.rdi-result p{margin:0;max-width:32ch;line-height:1.5;--text:var(--w60)}
+.rdi-result .rdi-sent{font-weight:700;font-size:14px;--text:#00ff41}
+.rdi-summary{width:100%;background:var(--w05);border:1px solid var(--w10);border-radius:18px;padding:12px 14px;text-align:left;display:grid;gap:8px;font-size:13px}
+.rdi-summary div{display:flex;justify-content:space-between;gap:12px}
+.rdi-summary span{flex:none;--text:var(--w60)}
+.rdi-summary b{text-align:right;overflow-wrap:anywhere}
+.rdi-acts{display:grid;gap:8px;width:100%}
+@media (prefers-reduced-motion:reduce){
+  .rdi-letter,.rdi-flap,.rdi-rtext,.rdi-reveal .rdi-go,.rdi-fbody,.rdi-big,.rdi-morph-in .rdi-fbody>*,.rdi-morph-in .rdi-flowbar{animation:none!important}
+  .rdi-seal{display:none}
+  .rdi-pbar i{transition:none}
+}
 </style>
 <style id="rd-memories">
 /* memories: pin board, recap, polaroids, albums, photo viewer */
@@ -753,6 +863,87 @@ PL.home = {};
 <script id="logic-invite">
 window.PL = window.PL || {};
 PL.invite = {};
+PL.invite.DECLINE_REASONS = ["I have a prior commitment", "I'm not feeling well", "It's too far to travel", "Work/school clash", "Family commitment", "Another reason"];
+PL.invite.DIETARY_OPTIONS = ["Vegetarian \u{1F955}", "Vegan \u{1F331}", "Gluten-free \u{1F33E}", "Dairy-free \u{1F95B}", "Nut allergy \u{1F95C}", "Halal ✅", "Kosher ✡️", "No restrictions \u{1F60A}"];
+// The yes/maybe/no choice to pre-select: the guest's previous answer, never "pending".
+PL.invite.initialChoice = function (invite) {
+  var s = invite && invite.status;
+  return s === "accepted" || s === "maybe" || s === "declined" ? s : "";
+};
+// The envelope reveal only plays for an invite the guest hasn't answered yet.
+PL.invite.shouldShowEnvelope = function (invite) {
+  return !invite || !invite.status || invite.status === "pending";
+};
+// The ordered step keys of the invite flow. "envelope" is step 0; "done" is the result page.
+PL.invite.steps = function (party, rsvp) {
+  var p = party || {};
+  var s = ["envelope", "rsvp"];
+  if (rsvp === "declined") return s.concat(["cancel_reason", "done"]);
+  if (p.dates && p.dates.length > 0 && !p.confirmedDate) s.push("dates");
+  s.push("plus_one", "dietary");
+  if (p.askDrinkPref && p.drinkOptions && p.drinkOptions.length > 0) s.push("drinks");
+  if (p.customQuestions && p.customQuestions.length > 0) s.push("questions");
+  return s.concat(["ask_host", "done"]);
+};
+// "Step x of y" over the input steps (1-based), with a 0-100 bar width.
+PL.invite.progress = function (stepIndex, totalSteps) {
+  var total = Math.max(0, totalSteps | 0);
+  var current = Math.min(Math.max(1, stepIndex | 0), Math.max(1, total));
+  return { current: current, total: total, label: "Step " + current + " of " + total, pct: total ? Math.round(100 * current / total) : 0 };
+};
+// Why the Next button is disabled on this step ("" = it isn't). Only the yes/maybe/no choice is required.
+PL.invite.blockReason = function (stepKey, state) {
+  if (stepKey === "rsvp" && !(state && state.rsvp)) return "Select an option to continue";
+  return "";
+};
+// The RSVP payload exactly as respondToInvite / the backend have always received it.
+PL.invite.buildResponse = function (st) {
+  return {
+    status: st.rsvp,
+    cancelReason: st.rsvp === "declined" ? st.cancelReason : "",
+    dateVotes: st.selectedDates,
+    plusOneRequested: st.plusOne === "yes",
+    plusOneName: st.plusOne === "yes" ? st.plusOneName : "",
+    dietary: st.dietary,
+    drinkPreferences: st.drinkPrefs,
+    answers: st.answers
+  };
+};
+// The free-text box under the decline reasons shows the reason only when it isn't one of the presets.
+PL.invite.customReasonText = function (reason) {
+  if (!reason) return "";
+  if (reason.indexOf("Another") === 0) return reason;
+  return PL.invite.DECLINE_REASONS.indexOf(reason) >= 0 ? "" : reason;
+};
+// [label, value] rows for the result page's "what you answered" card.
+PL.invite.summaryRows = function (resp, party, opts) {
+  if (!resp) return [];
+  var o = opts || {}, p = party || {};
+  var fmt = o.fmtDate || function (d) { return d; };
+  var rows = [];
+  if (resp.status === "declined") {
+    rows.push(["Answer", "Can't make it"]);
+    if (resp.cancelReason) rows.push(["Reason", resp.cancelReason]);
+    return rows;
+  }
+  rows.push(["Answer", resp.status === "maybe" ? "Maybe \u{1F914}" : "Going \u{1F389}"]);
+  var votes = resp.dateVotes || [];
+  if (votes.length && p.dates && p.dates.length) {
+    var picked = p.dates.filter(function (d) { return votes.indexOf(d.id) >= 0; }).map(function (d) { return fmt(d.date); });
+    if (picked.length) rows.push(["Dates", picked.join(", ")]);
+  }
+  if (resp.plusOneRequested) rows.push(["Plus one", (resp.plusOneName || "Requested") + " · awaiting " + (o.hostName || "the host")]);
+  else rows.push(["Plus one", "Just you"]);
+  if (resp.dietary) rows.push(["Dietary", resp.dietary]);
+  if (resp.drinkPreferences && resp.drinkPreferences.length) rows.push(["Drinks", resp.drinkPreferences.join(", ")]);
+  var qs = p.customQuestions || [];
+  if (qs.length) {
+    var a = resp.answers || {};
+    var n = qs.filter(function (q) { return a[q.id] && String(a[q.id]).trim(); }).length;
+    rows.push(["Questions", n + " of " + qs.length + " answered"]);
+  }
+  return rows;
+};
 </script>
 <script id="logic-memories">
 window.PL = window.PL || {};
@@ -3773,13 +3964,13 @@ const CreatePartyScreen = () => {
   } }, "Next \u2192") : /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { flex: 1, background: "linear-gradient(135deg,#16a34a,#15803d)" }, onClick: handleCreate }, editPartyId ? "\u{1F4BE} Save Changes" : (mode === "casual" ? "\u26A1 Create Hangout!" : "\u{1F389} Create Event!"))));
 };
 const InvitationScreen = () => {
-  const { screenData, navigate, currentUser, getParty, getUser, respondToInvite, getMyInvite, trackInviteView } = useApp();
+  const { screenData, navigate, currentUser, getParty, getUser, respondToInvite, getMyInvite, trackInviteView, sendMessage } = useApp();
   const party = getParty(screenData?.partyId);
   const host = party ? getUser(party.hostId) : null;
   const myInvite = party ? getMyInvite(party.id) : null;
-  const [step, setStep] = useState(0);
-  const [showFireworks, setShowFireworks] = useState(true);
-  const [showCoverReveal, setShowCoverReveal] = useState(!!(party?.coverImage));
+  const reduceMotion = useMemo(() => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches), []);
+  // Step 0 is the envelope reveal; it only plays for an invite the guest hasn't answered yet.
+  const [step, setStep] = useState(() => PL.invite.shouldShowEnvelope(myInvite) ? 0 : 1);
   const [coverLum, setCoverLum] = useState(null);
   useEffect(() => {
     if (!party?.coverImage) return;
@@ -3801,10 +3992,13 @@ const InvitationScreen = () => {
     img.src = party.coverImage;
     return () => { cancelled = true; };
   }, [party?.coverImage]);
+  const [showFireworks, setShowFireworks] = useState(false);
   const [showParticles, setShowParticles] = useState(false);
   const [showRsvpCelebration, setShowRsvpCelebration] = useState(false);
-  const [rsvp, setRsvp] = useState(myInvite?.status || "");
-  const [cancelReason, setCancelReason] = useState("");
+  const [leaving, setLeaving] = useState(false);
+  const [morphIn, setMorphIn] = useState(false);
+  const [rsvp, setRsvp] = useState(PL.invite.initialChoice(myInvite));
+  const [cancelReason, setCancelReason] = useState(myInvite?.cancelReason || "");
   const [selectedDates, setSelectedDates] = useState(myInvite?.dateVotes || []);
   const [plusOne, setPlusOne] = useState(myInvite?.plusOneRequested ? "yes" : "no");
   const [plusOneName, setPlusOneName] = useState(myInvite?.plusOneName || "");
@@ -3814,25 +4008,56 @@ const InvitationScreen = () => {
   const [answers, setAnswers] = useState(myInvite?.answers || {});
   const [hostQuestion, setHostQuestion] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submittedResp, setSubmittedResp] = useState(null);
   const [moodExpanded, setMoodExpanded] = useState(false);
+  const screenRef = useRef(null);
+  const letterRef = useRef(null);
+  const coverRef = useRef(null);
+  const morphRef = useRef(null);
+  const flyRef = useRef(null);
+  const pendingMsgRef = useRef(null);
 
   // Track invite view
   useEffect(() => {
     if (party && trackInviteView) trackInviteView(party.id);
   }, []);
+  // If the invite data arrives after mount and it's already answered, skip the envelope.
+  useEffect(() => {
+    if (step === 0 && myInvite && !PL.invite.shouldShowEnvelope(myInvite)) setStep(1);
+  }, [myInvite && myInvite.status]);
+  // Fireworks (and the event's particles when there's no cover photo) once the card has slid out of the envelope.
+  useEffect(() => {
+    if (step !== 0 || reduceMotion) return;
+    const t = setTimeout(() => { setShowFireworks(true); setShowParticles(true); }, 1300);
+    return () => clearTimeout(t);
+  }, [step]);
+  // Send the optional "anything to ask?" note to the host's chat thread once the RSVP has been saved.
+  useEffect(() => {
+    if (!submitted || !pendingMsgRef.current || !sendMessage || !currentUser || !party) return;
+    const text = pendingMsgRef.current;
+    pendingMsgRef.current = null;
+    sendMessage(party.id, currentUser.id, text);
+  }, [submitted]);
+  // Remove a flying card if the screen unmounts mid-animation.
+  useEffect(() => () => { if (flyRef.current) flyRef.current.remove(); }, []);
+  // Second half of the envelope -> invite morph: once the details have rendered, grow the card into the cover.
+  React.useLayoutEffect(() => {
+    const m = morphRef.current;
+    if (!m || step !== 1) return;
+    morphRef.current = null;
+    if (screenRef.current) screenRef.current.scrollTop = 0;
+    const target = coverRef.current;
+    if (!target) { m.clone.remove(); flyRef.current = null; return; }
+    target.style.visibility = "hidden";
+    const b = target.getBoundingClientRect();
+    const lt = m.clone.querySelector(".rdi-lt");
+    if (lt) lt.style.opacity = "0";
+    const grow = m.clone.animate([m.lifted, { left: b.left + "px", top: b.top + "px", width: b.width + "px", height: b.height + "px", borderRadius: "22px", transform: "none" }], { duration: 620, easing: "cubic-bezier(.65,0,.2,1)", fill: "forwards" });
+    grow.onfinish = () => { target.style.visibility = ""; m.clone.remove(); flyRef.current = null; };
+    const t = setTimeout(() => setMorphIn(false), 1000);
+    return () => clearTimeout(t);
+  }, [step]);
 
-  useEffect(() => {
-    if (showCoverReveal) {
-      const t = setTimeout(() => setShowCoverReveal(false), 5000);
-      return () => clearTimeout(t);
-    }
-  }, [showCoverReveal]);
-  useEffect(() => {
-    if (!showCoverReveal && step === 0) {
-      const t = setTimeout(() => setShowParticles(true), 100);
-      return () => clearTimeout(t);
-    }
-  }, [showCoverReveal, step]);
   if (!party || !host) return React.createElement("div", { style: { height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" } }, React.createElement("div", { style: { fontSize: 48, marginBottom: 12 } }, "\u{1F615}"), React.createElement("div", { style: { fontWeight: 700, marginBottom: 8 } }, "Party not found"), React.createElement("button", { className: "btn-primary", style: { width: 160 }, onClick: () => navigate("home") }, "Go Home"));
   const fw = party.fireworks || {};
   const eventTheme = getEventTheme(party.eventType);
@@ -3840,13 +4065,13 @@ const InvitationScreen = () => {
   const inviteEmoji = eventTheme.emoji || "\u{1F389}";
   const themeFont = party.inviteFont || eventTheme.font || "'Segoe UI',sans-serif";
   const hasDates = party.dates && party.dates.length > 0;
-  const hasQuestions = party.customQuestions && party.customQuestions.length > 0;
-  const hasDrinks = party.askDrinkPref && party.drinkOptions && party.drinkOptions.length > 0;
-  const hasPlaylist = !!(party.playlistUrl);
   const hasMoodBoard = party.moodBoard && party.moodBoard.length > 0;
   const hasSmartSections = party.smartSections && Object.keys(party.smartSections).some(k => party.smartSections[k]);
-  const dateStr = party.confirmedDate ? fmtDate(party.confirmedDate.date) : hasDates ? "Multiple dates" : "Date TBD";
+  const hasCountdown = !!(party.confirmedDate || hasDates);
+  const cdDate = party.confirmedDate?.date || party.dates?.[0]?.date;
+  const cdTime = party.confirmedDate?.time || party.dates?.[0]?.time;
   const guestName = currentUser ? currentUser.firstName : "Friend";
+  const hostFull = host.firstName + (host.lastName ? " " + host.lastName : "");
   const toggleDate = (id) => setSelectedDates((p) => p.includes(id) ? p.filter((d) => d !== id) : [...p, id]);
 
   // Build Spotify/Apple Music embed URL
@@ -3877,199 +4102,289 @@ const InvitationScreen = () => {
   };
 
   const handleSubmit = () => {
-    respondToInvite(party.id, {
-      status: rsvp,
-      cancelReason: rsvp === "declined" ? cancelReason : "",
-      dateVotes: selectedDates,
-      plusOneRequested: plusOne === "yes",
-      plusOneName: plusOne === "yes" ? plusOneName : "",
-      dietary,
-      drinkPreferences: drinkPrefs,
-      answers
-    });
+    const response = PL.invite.buildResponse({ rsvp, cancelReason, selectedDates, plusOne, plusOneName, dietary, drinkPrefs, answers });
+    respondToInvite(party.id, response);
+    if (rsvp !== "declined" && hostQuestion.trim()) pendingMsgRef.current = hostQuestion.trim();
+    setSubmittedResp(response);
     setSubmitted(true);
   };
-  const buildSteps = () => {
-    const s = [];
-    s.push("fireworks");
-    s.push("rsvp");
-    if (rsvp === "declined") {
-      s.push("cancel_reason");
-      s.push("done");
-      return s;
-    }
-    if (hasDates && !party.confirmedDate) s.push("dates");
-    s.push("plus_one");
-    s.push("dietary");
-    if (hasDrinks) s.push("drinks");
-    if (hasQuestions) s.push("questions");
-    s.push("ask_host");
-    s.push("done");
-    return s;
-  };
-  const steps = buildSteps();
+  const steps = PL.invite.steps(party, rsvp);
   const currentStep = steps[Math.min(step, steps.length - 1)];
   const isLast = step >= steps.length - 1;
   const isSecondLast = step === steps.length - 2;
+  const block = PL.invite.blockReason(currentStep, { rsvp, selectedDates, plusOne, plusOneName });
   const goNext = () => {
+    if (block) return;
     if (isSecondLast) {
       handleSubmit();
-      if (rsvp === "accepted") {
+      if (rsvp === "accepted" && !reduceMotion) {
         setShowRsvpCelebration(true);
         setTimeout(() => setShowRsvpCelebration(false), 3500);
       }
     }
+    setMorphIn(false);
     setStep((s) => Math.min(s + 1, steps.length - 1));
+    if (screenRef.current) screenRef.current.scrollTop = 0;
   };
-  const goBack = () => setStep((s) => Math.max(s - 1, 1));
+  const goBack = () => { setStep((s) => Math.max(s - 1, 1)); if (screenRef.current) screenRef.current.scrollTop = 0; };
+
+  // The envelope's card lifts out, then (in the layout effect above) grows into the invite's cover.
+  const openInvite = () => {
+    if (leaving || step !== 0) return;
+    const letter = letterRef.current;
+    if (reduceMotion || !letter || typeof letter.animate !== "function") { setShowFireworks(false); setStep(1); return; }
+    setLeaving(true);
+    const a = letter.getBoundingClientRect();
+    const clone = document.createElement("div");
+    clone.className = "rdi-letter-fly";
+    clone.innerHTML = letter.innerHTML;
+    const from = { left: a.left + "px", top: a.top + "px", width: a.width + "px", height: a.height + "px", borderRadius: "6px", transform: "none" };
+    Object.keys(from).forEach((k) => { clone.style[k] = from[k]; });
+    document.body.appendChild(clone);
+    flyRef.current = clone;
+    letter.style.visibility = "hidden";
+    const lifted = { left: from.left, top: (a.top - 40) + "px", width: from.width, height: from.height, borderRadius: "6px", transform: "rotate(-3deg) scale(1.06)" };
+    const lift = clone.animate([from, lifted], { duration: 320, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" });
+    lift.onfinish = () => {
+      morphRef.current = { clone, lifted };
+      setMorphIn(true);
+      setShowFireworks(false);
+      setStep(1);
+    };
+  };
+
+  // The invite's cover: the host's photo, else the event theme's colours and emoji.
+  const coverArt = (emojiSize) => party.coverImage
+    ? React.createElement("img", { className: "rdi-ph", src: party.coverImage, alt: "", style: { width: "100%", height: "100%", objectFit: "cover" } })
+    : React.createElement("div", { className: "rdi-ph", style: { background: eventTheme.grad || "linear-gradient(135deg,#00ff41,#00d944)" } }, React.createElement("span", { className: "rdi-emo", style: emojiSize ? { fontSize: emojiSize } : null }, inviteEmoji));
+
+  const renderEnvelope = () => React.createElement("div", { className: "rdi-reveal" + (leaving ? " leaving" : "") },
+    party.coverImage
+      ? React.createElement("img", { className: "rdi-bgc", src: party.coverImage, alt: "", style: { width: "calc(100% + 120px)", height: "calc(100% + 120px)", objectFit: "cover" } })
+      : React.createElement("div", { className: "rdi-bgc", style: { background: eventTheme.grad } }),
+    showParticles && !party.coverImage && React.createElement(EventParticles, { eventType: party.eventType, onDone: () => setShowParticles(false) }),
+    // Screen-blended so the canvas's dark trails don't black out the envelope.
+    showFireworks && fw.enabled !== false && React.createElement("div", { className: "rdi-fx" }, React.createElement(FireworksCanvas, { colors: fireworksColors, duration: 3500, fwStyle: fw.style || "classic", onDone: () => setShowFireworks(false) })),
+    React.createElement("button", { className: "rdi-iconbtn rdi-x", onClick: () => navigate("home"), "aria-label": "Close" }, "✕"),
+    React.createElement("div", { className: "rdi-env" },
+      React.createElement("div", { className: "rdi-eb" }),
+      React.createElement("button", { ref: letterRef, className: "rdi-letter", onClick: openInvite, "aria-label": "Open the invite" },
+        coverArt(),
+        React.createElement("div", { className: "rdi-lt cover-dark", style: { fontFamily: themeFont } }, party.title)
+      ),
+      React.createElement("div", { className: "rdi-front" }),
+      React.createElement("div", { className: "rdi-flap" }),
+      React.createElement("div", { className: "rdi-seal" }, "✦")
+    ),
+    React.createElement("div", { className: "rdi-rtext" },
+      React.createElement("small", null, "You've been invited"),
+      React.createElement("h1", null, "Hey " + guestName + "!"),
+      React.createElement("p", null, hostFull, " wants you at ", React.createElement("b", null, party.title))
+    ),
+    React.createElement("button", { className: "btn-primary rdi-go", onClick: openInvite }, "View my invite \u{1F38A}")
+  );
+
+  const head = (title, lead) => React.createElement(React.Fragment, null,
+    React.createElement("h2", null, title),
+    lead && React.createElement("p", { className: "rdi-lead" }, lead)
+  );
+
+  const dateFact = () => {
+    if (party.confirmedDate) return { b: fmtDate(party.confirmedDate.date), s: party.confirmedDate.time ? "\u{1F550} " + party.confirmedDate.time : "" };
+    if (hasDates && party.dates.length > 1) return { b: party.dates.length + " date options", s: "Vote for the ones that work for you" };
+    if (hasDates) return { b: fmtDate(party.dates[0].date), s: party.dates[0].time ? "\u{1F550} " + party.dates[0].time + " · not confirmed yet" : "Not confirmed yet" };
+    return { b: "Date TBD", s: host.firstName + " will confirm the date" };
+  };
+
   const renderStep = () => {
     switch (currentStep) {
-      case "fireworks":
-        return React.createElement("div", { style: { height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24, position: "relative" } },
-          showCoverReveal && party.coverImage && React.createElement("div", { style: { position: "fixed", inset: 0, zIndex: 1000, animation: "coverReveal 5s ease-in-out forwards", pointerEvents: "none" } }, React.createElement("img", { src: party.coverImage, style: { width: "100%", height: "100%", objectFit: "cover" }, alt: "" })),
-          !showCoverReveal && !party.coverImage && showParticles && React.createElement(EventParticles, { eventType: party.eventType, onDone: () => setShowParticles(false) }),
-          !showCoverReveal && !party.coverImage && showFireworks && fw.enabled !== false && React.createElement(FireworksCanvas, { colors: fireworksColors, duration: 3500, fwStyle: fw.style || "classic", onDone: () => setShowFireworks(false) }),
-          React.createElement("div", { style: { position: "relative", zIndex: 10, animation: "pop 0.6s ease", opacity: showCoverReveal ? 0 : 1, transition: "opacity 0.5s ease", fontFamily: themeFont } },
-            React.createElement("div", { style: { fontSize: 76, marginBottom: 16, animation: "float 2s ease-in-out infinite" } }, inviteEmoji),
-            // Personalised greeting
-            React.createElement("div", { style: { fontSize: 16, fontWeight: 600, color: eventTheme.color, letterSpacing: 1, marginBottom: 6, animation: "fadeIn 0.8s ease" } }, "Hey " + guestName + "!"),
-            React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "var(--w50)", letterSpacing: 2, marginBottom: 6 } }, "YOU'VE BEEN INVITED"),
-            React.createElement("div", { style: { fontSize: 30, fontWeight: 900, marginBottom: 6 } }, "to ", host.firstName, "'s"),
-            React.createElement("div", { style: { fontSize: 26, fontWeight: 800, color: eventTheme.color, marginBottom: 14 } }, party.title),
-            party.description && React.createElement("div", { style: { fontSize: 15, color: "var(--w60)", marginBottom: 10, maxWidth: 290, lineHeight: 1.6, margin: "0 auto 10px" } }, party.description),
-            React.createElement("div", { style: { fontSize: 14, color: "var(--w45)", marginBottom: 8 } }, "\u{1F4C5} ", dateStr),
-            // Live countdown on invite
-            (party.confirmedDate || (party.dates && party.dates.length > 0)) && React.createElement("div", { style: { marginBottom: 20 } },
-              React.createElement(Countdown, { dateStr: party.confirmedDate?.date || party.dates?.[0]?.date, timeStr: party.confirmedDate?.time || party.dates?.[0]?.time })
+      case "rsvp": {
+        const df = dateFact();
+        const loc = party.location || {};
+        const mapsHref = loc.venueLat && loc.venueLng ? `https://www.google.com/maps?q=${loc.venueLat},${loc.venueLng}` : loc.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.address)}` : null;
+        return React.createElement("div", { className: "rdi-fbody", style: { fontFamily: themeFont } },
+          React.createElement("div", { ref: coverRef, className: "rdi-icover cover-dark" },
+            coverArt(),
+            React.createElement("h1", { style: { fontFamily: themeFont } }, party.title)
+          ),
+          React.createElement("div", { className: "rdi-facts" },
+            React.createElement("div", { className: "rdi-fact" },
+              React.createElement(Avatar, { user: host, size: 36 }),
+              React.createElement("div", null, React.createElement("small", null, "Hosted by"), React.createElement("b", null, hostFull))
             ),
-            // Smart sections preview
-            hasSmartSections && React.createElement("div", { style: { marginBottom: 16, maxWidth: 300, margin: "0 auto 16px" } },
-              Object.entries(party.smartSections).filter(([k,v]) => v).slice(0, 3).map(([key, val]) => {
-                const sec = SMART_SECTION_LABELS[key];
-                return sec ? React.createElement("div", { key, style: { fontSize: 12, color: "var(--w50)", marginBottom: 4 } }, sec.emoji, " ", sec.label, ": ", val.length > 60 ? val.slice(0, 60) + "..." : val) : null;
-              })
+            React.createElement("div", { className: "rdi-fact" },
+              React.createElement("span", { className: "rdi-ic" }, "\u{1F4C5}"),
+              React.createElement("div", null, React.createElement("b", null, df.b), df.s && React.createElement("small", null, df.s))
             ),
-            // Mood board preview
-            hasMoodBoard && React.createElement("div", { style: { marginBottom: 16 } },
-              React.createElement("div", { style: { display: "flex", gap: 4, justifyContent: "center" } },
-                party.moodBoard.slice(0, 3).map((img, i) => React.createElement("div", { key: i, style: { width: 60, height: 60, borderRadius: 8, overflow: "hidden", border: "1px solid var(--w15)" } },
-                  React.createElement("img", { src: img, style: { width: "100%", height: "100%", objectFit: "cover" }, alt: "" })
-                ))
-              ),
-              party.moodBoard.length > 3 && React.createElement("div", { style: { fontSize: 11, color: "var(--w40)", marginTop: 4 } }, "+" + (party.moodBoard.length - 3) + " more")
+            loc.address && React.createElement(mapsHref ? "a" : "div", { className: "rdi-fact", href: mapsHref || undefined, target: mapsHref ? "_blank" : undefined, rel: mapsHref ? "noreferrer" : undefined },
+              React.createElement("span", { className: "rdi-ic" }, "\u{1F4CD}"),
+              React.createElement("div", null, React.createElement("b", null, loc.address), mapsHref && React.createElement("small", { className: "rdi-link" }, "Open in Google Maps ↗"))
             ),
-            React.createElement("button", { className: "btn-primary", style: { width: 210, fontSize: 16 }, onClick: () => setStep(1) }, "View My Invite \u{1F38A}")
-          )
-        );
-      case "rsvp":
-        return React.createElement("div", { style: { fontFamily: themeFont } },
-          React.createElement("div", { style: { textAlign: "center", marginBottom: 24 } },
-            React.createElement("div", { style: { fontSize: 46, marginBottom: 10 } }, "\u{1F39F}\uFE0F"),
-            React.createElement("div", { style: { fontSize: 22, fontWeight: 900, marginBottom: 4 } }, party.title),
-            React.createElement("div", { style: { fontSize: 15, color: "var(--w50)" } }, "Hosted by ", host.firstName, " ", host.lastName),
-            party.location?.address && React.createElement("div", { style: { fontSize: 13, color: "var(--w40)", marginTop: 4 } }, "\u{1F4CD} ", party.location.address),
-            // Countdown on RSVP page too
-            (party.confirmedDate || (party.dates && party.dates.length > 0)) && React.createElement("div", { style: { marginTop: 12 } },
-              React.createElement(Countdown, { dateStr: party.confirmedDate?.date || party.dates?.[0]?.date, timeStr: party.confirmedDate?.time || party.dates?.[0]?.time })
+            party.dressCode?.description && React.createElement("div", { className: "rdi-fact" },
+              React.createElement("span", { className: "rdi-ic" }, "\u{1F457}"),
+              React.createElement("div", null, React.createElement("small", null, "Dress code"), React.createElement("b", null, party.dressCode.description))
             )
           ),
+          hasCountdown && React.createElement(Countdown, { dateStr: cdDate, timeStr: cdTime }),
+          party.description && React.createElement("div", { className: "rdi-card" },
+            React.createElement("h4", null, "A note from ", host.firstName),
+            React.createElement("p", null, party.description)
+          ),
           // Embedded playlist player
-          embedUrl && React.createElement("div", { style: { marginBottom: 16, borderRadius: 12, overflow: "hidden", border: "1px solid var(--w10)" } },
-            React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: "var(--w50)", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 } }, "\u{1F3B5} Party Vibes"),
-            React.createElement("iframe", { src: embedUrl, width: "100%", height: 80, frameBorder: "0", allow: "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture", loading: "lazy", style: { borderRadius: 8 } })
+          embedUrl && React.createElement("div", null,
+            React.createElement("div", { className: "rdi-subh", style: { marginBottom: 8 } }, "\u{1F3B5} Party Vibes"),
+            React.createElement("div", { className: "rdi-embed" },
+              React.createElement("iframe", { src: embedUrl, width: "100%", height: 80, frameBorder: "0", allow: "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture", loading: "lazy", style: { display: "block" } })
+            )
           ),
           // Mood board gallery
-          hasMoodBoard && React.createElement("div", { style: { marginBottom: 16 } },
-            React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: "var(--w50)", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" } },
-              React.createElement("span", null, "\u{1F5BC}\uFE0F Mood Board"),
-              party.moodBoard.length > 3 && React.createElement("button", { onClick: () => setMoodExpanded(!moodExpanded), style: { background: "none", border: "none", color: eventTheme.color, fontSize: 12, fontWeight: 600, cursor: "pointer" } }, moodExpanded ? "Show less" : "View all " + party.moodBoard.length)
+          hasMoodBoard && React.createElement("div", null,
+            React.createElement("div", { className: "rdi-subh", style: { marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" } },
+              React.createElement("span", null, "\u{1F5BC}️ Mood board"),
+              party.moodBoard.length > 3 && React.createElement("button", { onClick: () => setMoodExpanded(!moodExpanded), className: "rdi-green", style: { background: "none", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", letterSpacing: 0, textTransform: "none" } }, moodExpanded ? "Show less" : "View all " + party.moodBoard.length)
             ),
-            React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 } },
-              (moodExpanded ? party.moodBoard : party.moodBoard.slice(0, 3)).map((img, i) => React.createElement("div", { key: i, style: { paddingTop: "100%", position: "relative", borderRadius: 10, overflow: "hidden", border: "1px solid var(--w10)" } },
-                React.createElement("img", { src: img, style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }, alt: "" })
-              ))
+            React.createElement("div", { className: "rdi-mood" },
+              (moodExpanded ? party.moodBoard : party.moodBoard.slice(0, 3)).map((img, i) => React.createElement("div", { key: i }, React.createElement("img", { src: img, alt: "" })))
             )
           ),
           // Smart sections display
-          hasSmartSections && React.createElement("div", { style: { marginBottom: 16 } },
-            Object.entries(party.smartSections).filter(([k,v]) => v).map(([key, val]) => {
+          hasSmartSections && React.createElement("div", { style: { display: "grid", gap: 8 } },
+            Object.entries(party.smartSections).filter(([k, v]) => v).map(([key, val]) => {
               const sec = SMART_SECTION_LABELS[key];
               if (!sec) return null;
-              return React.createElement("div", { key, className: "card", style: { marginBottom: 8, padding: "10px 14px", background: "var(--w04)" } },
-                React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: eventTheme.color, marginBottom: 4 } }, sec.emoji, " ", sec.label),
-                React.createElement("div", { style: { fontSize: 13, color: "var(--w70)", lineHeight: 1.5 } }, val)
+              return React.createElement("div", { key, className: "rdi-card", style: { padding: "10px 14px" } },
+                React.createElement("h4", { style: { "--text": eventTheme.color } }, sec.emoji, " ", sec.label),
+                React.createElement("p", null, val)
               );
             })
           ),
-          React.createElement("div", { style: { marginBottom: 10 } },
-            React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: "var(--w50)", letterSpacing: 1, marginBottom: 10 } }, "CAN YOU MAKE IT?"),
-            [{ v: "accepted", icon: "\u2705", label: "Yes, I'm coming!", desc: "Count me in!", color: "#34d399" }, { v: "maybe", icon: "\u{1F914}", label: "Maybe...", desc: "I'll let you know", color: "#fbbf24" }, { v: "declined", icon: "\u274C", label: "Sorry, can't make it", desc: "I have a conflict", color: "#f87171" }].map((opt) => React.createElement("div", { key: opt.v, onClick: () => setRsvp(opt.v), style: { padding: "14px 16px", borderRadius: 14, border: `2px solid ${rsvp === opt.v ? opt.color : "var(--w12)"}`, background: rsvp === opt.v ? `${opt.color}18` : "var(--w04)", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, marginBottom: 10, transition: "all 0.2s" } },
-              React.createElement("span", { style: { fontSize: 26 } }, opt.icon),
-              React.createElement("div", null,
-                React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: rsvp === opt.v ? opt.color : "#fff" } }, opt.label),
-                React.createElement("div", { style: { fontSize: 12, color: "var(--w40)", marginTop: 1 } }, opt.desc)
-              ),
-              rsvp === opt.v && React.createElement("div", { style: { marginLeft: "auto", width: 20, height: 20, borderRadius: "50%", background: opt.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 } }, "\u2713")
+          React.createElement("div", { className: "rdi-subh" }, "Can you make it?"),
+          React.createElement("div", { className: "rdi-opts", role: "radiogroup", "aria-label": "Can you make it?" },
+            [{ v: "accepted", icon: "\u{1F389}", label: "Yes, I'm coming!", desc: "Count me in!" }, { v: "maybe", icon: "\u{1F914}", label: "Maybe…", desc: "I'll let you know" }, { v: "declined", icon: "\u{1F622}", label: "Sorry, can't make it", desc: "I have a conflict" }].map((opt) => React.createElement("button", { key: opt.v, role: "radio", "aria-checked": rsvp === opt.v, className: "rdi-opt " + opt.v + (rsvp === opt.v ? " on" : ""), onClick: () => setRsvp(opt.v) },
+              React.createElement("span", { className: "rdi-e" }, opt.icon),
+              React.createElement("div", null, React.createElement("b", null, opt.label), React.createElement("small", null, opt.desc)),
+              rsvp === opt.v && React.createElement("span", { className: "rdi-tick" }, "✓")
             ))
           )
         );
+      }
       case "cancel_reason":
-        return React.createElement("div", null, React.createElement("div", { style: { textAlign: "center", marginBottom: 24 } }, React.createElement("div", { style: { fontSize: 46, marginBottom: 10 } }, "\u{1F614}"), React.createElement("div", { style: { fontSize: 22, fontWeight: 900, marginBottom: 4 } }, "Sorry you can't make it"), React.createElement("div", { style: { fontSize: 14, color: "var(--w50)" } }, "Would you like to let ", host.firstName, " know why?")), React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 } }, ["I have a prior commitment", "I'm not feeling well", "It's too far to travel", "Work/school clash", "Family commitment", "Another reason"].map((r) => React.createElement("div", { key: r, onClick: () => setCancelReason(r), style: { padding: "13px 16px", borderRadius: 12, border: `2px solid ${cancelReason === r ? "#f87171" : "var(--w12)"}`, background: cancelReason === r ? "rgba(248,113,113,0.12)" : "var(--w04)", cursor: "pointer", fontSize: 14, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "center", transition: "all 0.2s" } }, r, cancelReason === r && React.createElement("span", { style: { color: "#f87171", fontSize: 16 } }, "\u2713")))), React.createElement(TextArea, { placeholder: "Or add your own reason (optional)...", value: cancelReason.startsWith("Another") || !["I have a prior commitment", "I'm not feeling well", "It's too far to travel", "Work/school clash", "Family commitment"].includes(cancelReason) ? cancelReason : "", onChange: (e) => setCancelReason(e.target.value), style: { marginBottom: 0 } }), React.createElement("div", { style: { fontSize: 12, color: "var(--w35)", textAlign: "center", marginTop: 8 } }, "This is optional \u2014 tap Next to skip"));
+        return React.createElement("div", { className: "rdi-fbody" },
+          head("Sorry you can't make it", "Would you like to let " + host.firstName + " know why?"),
+          React.createElement("div", { className: "rdi-chips" },
+            PL.invite.DECLINE_REASONS.map((r) => React.createElement("button", { key: r, className: cancelReason === r ? "on" : "", "aria-pressed": cancelReason === r, onClick: () => setCancelReason(r) }, r))
+          ),
+          React.createElement(TextArea, { placeholder: "Or add your own reason (optional)…", value: PL.invite.customReasonText(cancelReason), onChange: (e) => setCancelReason(e.target.value), style: { marginBottom: 0 } })
+        );
       case "dates":
-        return React.createElement("div", null, React.createElement("div", { style: { textAlign: "center", marginBottom: 20 } }, React.createElement("div", { style: { fontSize: 46, marginBottom: 10 } }, "\u{1F4C5}"), React.createElement("div", { style: { fontSize: 22, fontWeight: 900, marginBottom: 4 } }, "Which dates work?"), React.createElement("div", { style: { fontSize: 14, color: "var(--w50)" } }, "Select all that suit you \u2014 ", host.firstName, " will pick the best one")), party.dates.map((d) => React.createElement("div", { key: d.id, onClick: () => toggleDate(d.id), style: { padding: "14px 16px", borderRadius: 14, border: `2px solid ${selectedDates.includes(d.id) ? "#00ff41" : "var(--w12)"}`, background: selectedDates.includes(d.id) ? "rgba(0,255,65,0.15)" : "var(--w04)", cursor: "pointer", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center", transition: "all 0.2s" } }, React.createElement("div", null, React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, "\u{1F4C5} ", fmtDate(d.date)), d.time && React.createElement("div", { style: { fontSize: 12, color: "var(--w50)", marginTop: 3 } }, "\u{1F550} ", d.time)), React.createElement("div", { style: { width: 26, height: 26, borderRadius: "50%", border: `2px solid ${selectedDates.includes(d.id) ? "#00ff41" : "var(--w25)"}`, background: selectedDates.includes(d.id) ? "#00ff41" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, transition: "all 0.2s", flexShrink: 0 } }, selectedDates.includes(d.id) ? "\u2713" : ""))), selectedDates.length === 0 && React.createElement("div", { style: { textAlign: "center", color: "var(--w35)", fontSize: 13, marginTop: 4 } }, "Tap a date to select it"));
+        return React.createElement("div", { className: "rdi-fbody" },
+          head("Which dates work?", "Select all that suit you — " + host.firstName + " will pick the best one."),
+          React.createElement("div", { className: "rdi-opts" },
+            party.dates.map((d) => {
+              const on = selectedDates.includes(d.id);
+              return React.createElement("button", { key: d.id, className: "rdi-opt accepted" + (on ? " on" : ""), "aria-pressed": on, onClick: () => toggleDate(d.id) },
+                React.createElement("span", { className: "rdi-e" }, on ? "✅" : "\u{1F4C5}"),
+                React.createElement("div", null, React.createElement("b", null, fmtDate(d.date)), d.time && React.createElement("small", null, "\u{1F550} ", d.time))
+              );
+            })
+          ),
+          selectedDates.length === 0 && React.createElement("div", { className: "rdi-skip" }, "Tap a date to select it")
+        );
       case "plus_one":
-        return React.createElement("div", null, React.createElement("div", { style: { textAlign: "center", marginBottom: 24 } }, React.createElement("div", { style: { fontSize: 46, marginBottom: 10 } }, "\u{1F46B}"), React.createElement("div", { style: { fontSize: 22, fontWeight: 900, marginBottom: 4 } }, "Bringing a Plus One?"), React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", lineHeight: 1.6 } }, "Let ", host.firstName, " know if you'd like to bring someone \u2014 they'll need to approve it")), React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 16 } }, [{ v: "yes", icon: "\u{1F46B}", label: "Yes please!", color: "#34d399" }, { v: "no", icon: "\u{1F64B}", label: "Just me", color: "#00ff41" }].map((opt) => React.createElement("div", { key: opt.v, onClick: () => setPlusOne(opt.v), style: { flex: 1, padding: "18px 12px", borderRadius: 16, border: `2px solid ${plusOne === opt.v ? opt.color : "var(--w12)"}`, background: plusOne === opt.v ? `${opt.color}18` : "var(--w04)", cursor: "pointer", textAlign: "center", transition: "all 0.2s" } }, React.createElement("div", { style: { fontSize: 32, marginBottom: 8 } }, opt.icon), React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: plusOne === opt.v ? opt.color : "#fff" } }, opt.label)))), plusOne === "yes" && React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, React.createElement(Input, { label: "Your plus one's name", placeholder: "e.g. Alex Smith", value: plusOneName, onChange: (e) => setPlusOneName(e.target.value) }), React.createElement("div", { style: { fontSize: 12, color: "var(--w40)", textAlign: "center", marginTop: 4 } }, "Your request will be sent to ", host.firstName, " for approval \u{1F64F}")));
+        return React.createElement("div", { className: "rdi-fbody" },
+          head("Bringing a plus one?", "Let " + host.firstName + " know if you'd like to bring someone — they'll need to approve it."),
+          React.createElement("div", { className: "rdi-yn" },
+            React.createElement("button", { className: plusOne === "yes" ? "on" : "", "aria-pressed": plusOne === "yes", onClick: () => setPlusOne("yes") }, "Yes please! \u{1F46B}"),
+            React.createElement("button", { className: plusOne === "no" ? "on" : "", "aria-pressed": plusOne === "no", onClick: () => setPlusOne("no") }, "Just me \u{1F64B}")
+          ),
+          plusOne === "yes" && React.createElement("div", { style: { animation: "rdFadeUp 0.3s ease" } },
+            React.createElement(Input, { label: "Your plus one's name", placeholder: "e.g. Alex Smith", value: plusOneName, onChange: (e) => setPlusOneName(e.target.value) }),
+            React.createElement("p", { className: "rdi-lead", style: { margin: 0 } }, "Your request will be sent to ", host.firstName, " for approval \u{1F64F}")
+          )
+        );
       case "dietary":
-        return React.createElement("div", null, React.createElement("div", { style: { textAlign: "center", marginBottom: 20 } }, React.createElement("div", { style: { fontSize: 46, marginBottom: 10 } }, "\u{1F957}"), React.createElement("div", { style: { fontSize: 22, fontWeight: 900, marginBottom: 4 } }, "Dietary Requirements"), React.createElement("div", { style: { fontSize: 14, color: "var(--w50)" } }, "Help ", host.firstName, " cater for you")), party.menu?.items?.length > 0 && React.createElement("div", { className: "card", style: { marginBottom: 16, background: "var(--w05)" } }, React.createElement("div", { style: { fontWeight: 700, marginBottom: 8 } }, "\u{1F37D}\uFE0F Menu Preview"), party.menu.items.map((item, i) => React.createElement("div", { key: i, style: { fontSize: 13, color: "var(--w70)", padding: "3px 0" } }, "\u2022 ", item)), party.menu.dietary && React.createElement("div", { style: { marginTop: 8, fontSize: 12, color: "var(--w50)", borderTop: "1px solid var(--w08)", paddingTop: 8 } }, "\u2139\uFE0F ", party.menu.dietary)), React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 } }, ["Vegetarian \u{1F955}", "Vegan \u{1F331}", "Gluten-free \u{1F33E}", "Dairy-free \u{1F95B}", "Nut allergy \u{1F95C}", "Halal \u2705", "Kosher \u2721\uFE0F", "No restrictions \u{1F60A}"].map((d) => React.createElement("div", { key: d, onClick: () => setDietary((prev) => prev === d ? "" : d), style: { padding: "7px 14px", borderRadius: 20, border: `2px solid ${dietary === d ? "#34d399" : "var(--w15)"}`, background: dietary === d ? "rgba(52,211,153,0.15)" : "var(--w05)", cursor: "pointer", fontSize: 13, fontWeight: 500, transition: "all 0.2s" } }, d))), React.createElement(TextArea, { placeholder: "Or describe your requirements in detail...", value: ["Vegetarian \u{1F955}", "Vegan \u{1F331}", "Gluten-free \u{1F33E}", "Dairy-free \u{1F95B}", "Nut allergy \u{1F95C}", "Halal \u2705", "Kosher \u2721\uFE0F", "No restrictions \u{1F60A}"].includes(dietary) ? "" : dietary, onChange: (e) => setDietary(e.target.value) }));
-      case "drinks":
-        return React.createElement("div", null,
-          React.createElement("div", { style: { textAlign: "center", marginBottom: 20 } },
-            React.createElement("div", { style: { fontSize: 46, marginBottom: 10 } }, "\ud83c\udf79"),
-            React.createElement("div", { style: { fontSize: 22, fontWeight: 900, marginBottom: 4 } }, "Drink Preferences"),
-            React.createElement("div", { style: { fontSize: 14, color: "var(--w50)" } }, "Pick everything you'd enjoy \u2014 tap as many as you like")),
-          React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
-            [...party.drinkOptions, ...drinkPrefs.filter((d) => !party.drinkOptions.includes(d))].map((d) => React.createElement("div", { key: d, onClick: () => setDrinkPrefs(drinkPrefs.includes(d) ? drinkPrefs.filter((x) => x !== d) : [...drinkPrefs, d]), style: { padding: "14px 16px", borderRadius: 12, border: `2px solid ${drinkPrefs.includes(d) ? "#00ff41" : "var(--w12)"}`, background: drinkPrefs.includes(d) ? "rgba(0,255,65,0.15)" : "var(--w04)", cursor: "pointer", fontSize: 15, fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", transition: "all 0.2s" } }, d, React.createElement("span", { style: { fontSize: 14, color: "#00ff41", opacity: drinkPrefs.includes(d) ? 1 : 0 } }, "\u2713"))),
-            React.createElement("div", { onClick: () => setDrinkPrefs([]), style: { padding: "14px 16px", borderRadius: 12, border: `2px solid ${drinkPrefs.length === 0 ? "#00ff41" : "var(--w12)"}`, background: drinkPrefs.length === 0 ? "rgba(0,255,65,0.15)" : "var(--w04)", cursor: "pointer", fontSize: 15, fontWeight: 600, color: "var(--w60)", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "all 0.2s" } }, "\ud83d\udca7 No preference", React.createElement("span", { style: { fontSize: 14, color: "#00ff41", opacity: drinkPrefs.length === 0 ? 1 : 0 } }, "\u2713")),
-            React.createElement("div", { style: { marginTop: 16, background: "var(--w04)", border: "1px dashed var(--w18)", borderRadius: 12, padding: 12 } },
-              React.createElement("div", { style: { fontSize: 12, color: "var(--w50)", marginBottom: 9 } }, "Not on the list? \u2795 Add your own"),
-              React.createElement("div", { style: { display: "flex", gap: 8 } },
-                React.createElement("input", { className: "input-field", style: { flex: 1 }, placeholder: "e.g. Espresso Martini\u2026", value: guestDrinkInput, onChange: (e) => setGuestDrinkInput(e.target.value), onKeyDown: (e) => { if (e.key === "Enter") { const v = guestDrinkInput.trim(); if (v && !drinkPrefs.some((x) => x.toLowerCase() === v.toLowerCase())) setDrinkPrefs([...drinkPrefs, v]); setGuestDrinkInput(""); } } }),
-                React.createElement("button", { onClick: () => { const v = guestDrinkInput.trim(); if (v && !drinkPrefs.some((x) => x.toLowerCase() === v.toLowerCase())) setDrinkPrefs([...drinkPrefs, v]); setGuestDrinkInput(""); }, style: { background: "linear-gradient(135deg,#00ff41,#00d944)", color: "#fff", border: "none", borderRadius: 12, padding: "0 16px", fontWeight: 700, fontSize: 18, cursor: "pointer" } }, "+")))));
+        return React.createElement("div", { className: "rdi-fbody" },
+          head("Dietary requirements", "Help " + host.firstName + " cater for you."),
+          party.menu?.items?.length > 0 && React.createElement("div", { className: "rdi-card" },
+            React.createElement("h4", null, "\u{1F37D}️ Menu preview"),
+            party.menu.items.map((item, i) => React.createElement("p", { key: i, style: { padding: "2px 0" } }, "• ", item)),
+            party.menu.dietary && React.createElement("p", { style: { marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--w08)", fontSize: 12 } }, "ℹ️ ", party.menu.dietary)
+          ),
+          React.createElement("div", { className: "rdi-chips" },
+            PL.invite.DIETARY_OPTIONS.map((d) => React.createElement("button", { key: d, className: dietary === d ? "on" : "", "aria-pressed": dietary === d, onClick: () => setDietary((prev) => prev === d ? "" : d) }, d))
+          ),
+          React.createElement(TextArea, { placeholder: "Or describe your requirements in detail…", value: PL.invite.DIETARY_OPTIONS.includes(dietary) ? "" : dietary, onChange: (e) => setDietary(e.target.value), style: { marginBottom: 0 } })
+        );
+      case "drinks": {
+        const addDrink = () => { const v = guestDrinkInput.trim(); if (v && !drinkPrefs.some((x) => x.toLowerCase() === v.toLowerCase())) setDrinkPrefs([...drinkPrefs, v]); setGuestDrinkInput(""); };
+        return React.createElement("div", { className: "rdi-fbody" },
+          head("Drink preferences", "Pick everything you'd enjoy — tap as many as you like."),
+          React.createElement("div", { className: "rdi-chips" },
+            [...party.drinkOptions, ...drinkPrefs.filter((d) => !party.drinkOptions.includes(d))].map((d) => React.createElement("button", { key: d, className: drinkPrefs.includes(d) ? "on" : "", "aria-pressed": drinkPrefs.includes(d), onClick: () => setDrinkPrefs(drinkPrefs.includes(d) ? drinkPrefs.filter((x) => x !== d) : [...drinkPrefs, d]) }, d)),
+            React.createElement("button", { className: drinkPrefs.length === 0 ? "on" : "", "aria-pressed": drinkPrefs.length === 0, onClick: () => setDrinkPrefs([]) }, "\u{1F4A7} No preference")
+          ),
+          React.createElement("div", { className: "rdi-addrow" },
+            React.createElement("input", { className: "input-field", placeholder: "Not on the list? Add your own…", maxLength: 40, value: guestDrinkInput, onChange: (e) => setGuestDrinkInput(e.target.value), onKeyDown: (e) => { if (e.key === "Enter") addDrink(); } }),
+            React.createElement("button", { onClick: addDrink }, "Add")
+          )
+        );
+      }
       case "questions":
-        return React.createElement("div", null, React.createElement("div", { style: { textAlign: "center", marginBottom: 20 } }, React.createElement("div", { style: { fontSize: 46, marginBottom: 10 } }, "\u2753"), React.createElement("div", { style: { fontSize: 22, fontWeight: 900, marginBottom: 4 } }, "Quick Questions"), React.createElement("div", { style: { fontSize: 14, color: "var(--w50)" } }, "From ", host.firstName)), party.customQuestions.map((q) => React.createElement("div", { key: q.id, style: { marginBottom: 16 } }, React.createElement("div", { style: { fontSize: 15, fontWeight: 600, marginBottom: 8, color: "#00ff41" } }, "\u2753 ", q.text), React.createElement(TextArea, { placeholder: "Your answer (optional)...", value: answers[q.id] || "", onChange: (e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value })), style: { marginBottom: 0 } }))));
+        return React.createElement("div", { className: "rdi-fbody" },
+          head("Quick questions", "From " + host.firstName + ". Answer what you like."),
+          party.customQuestions.map((q) => React.createElement("div", { key: q.id, className: "rdi-qa" },
+            React.createElement("label", { htmlFor: "rdi-q-" + q.id }, q.text),
+            React.createElement(TextArea, { id: "rdi-q-" + q.id, placeholder: "Your answer (optional)…", value: answers[q.id] || "", onChange: (e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value })), style: { marginBottom: 0 } })
+          ))
+        );
       case "ask_host":
-        return React.createElement("div", null, React.createElement("div", { style: { textAlign: "center", marginBottom: 20 } }, React.createElement("div", { style: { fontSize: 46, marginBottom: 10 } }, "\u{1F4AC}"), React.createElement("div", { style: { fontSize: 22, fontWeight: 900, marginBottom: 4 } }, "Anything to ask?"), React.createElement("div", { style: { fontSize: 14, color: "var(--w50)" } }, "Send ", host.firstName, " a message (optional)")), React.createElement(TextArea, { placeholder: "e.g. What should I bring? Is there parking? Can't wait!", value: hostQuestion, onChange: (e) => setHostQuestion(e.target.value) }));
-      case "done":
-        return React.createElement("div", { style: { textAlign: "center", padding: "40px 0" } },
+        return React.createElement("div", { className: "rdi-fbody" },
+          head("Anything to ask " + host.firstName + "?", "Send " + host.firstName + " a message (optional) — only they'll see it."),
+          React.createElement(TextArea, { placeholder: "e.g. What should I bring? Is there parking? Can't wait!", value: hostQuestion, onChange: (e) => setHostQuestion(e.target.value), style: { marginBottom: 0 } })
+        );
+      case "done": {
+        const rows = PL.invite.summaryRows(submittedResp || PL.invite.buildResponse({ rsvp, cancelReason, selectedDates, plusOne, plusOneName, dietary, drinkPrefs, answers }), party, { hostName: host.firstName, fmtDate });
+        const summary = rows.length > 0 && React.createElement("div", { className: "rdi-summary" },
+          rows.map(([k, v]) => React.createElement("div", { key: k }, React.createElement("span", null, k), React.createElement("b", null, v)))
+        );
+        const homeBtn = React.createElement("button", { className: "btn-secondary", onClick: () => navigate("home") }, "Back to Home \u{1F3E0}");
+        const partyBtn = React.createElement("button", { className: "btn-primary", onClick: () => navigate("partyDetail", { partyId: party.id }) }, "View party");
+        return React.createElement("div", { className: "rdi-result" },
           // Animated RSVP celebration
           showRsvpCelebration && React.createElement(React.Fragment, null,
             React.createElement(EventParticles, { eventType: party.eventType, onDone: () => {} }),
-            React.createElement(FireworksCanvas, { colors: fireworksColors, duration: 3e3, fwStyle: fw.style || "classic", onDone: () => setShowRsvpCelebration(false) })
+            React.createElement("div", { className: "rdi-fx" }, React.createElement(FireworksCanvas, { colors: fireworksColors, duration: 3e3, fwStyle: fw.style || "classic", onDone: () => setShowRsvpCelebration(false) }))
           ),
           rsvp === "accepted" ? React.createElement(React.Fragment, null,
-            React.createElement("div", { style: { fontSize: 76, marginBottom: 16, animation: "float 2s ease-in-out infinite" } }, "\u{1F38A}"),
-            React.createElement("div", { style: { fontSize: 26, fontWeight: 900, marginBottom: 8, fontFamily: themeFont } }, "You're going!"),
-            React.createElement("div", { style: { fontSize: 15, color: "#34d399", fontWeight: 600, marginBottom: 6 } }, "\u2705 RSVP sent to ", host.firstName),
-            plusOne === "yes" && React.createElement("div", { style: { fontSize: 13, color: "var(--w50)", marginBottom: 6 } }, "\u{1F46B} Plus one request sent \u2014 awaiting approval"),
-            // Countdown after RSVP
-            (party.confirmedDate || (party.dates && party.dates.length > 0)) && React.createElement("div", { style: { marginBottom: 16, marginTop: 8 } },
-              React.createElement("div", { style: { fontSize: 12, color: "var(--w40)", marginBottom: 6 } }, "Counting down..."),
-              React.createElement(Countdown, { dateStr: party.confirmedDate?.date || party.dates?.[0]?.date, timeStr: party.confirmedDate?.time || party.dates?.[0]?.time })
-            ),
-            React.createElement("div", { style: { fontSize: 14, color: "var(--w40)", marginBottom: 18 } }, "See you at ", party.title, "! \u{1F389}"),
-            // Add to Calendar — downloads an .ics that opens in iPhone/iCloud, Google & Outlook
-            (party.confirmedDate || (party.dates && party.dates[0])) && React.createElement("button", { className: "btn-secondary", style: { width: 220, margin: "0 auto 12px", display: "block" }, onClick: () => downloadICS(party) }, "\u{1F4C5} Add to Calendar")
+            React.createElement("div", { className: "rdi-big" }, "\u{1F389}"),
+            React.createElement("h1", { style: { fontFamily: themeFont } }, "You're going!"),
+            React.createElement("div", { className: "rdi-sent" }, "✅ RSVP sent to ", host.firstName),
+            plusOne === "yes" && React.createElement("p", null, "\u{1F46B} Plus one request sent — awaiting approval"),
+            React.createElement("p", null, "See you at ", party.title, "!", hasCountdown ? " Counting down…" : ""),
+            hasCountdown && React.createElement(Countdown, { dateStr: cdDate, timeStr: cdTime }),
+            summary,
+            React.createElement("div", { className: "rdi-acts" },
+              partyBtn,
+              // Add to Calendar — downloads an .ics that opens in iPhone/iCloud, Google & Outlook
+              (party.confirmedDate || (party.dates && party.dates[0])) && React.createElement("button", { className: "btn-secondary", onClick: () => downloadICS(party) }, "\u{1F4C5} Add to Calendar"),
+              homeBtn
+            )
           ) : rsvp === "declined" ? React.createElement(React.Fragment, null,
-            React.createElement("div", { style: { fontSize: 76, marginBottom: 16 } }, "\u{1F614}"),
-            React.createElement("div", { style: { fontSize: 26, fontWeight: 900, marginBottom: 8 } }, "Sorry you can't make it"),
-            React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 28 } }, host.firstName, " has been notified", cancelReason ? " \u2014 \"" + cancelReason + "\"" : "")
+            React.createElement("div", { className: "rdi-big" }, "\u{1F48C}"),
+            React.createElement("h1", null, "Sorry you can't make it"),
+            React.createElement("p", null, host.firstName, " has been notified", cancelReason ? " — \"" + cancelReason + "\"" : "", ". Maybe next time!"),
+            summary,
+            React.createElement("div", { className: "rdi-acts" }, homeBtn)
           ) : React.createElement(React.Fragment, null,
-            React.createElement("div", { style: { fontSize: 76, marginBottom: 16 } }, "\u{1F914}"),
-            React.createElement("div", { style: { fontSize: 26, fontWeight: 900, marginBottom: 8 } }, "Maybe noted!"),
-            React.createElement("div", { style: { fontSize: 14, color: "var(--w50)", marginBottom: 28 } }, host.firstName, " will keep a spot open for you")
-          ),
-          React.createElement("button", { className: "btn-primary", style: { width: 200, margin: "0 auto" }, onClick: () => navigate("home") }, "Back to Home \u{1F3E0}")
+            React.createElement("div", { className: "rdi-big" }, "\u{1F914}"),
+            React.createElement("h1", null, "Maybe noted!"),
+            React.createElement("p", null, host.firstName, " will keep a spot open for you. You can change your answer any time."),
+            hasCountdown && React.createElement(Countdown, { dateStr: cdDate, timeStr: cdTime }),
+            summary,
+            React.createElement("div", { className: "rdi-acts" }, partyBtn, homeBtn)
+          )
         );
+      }
       default:
         return null;
     }
@@ -4079,32 +4394,30 @@ const InvitationScreen = () => {
     const a = (base, scale) => Math.min(base + scale * lum, 0.98).toFixed(2);
     return `linear-gradient(180deg,rgba(13,13,13,${a(0.42, 0.35)}) 0%,rgba(13,13,13,${a(0.68, 0.25)}) 42%,rgba(13,13,13,${a(0.9, 0.08)}) 100%)`;
   })();
-  return React.createElement("div", { className: party.coverImage ? "screen cover-dark" : "screen", style: { background: getThemedBackground() } },
+  const inFlow = step > 0 && currentStep !== "done";
+  const prog = rsvp ? PL.invite.progress(step, steps.length - 2) : { label: "Your invite", pct: 8 };
+  const optionalStep = ["cancel_reason", "dietary", "questions", "ask_host"].includes(currentStep);
+  // Photo covers and the themed (always dark) gradients force dark-theme tokens so text stays readable in light mode.
+  const themedBg = getThemedBackground();
+  return React.createElement("div", { ref: screenRef, className: (party.coverImage || themedBg !== "var(--bg)" ? "screen cover-dark" : "screen") + (morphIn ? " rdi-morph-in" : ""), style: { background: themedBg } },
     party.coverImage && React.createElement("div", { style: { position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" } },
       React.createElement("img", { src: party.coverImage, style: { width: "100%", height: "100%", objectFit: "cover" }, alt: "" }),
       React.createElement("div", { style: { position: "absolute", inset: 0, background: coverScrim } })
     ),
-    step > 0 && currentStep !== "done" && React.createElement("div", { style: { padding: "50px 20px 14px", background: "var(--header)", backdropFilter: "blur(20px)", borderBottom: "1px solid var(--w08)", position: "sticky", top: 0, zIndex: 50 } },
-      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 10 } },
-        step > 1 && React.createElement("button", { onClick: goBack, style: { background: "var(--w08)", border: "none", color: "#fff", borderRadius: 10, width: 36, height: 36, fontSize: 18, cursor: "pointer", flexShrink: 0 } }, "\u2190"),
-        React.createElement("div", { style: { flex: 1 } },
-          React.createElement("div", { style: { fontWeight: 800, fontSize: 16 } }, party.title),
-          React.createElement("div", { style: { fontSize: 12, color: "var(--w40)" } }, "by ", host.firstName, " ", host.lastName)
-        )
+    inFlow && React.createElement("div", { className: "rdi-flowbar" },
+      React.createElement("div", { className: "rdi-r" },
+        step > 1 ? React.createElement("button", { className: "rdi-iconbtn", onClick: goBack, "aria-label": "Back" }, "←") : React.createElement("span", { style: { width: 38, flex: "none" } }),
+        React.createElement("div", { className: "rdi-mid" }, React.createElement("b", null, party.title), prog.label),
+        React.createElement("button", { className: "rdi-iconbtn", onClick: () => navigate("home"), "aria-label": "Close" }, "✕")
       ),
-      React.createElement("div", { style: { display: "flex", gap: 3 } },
-        steps.filter((s) => s !== "fireworks" && s !== "done").map((_, i) => React.createElement("div", { key: i, style: { flex: 1, height: 3, borderRadius: 2, background: i < step - 1 ? "linear-gradient(90deg,#00ff41,#00d944)" : "var(--w10)", transition: "background 0.3s" } }))
-      )
+      React.createElement("div", { className: "rdi-pbar", role: "progressbar", "aria-valuemin": 0, "aria-valuemax": 100, "aria-valuenow": prog.pct, "aria-label": prog.label }, React.createElement("i", { style: { width: prog.pct + "%" } }))
     ),
-    React.createElement("div", { style: { padding: currentStep === "fireworks" ? 0 : "20px 20px 110px", position: "relative", zIndex: 1 }, key: currentStep },
-      React.createElement("div", { style: { animation: "fadeIn 0.3s ease" } }, renderStep())
+    React.createElement("div", { style: { position: "relative", zIndex: 1 }, key: currentStep },
+      currentStep === "envelope" ? renderEnvelope() : renderStep()
     ),
-    step > 0 && !isLast && React.createElement("div", { style: { position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 20px 20px", background: "var(--bar)", borderTop: "1px solid var(--w08)", display: "flex", gap: 10, zIndex: 50 } },
-      isSecondLast ? React.createElement("button", { className: "btn-primary", style: { flex: 1, background: "linear-gradient(135deg,#16a34a,#15803d)" }, onClick: goNext }, "Submit RSVP \u2705") :
-      React.createElement("button", { className: "btn-primary", style: { flex: 1, opacity: currentStep === "rsvp" && !rsvp ? 0.4 : 1 }, onClick: () => {
-        if (currentStep === "rsvp" && !rsvp) return;
-        goNext();
-      } }, currentStep === "rsvp" && !rsvp ? "Select an option to continue" : "Next \u2192")
+    inFlow && React.createElement("div", { className: "rdi-ffoot" },
+      React.createElement("button", { className: "btn-primary", disabled: !!block, onClick: goNext }, block || (isSecondLast ? "Submit RSVP ✅" : "Next →")),
+      optionalStep && React.createElement("div", { className: "rdi-skip" }, "This is optional — tap ", isSecondLast ? "Submit" : "Next", " to skip")
     )
   );
 };
