@@ -3157,7 +3157,7 @@ const PinBoard = ({ currentUser, parties, navigate }) => {
   return React.createElement("section", { className: "rdm-sec" },
     React.createElement("div", { className: "rdm-h" }, React.createElement("h3", null, "\u{1F4CC} My Memory Board")),
     React.createElement("div", { className: "rdm-frame" },
-      React.createElement("div", { ref: boardRef, className: "rdm-board" + (tall ? " tall" : "") },
+      React.createElement("div", { ref: boardRef, className: "rdm-board" + (tall ? " tall" : ""), style: tall ? undefined : { height: [210, 360, 430][Math.max(0, Math.ceil(pinned.length / 3) - 1)] } },
         pinned.length === 0
           ? React.createElement("div", { style: { position: "absolute", inset: 0, display: "grid", placeItems: "center", "--text": "#4a2f1d", font: "600 20px var(--rd-hand)", textAlign: "center", padding: 30 } }, "Go to a party and it gets pinned here \u{1F4CC}")
           : pinned.map((party, idx) => {
@@ -4493,7 +4493,7 @@ const FriendsScreen = () => {
 
   // ---- Find tab ----
   const findTab = () => h("div", { className: "rdf-pane" },
-    h("input", { className: "input-field rdf-search", placeholder: "\u{1F50D} Search by name, email or phone...", value: searchQ, onChange: (e) => setSearchQ(e.target.value), autoFocus: true, autoComplete: "off", "aria-label": "Search all Partico users" }),
+    h("input", { className: "input-field rdf-search", placeholder: "\u{1F50D} Search by name, email or phone...", value: searchQ, onChange: (e) => setSearchQ(e.target.value), autoComplete: "off", "aria-label": "Search all Partico users" }),
     q
       ? h(React.Fragment, null,
         h("div", { className: "rdf-subh" }, searching ? "Searching…" : "Results"),
