@@ -275,7 +275,7 @@ test('app boots logged in and every main screen renders fixture data without err
     });
     // Known gap: PartyManageScreen groups guests by ["accepted","pending","declined"]
     // only, so a "maybe" RSVP (offered on the invitation screen) never appears.
-    await t.test('partyManage: guests tab shows the "maybe" guest', { todo: 'app bug: maybe RSVPs are not listed on the host guest tab' }, async () => {
+    await t.test('partyManage: guests tab shows the "maybe" guest', async () => {
       assert.ok(await app.waitForText('Ben Okafor', 300), 'maybe guest Ben Okafor not listed');
     });
     await t.test('partyManage: photos tab of a past party renders', async () => {
@@ -288,11 +288,14 @@ test('app boots logged in and every main screen renders fixture data without err
       await app.go('friends');
       await app.clickButton(/^Requests/);
       assert.ok(await app.waitForText('Grace Lin'), 'incoming friend request from Grace Lin not shown');
-      await app.clickButton(/^Find People/);
+      await app.clickButton(/^Find( People)?$/);
       const input = app.window.document.querySelector('input:not([type]),input[type="text"],input[type="search"]');
       assert.ok(input, 'no search input on the Find People tab');
       await app.typeInto(input, 'hana');
       assert.ok(await app.waitForText('Hana Kim'), 'search result for "hana" not shown');
+      // The search is debounced, and cached users can match first, so wait for the server call itself.
+      const searchBy = Date.now() + 2000;
+      while (!app.log.calls.includes('GET /api/users/search') && Date.now() < searchBy) await new Promise((r) => setTimeout(r, 25));
       assert.ok(app.log.calls.includes('GET /api/users/search'), 'search did not call the backend');
       noErrors('on friends tabs');
     });
