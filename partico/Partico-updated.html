@@ -181,10 +181,163 @@ input.input-field[type="date"],input.input-field[type="time"]{min-width:0;font-s
 @media (prefers-reduced-motion:reduce){.rd-reveal.rd-pending{opacity:1;transform:none}}
 </style>
 <style id="rd-nav">
-/* nav */
+/* Floating glass tab bar. Sits ~58px tall, a little above the home indicator, so screens' 80-100px bottom padding still clears it. */
+.rdn-bar{position:fixed;z-index:100;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:560px;bottom:max(8px,calc(env(safe-area-inset-bottom,0px) - 12px));height:58px;display:grid;grid-template-columns:repeat(6,1fr);align-items:center;border-radius:22px;background:var(--bar);border:1px solid var(--w10);box-shadow:0 10px 30px rgba(0,0,0,.28);}
+@supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
+  .rdn-bar{background:color-mix(in srgb,var(--surface) 78%,transparent);-webkit-backdrop-filter:blur(20px) saturate(1.4);backdrop-filter:blur(20px) saturate(1.4);}
+}
+.rdn-tab{--text:var(--w50);background:none;border:none;display:grid;justify-items:center;align-content:center;gap:3px;height:100%;padding:0;position:relative;transition:transform .15s;}
+.rdn-tab:active{transform:scale(.92);}
+.rdn-tab svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+.rdn-label{font-size:10px;font-weight:600;letter-spacing:.01em;line-height:1;}
+.rdn-tab.on{--text:#00ff41;}
+:root[data-theme="light"] .rdn-tab.on{--text:#00a82d;}
+.rdn-tab.on .rdn-label{font-weight:800;}
+.rdn-tab.on:not(.rdn-host)::after{content:"";position:absolute;bottom:5px;width:4px;height:4px;border-radius:50%;background:#00ff41;}
+.rdn-fab{width:48px;height:48px;border-radius:17px;background:#00ff41;display:grid;place-items:center;margin-top:-26px;box-shadow:0 8px 22px rgba(0,255,65,.38);transition:transform .2s cubic-bezier(.34,1.56,.64,1);}
+.rdn-fab svg{width:24px;height:24px;stroke-width:2.6;stroke:#000;}
+.rdn-host:hover .rdn-fab{transform:translateY(-2px);}
+.rdn-host.on .rdn-fab{box-shadow:0 0 0 3px rgba(0,255,65,.35),0 8px 22px rgba(0,255,65,.45);}
+.rdn-tab:focus-visible{outline:2px solid #00ff41;outline-offset:-4px;border-radius:14px;}
+@media (prefers-reduced-motion:reduce){.rdn-tab,.rdn-fab{transition:none;}}
 </style>
 <style id="rd-home">
-/* home */
+/* Home screen. Text colour is set through --text (the global rule forces color:var(--text)). */
+:root{--rdh-accent:#00ff41;--rdh-amber:#ffb020;--rdh-violet:#c4b5fd;}
+:root[data-theme="light"]{--rdh-accent:#00a82d;--rdh-amber:#b86e00;--rdh-violet:#6d28d9;}
+.cover-dark{--rdh-accent:#00ff41;}
+.rdh-screen{padding-bottom:calc(100px + env(safe-area-inset-bottom,0px));}
+.rdh-sec{padding:0 16px;margin-bottom:26px;}
+.rdh-sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:10px;}
+.rdh-sec-h h3{font-size:19px;font-weight:700;margin:0;}
+.rdh-dim{--text:var(--w60);}
+.rdh-small{font-size:12px;}
+.rdh-link{--text:var(--rdh-accent);background:none;border:none;padding:0;font-size:12.5px;font-weight:700;cursor:pointer;}
+.rdh-btn{border:none;border-radius:999px;padding:10px 16px;font-weight:800;font-size:13px;cursor:pointer;transition:transform .12s,opacity .2s;white-space:nowrap;}
+.rdh-btn:active{transform:scale(.95);}
+.rdh-btn:disabled{opacity:.6;cursor:default;}
+.rdh-btn-g{background:#00ff41;--text:#000;}
+.rdh-btn-ghost{background:var(--w08);border:1px solid var(--w12);}
+.rdh-screen [role="button"]:focus-visible,.rdh-screen button:focus-visible{outline:2px solid #00ff41;outline-offset:2px;}
+
+/* collapsing header */
+.rdh-appbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 46px) 18px 14px;background:linear-gradient(var(--bg) 70%,transparent);transition:padding .25s ease,background .25s;}
+.rdh-appbar.compact{padding-top:calc(env(safe-area-inset-top,0px) + 40px);padding-bottom:10px;background:var(--header);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-bottom:1px solid var(--w08);}
+.rdh-logo{width:36px;height:36px;border-radius:10px;flex:none;box-shadow:0 0 12px rgba(0,255,65,.35);transition:width .25s,height .25s;}
+.rdh-appbar.compact .rdh-logo{width:28px;height:28px;border-radius:8px;}
+.rdh-greet{flex:1;min-width:0;}
+.rdh-greet small{display:block;font-size:12px;--text:var(--w60);height:18px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;transition:opacity .2s,height .2s;}
+.rdh-greet b{display:block;font-size:29px;font-weight:800;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:font-size .25s ease;}
+.rdh-appbar.compact .rdh-greet small{opacity:0;height:0;}
+.rdh-appbar.compact .rdh-greet b{font-size:19px;}
+.rdh-iconbtn{width:42px;height:42px;border-radius:14px;background:var(--w08);border:1px solid var(--w10);display:grid;place-items:center;position:relative;flex:none;}
+.rdh-iconbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.rdh-badge{position:absolute;top:-5px;right:-5px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:#00ff41;--text:#000;font-style:normal;font-size:10px;font-weight:800;display:grid;place-items:center;animation:rdPulse 2.4s infinite;}
+
+/* hero */
+.rdh-hero{position:relative;isolation:isolate;overflow:hidden;border-radius:26px;min-height:260px;padding:18px;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;animation:rdFadeUp .5s ease both;}
+.rdh-cover{position:absolute;inset:-24px;z-index:-2;background-size:cover;background-position:center;will-change:transform;}
+.rdh-hero::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(0,0,0,.08) 10%,rgba(0,0,0,.82));}
+.rdh-chip{display:inline-flex;align-items:center;gap:6px;width:max-content;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;border-radius:999px;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);}
+.rdh-dot{width:7px;height:7px;border-radius:50%;background:#00ff41;animation:rdPulse 2s infinite;}
+.rdh-hero h2{font-size:29px;font-weight:800;line-height:1.05;margin:10px 0 4px;letter-spacing:-.02em;text-wrap:balance;}
+.rdh-meta{font-size:13px;--text:rgba(255,255,255,.8);}
+.rdh-count{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 0 12px;}
+.rdh-count div{background:rgba(0,0,0,.42);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:8px 0;text-align:center;}
+.rdh-count b{display:block;font-size:23px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;animation:rdTick .35s ease;}
+.rdh-count span{font-size:9px;letter-spacing:.12em;text-transform:uppercase;--text:rgba(255,255,255,.6);}
+.rdh-now{margin:14px 0 12px;font-weight:800;font-size:15px;}
+.rdh-goers{display:flex;align-items:center;gap:10px;}
+.rdh-goers small{flex:1;font-size:12px;--text:rgba(255,255,255,.85);}
+.rdh-stack{display:flex;}
+.rdh-stack-av{margin-left:-8px;border-radius:50%;display:inline-flex;}
+.rdh-stack-av:first-child{margin-left:0;}
+.rdh-more{width:28px;height:28px;background:#e5e7eb;--text:#111;font-size:10px;font-weight:800;align-items:center;justify-content:center;border:2px solid rgba(0,255,65,.5);}
+.rdh-empty{border:1px dashed var(--w20);border-radius:26px;padding:26px 20px;text-align:center;display:grid;gap:10px;justify-items:center;}
+.rdh-empty b{font-size:22px;}
+.rdh-empty-sm{padding:18px;border-radius:20px;}
+
+/* invites carousel */
+.rdh-swipe{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin:0 -16px;padding:0 16px 4px;}
+.rdh-swipe::-webkit-scrollbar{display:none;}
+.rdh-inv{flex:0 0 84%;max-width:380px;scroll-snap-align:start;position:relative;isolation:isolate;overflow:hidden;border-radius:22px;min-height:178px;padding:14px;display:flex;flex-direction:column;justify-content:flex-end;gap:10px;cursor:pointer;border:1px solid var(--w10);}
+.rdh-inv-cover{position:absolute;inset:0;z-index:-2;background-size:cover;background-position:center;}
+.rdh-inv::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.84));}
+.rdh-inv .rdh-btn{width:max-content;}
+.rdh-from{display:flex;align-items:center;gap:8px;font-size:12px;--text:rgba(255,255,255,.88);}
+.rdh-inv b{display:block;font-size:22px;font-weight:800;line-height:1.05;}
+.rdh-inv small{font-size:12px;--text:rgba(255,255,255,.78);}
+.rdh-env{position:absolute;top:12px;right:12px;width:38px;height:38px;border-radius:12px;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:grid;place-items:center;font-size:18px;animation:rdhWiggle 2.8s ease-in-out infinite;}
+@keyframes rdhWiggle{0%,80%,100%{transform:rotate(0)}85%{transform:rotate(-12deg)}90%{transform:rotate(10deg)}95%{transform:rotate(-6deg)}}
+
+/* rows */
+.rdh-list{display:grid;gap:8px;}
+.rdh-row{display:flex;gap:12px;align-items:center;background:var(--w05);border:1px solid var(--w10);border-radius:18px;padding:10px 12px;cursor:pointer;transition:transform .15s;}
+.rdh-row:active{transform:scale(.98);}
+.rdh-datebox{width:46px;height:50px;flex:none;border-radius:12px;background:var(--w07);display:grid;place-items:center;align-content:center;line-height:1;}
+.rdh-datebox span{font-size:10px;font-weight:800;letter-spacing:.08em;--text:var(--rdh-accent);}
+.rdh-datebox b{font-size:20px;font-weight:800;}
+.rdh-row-tx{flex:1;min-width:0;}
+.rdh-row-tx b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rdh-row-tx small{font-size:12px;--text:var(--w60);}
+.rdh-st{font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px;white-space:nowrap;}
+.rdh-st.going{background:rgba(0,255,65,.14);--text:var(--rdh-accent);}
+.rdh-st.host{background:rgba(139,92,246,.18);--text:var(--rdh-violet);}
+
+/* this week */
+.rdh-week{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
+.rdh-day{border-radius:14px;padding:8px 0;text-align:center;background:var(--w05);border:1px solid var(--w10);cursor:pointer;transition:transform .15s;}
+.rdh-day:active{transform:scale(.94);}
+.rdh-day span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;--text:var(--w45);}
+.rdh-day b{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;}
+.rdh-day i{display:flex;gap:2px;justify-content:center;height:6px;margin-top:3px;}
+.rdh-day em{width:6px;height:6px;border-radius:50%;background:#00ff41;}
+.rdh-day em.h{background:#ffb020;}
+.rdh-day.today{background:var(--w90);border-color:transparent;--text:var(--bg);}
+.rdh-day.today span{--text:var(--bg);opacity:.6;}
+.rdh-day.sel{outline:2px solid #00ff41;outline-offset:1px;}
+.rdh-dayl{margin-top:10px;display:grid;gap:6px;}
+.rdh-none{font-size:13px;--text:var(--w60);}
+
+/* hosting */
+.rdh-host{background:var(--w05);border:1px solid var(--w10);border-radius:22px;padding:14px;display:grid;gap:12px;}
+.rdh-host-t{display:flex;justify-content:space-between;gap:8px;cursor:pointer;}
+.rdh-host-t b{display:block;font-size:16px;}
+.rdh-host-t small{font-size:12px;--text:var(--w60);}
+.rdh-pill{font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px;background:rgba(0,255,65,.14);--text:var(--rdh-accent);height:max-content;white-space:nowrap;border:none;}
+.rdh-pill.amber{background:rgba(255,176,32,.14);--text:var(--rdh-amber);}
+.rdh-plus{width:max-content;cursor:pointer;}
+.rdh-seg{display:flex;height:10px;border-radius:6px;overflow:hidden;gap:2px;background:var(--w05);}
+.rdh-seg div{transition:width 1.2s cubic-bezier(.2,.8,.2,1);}
+.rdh-c-going{background:#00ff41;}
+.rdh-c-maybe{background:#ffb020;}
+.rdh-c-pending{background:var(--w25);}
+.rdh-c-declined{background:#ff5a5a;}
+.rdh-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;--text:var(--w60);}
+.rdh-legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;}
+.rdh-todo{display:flex;flex-wrap:wrap;gap:6px;}
+.rdh-todo button{font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid var(--w15);background:none;opacity:.7;cursor:pointer;transition:background .2s,border-color .2s,opacity .2s;}
+.rdh-todo button.ok{background:rgba(0,255,65,.14);border-color:rgba(0,255,65,.35);opacity:1;}
+.rdh-todo button.ok::before{content:"\2713  ";--text:var(--rdh-accent);font-weight:800;}
+.rdh-prog{font-size:11px;--text:var(--w45);}
+
+/* people */
+.rdh-ppl{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px 4px;}
+.rdh-ppl::-webkit-scrollbar{display:none;}
+.rdh-person{flex:none;width:126px;background:var(--w05);border:1px solid var(--w10);border-radius:18px;padding:12px;display:grid;justify-items:center;gap:6px;text-align:center;}
+.rdh-person b{font-size:13px;line-height:1.3;}
+.rdh-person small{font-size:11px;--text:var(--w60);}
+.rdh-person .rdh-btn{width:100%;padding:7px;font-size:12px;}
+
+/* confetti */
+.rdh-confetti{position:fixed;inset:0;pointer-events:none;z-index:10000;overflow:hidden;}
+.rdh-confetti i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;animation:rdhFall 1.6s cubic-bezier(.25,.6,.4,1) forwards;}
+@keyframes rdhFall{to{transform:translate(var(--rdh-x,0),105vh) rotate(var(--rdh-r,360deg));opacity:.9}}
+
+@media (prefers-reduced-motion:reduce){
+  .rdh-appbar,.rdh-logo,.rdh-greet b,.rdh-greet small,.rdh-seg div,.rdh-row,.rdh-day,.rdh-todo button,.rdh-btn{transition:none;}
+  .rdh-hero,.rdh-count b,.rdh-env,.rdh-dot,.rdh-badge{animation:none;}
+}
 </style>
 <style id="rd-invite">
 /* invite */
@@ -304,6 +457,133 @@ PL.partyDate = function (p) {
 <script id="logic-home">
 window.PL = window.PL || {};
 PL.home = {};
+(function (H) {
+  var DAY = 864e5;
+  var DN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var MN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function startOfDay(d) { var x = new Date(d.getTime()); x.setHours(0, 0, 0, 0); return x; }
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function ymd(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function invites(p) { return (p && p.invites) || []; }
+  function myInvite(p, uid) { var a = invites(p); for (var i = 0; i < a.length; i++) if (a[i].userId === uid) return a[i]; return null; }
+  function accepted(p, uid) { var i = myInvite(p, uid); return !!i && i.status === "accepted"; }
+  // Whole calendar days from now's day to date's day (DST-safe via rounding).
+  H.dayDiff = function (date, now) { return Math.round((startOfDay(date) - startOfDay(now || new Date())) / DAY); };
+  // Not before today (by day). Dateless parties count as not past.
+  function notPast(p, now) { var d = PL.partyDate(p); return !d || H.dayDiff(d, now) >= 0; }
+  // Soonest first; dateless parties last.
+  function bySoonest(a, b) {
+    var da = PL.partyDate(a), db = PL.partyDate(b);
+    if (!da && !db) return 0; if (!da) return 1; if (!db) return -1;
+    return da - db;
+  }
+  H.greeting = function (now) { var h = (now || new Date()).getHours(); return h < 12 ? "Morning" : h < 18 ? "Afternoon" : "Evening"; };
+  H.relativeDays = function (date, now) {
+    if (!date) return "Date TBD";
+    var n = H.dayDiff(date, now);
+    if (n === 0) return "Tonight";
+    if (n === 1) return "Tomorrow";
+    if (n === -1) return "Yesterday";
+    return n > 1 ? "In " + n + " days" : (-n) + " days ago";
+  };
+  H.fmtShort = function (d) { return d ? DN[d.getDay()] + " " + d.getDate() + " " + MN[d.getMonth()] : "Date TBD"; };
+  H.fmtMonth = function (d) { return d ? MN[d.getMonth()] : ""; };
+  H.fmtTime = function (d) {
+    if (!d) return "";
+    var h = d.getHours(), m = d.getMinutes();
+    return (h % 12 || 12) + (m ? ":" + pad(m) : "") + (h < 12 ? "am" : "pm");
+  };
+  // Same rule as the old home: hosted or accepted, status "upcoming", has a date, not before today.
+  H.nextParty = function (parties, userId, now) {
+    now = now || new Date();
+    if (!userId) return null;
+    var list = (parties || []).filter(function (p) {
+      return p && p.status === "upcoming" && (p.hostId === userId || accepted(p, userId)) && PL.partyDate(p) && notPast(p, now);
+    });
+    list.sort(bySoonest);
+    return list[0] || null;
+  };
+  // Parties I'm going to as a guest (mirrors getUpcomingParties), minus past ones.
+  H.attending = function (parties, userId, now) {
+    now = now || new Date();
+    return (parties || []).filter(function (p) {
+      return p && p.status === "upcoming" && p.hostId !== userId && accepted(p, userId) && notPast(p, now);
+    }).sort(bySoonest);
+  };
+  // My upcoming hosted parties (mirrors getHostedParties + status "upcoming"), minus past ones.
+  H.hosting = function (parties, userId, now) {
+    now = now || new Date();
+    if (!userId) return [];
+    return (parties || []).filter(function (p) {
+      return p && p.hostId === userId && p.status === "upcoming" && notPast(p, now);
+    }).sort(bySoonest);
+  };
+  // Mon..Sun of now's week; each day lists the parties I host ("host") or have accepted ("going").
+  H.weekStrip = function (parties, userId, now) {
+    now = now || new Date();
+    var today = startOfDay(now), mon = new Date(today.getTime());
+    mon.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    var mine = (parties || []).filter(function (p) { return p && userId && (p.hostId === userId || accepted(p, userId)); }).sort(bySoonest);
+    var out = [];
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(mon.getTime()); d.setDate(mon.getDate() + i);
+      var key = ymd(d);
+      out.push({
+        key: key, date: d, label: DN[d.getDay()], day: d.getDate(), isToday: key === ymd(today),
+        parties: mine.filter(function (p) { var pd = PL.partyDate(p); return pd && ymd(pd) === key; })
+          .map(function (p) { return { party: p, role: p.hostId === userId ? "host" : "going" }; })
+      });
+    }
+    return out;
+  };
+  H.rsvpBreakdown = function (p) {
+    var r = { accepted: 0, maybe: 0, pending: 0, declined: 0, total: 0, plusOnes: 0, going: 0 };
+    invites(p).forEach(function (i) {
+      r.total++;
+      if (r.hasOwnProperty(i.status) && i.status !== "total") r[i.status]++;
+      if (i.status === "accepted" && i.plusOneRequested && i.plusOneApproved) r.plusOnes++;
+    });
+    r.going = r.accepted + r.plusOnes;
+    return r;
+  };
+  // Same definition as PartyManageScreen's plusOneRequests (deny clears plusOneRequested).
+  H.pendingPlusOnes = function (p) { return invites(p).filter(function (i) { return i.plusOneRequested && !i.plusOneApproved; }).length; };
+  H.DEFAULT_CHECKLIST = [
+    { id: "venue", text: "Venue" },
+    { id: "playlist", text: "Playlist" },
+    { id: "food", text: "Food & drinks" },
+    { id: "decor", text: "Decorations" }
+  ];
+  // party.checklist = [{ id, text, done }]; until the host saves one, show unsaved defaults.
+  H.checklistProgress = function (p) {
+    var saved = p && Array.isArray(p.checklist) && p.checklist.length > 0;
+    var items = saved ? p.checklist : H.DEFAULT_CHECKLIST.map(function (c) { return { id: c.id, text: c.text, done: false }; });
+    var done = items.filter(function (c) { return c.done; }).length;
+    return { items: items, done: done, total: items.length, allDone: items.length > 0 && done === items.length, isDefault: !saved };
+  };
+  // New checklist array (defaults materialised) with one item flipped. Never mutates the party.
+  H.toggleChecklistItem = function (p, id) {
+    return H.checklistProgress(p).items.map(function (c) {
+      return { id: c.id, text: c.text, done: c.id === id ? !c.done : !!c.done };
+    });
+  };
+  H.countdownParts = function (target, now) {
+    if (!target) return null;
+    var diff = target - (now || new Date());
+    if (diff <= 0) return null;
+    return { d: Math.floor(diff / DAY), h: Math.floor(diff % DAY / 36e5), m: Math.floor(diff % 36e5 / 6e4), s: Math.floor(diff % 6e4 / 1e3) };
+  };
+  H.headerLine = function (next, now) {
+    now = now || new Date();
+    var head = H.fmtShort(now) + " · ";
+    var d = next && PL.partyDate(next);
+    if (!d) return head + "Nothing planned yet";
+    var n = H.dayDiff(d, now), t = next.title || "your party";
+    if (n <= 0) return head + t + " is tonight";
+    if (n === 1) return head + t + " is tomorrow";
+    return head + n + " days until " + t;
+  };
+})(PL.home);
 </script>
 <script id="logic-invite">
 window.PL = window.PL || {};
@@ -1831,17 +2111,23 @@ const PhotoAlbumTab = ({ party, addPhotos, removePhoto, requestPhotoRemoval, res
   );
 };
 const BottomNav = ({ screen, navigate }) => {
+  // Floating glass bar: six tabs, simple stroke icons, the Host tab is a raised green "+".
   const tabs = [
-    { id: "home", icon: "\u{1F3E0}", label: "Home" },
-    { id: "calendar", icon: "\u{1F4C5}", label: "Calendar" },
-    { id: "create", icon: "\u{1F389}", label: "Host" },
-    { id: "friends", icon: "\u{1F465}", label: "Friends" },
-    { id: "discover", icon: "\u{1F50D}", label: "Discover" },
-    { id: "profile", icon: "\u{1F464}", label: "Profile" }
+    { id: "home", label: "Home", d: ["M3 10.5 12 3l9 7.5", "M5 9v12h5v-6h4v6h5V9"] },
+    { id: "calendar", label: "Calendar", d: ["M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z", "M3 10h18", "M8 3v4", "M16 3v4"] },
+    { id: "create", label: "Host", d: ["M12 5v14", "M5 12h14"] },
+    { id: "friends", label: "Friends", d: ["M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", "M22 21v-2a4 4 0 0 0-3-3.87", "M16 3.13a4 4 0 0 1 0 7.75"] },
+    { id: "discover", label: "Discover", d: ["M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z", "M21 21l-4.35-4.35"] },
+    { id: "profile", label: "Profile", d: ["M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2", "M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"] }
   ];
-  return /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 0, left: 0, right: 0, background: "var(--bar)", borderTop: "1px solid var(--w10)", display: "flex", zIndex: 100, paddingBottom: "env(safe-area-inset-bottom,8px)" } }, tabs.map((t) => {
+  const icon = (d) => React.createElement("svg", { viewBox: "0 0 24 24", "aria-hidden": "true" }, d.map((p, i) => React.createElement("path", { key: i, d: p })));
+  return React.createElement("nav", { className: "rdn-bar", "aria-label": "Main" }, tabs.map((t) => {
     const active = screen === t.id || screen === "createParty" && t.id === "create";
-    return /* @__PURE__ */ React.createElement("button", { key: t.id, onClick: () => navigate(t.id === "create" ? "createParty" : t.id), style: { flex: 1, padding: "10px 4px 6px", background: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, opacity: active ? 1 : 0.5, transition: "opacity 0.2s" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: t.id === "create" ? 26 : 22, lineHeight: 1 } }, t.icon), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: active ? 700 : 400, color: active ? "#00ff41" : "var(--w60)" } }, t.label), active && /* @__PURE__ */ React.createElement("div", { style: { width: 20, height: 3, background: "linear-gradient(90deg,#00ff41,#00d944)", borderRadius: 2, marginTop: 2 } }));
+    const isFab = t.id === "create";
+    return React.createElement("button", { key: t.id, className: "rdn-tab" + (active ? " on" : "") + (isFab ? " rdn-host" : ""), "aria-current": active ? "page" : undefined, "aria-label": isFab ? "Host a party" : t.label, onClick: () => navigate(isFab ? "createParty" : t.id) },
+      isFab ? React.createElement("span", { className: "rdn-fab" }, icon(t.d)) : icon(t.d),
+      React.createElement("span", { className: "rdn-label" }, t.label)
+    );
   }));
 };
 const CountdownBox = ({ label, value }) => /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", minWidth: 58 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "rgba(0,255,65,0.15)", border: "1px solid rgba(0,255,65,0.4)", borderRadius: 12, padding: "10px 6px", marginBottom: 4 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 26, fontWeight: 800, lineHeight: 1, color: "#00ff41" } }, String(value).padStart(2, "0"))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "var(--w50)", fontWeight: 500 } }, label));
@@ -2086,62 +2372,268 @@ const followLabel = (currentUser, profile) => {
   return { text: profile.is_public ? "Follow" : "Add Friend", action: "follow" };
 };
 const HomeScreen = () => {
-  const { currentUser, navigate, screenData, getHostedParties, getPendingInvites, getUpcomingParties, getUser, parties, users, getUnreadPops, getMutualFriendSuggestions, sendFriendRequest, follow, unfollow, getUnreadMessageCount } = useApp();
-  const bgGrad = "var(--bg)";
-  const headerBg = "var(--header-home)";
-  const headerBorder = "var(--w08)";
-  const textColor = "var(--text)";
-  const secondaryText = "var(--w50)";
-  const hosted = getHostedParties();
+  const { currentUser, navigate, getUser, parties, getPendingInvites, getUnreadPops, getMutualFriendSuggestions, follow, unfollow, getUnreadMessageCount, updateParty } = useApp();
+  const H = window.PL.home;
+  const me = currentUser?.id;
   const pending = getPendingInvites();
   const unreadPops = getUnreadPops ? getUnreadPops() : [];
   const unreadMsgs = getUnreadMessageCount ? getUnreadMessageCount() : 0;
-  const upcoming = getUpcomingParties();
+  const notifCount = pending.length + unreadPops.length + unreadMsgs;
   const [homeToast, setHomeToast] = useState(null);
   const showHomeToast = (msg, type = "success") => { setHomeToast({ msg, type }); setTimeout(() => setHomeToast(null), 2500); };
   const suggestions = getMutualFriendSuggestions ? getMutualFriendSuggestions() : [];
-  const nextParty = useMemo(() => {
-    const startOfToday = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
-    const notPast = (p) => { const ds = p.confirmedDate?.date || p.dates[0]?.date; return ds && new Date(ds) >= startOfToday; };
-    const all = [...upcoming, ...hosted.filter((p) => p.status === "upcoming")];
-    const sorted = all.filter((p) => (p.confirmedDate || p.dates.length > 0) && notPast(p)).sort((a, b) => {
-      const da = new Date(a.confirmedDate?.date || a.dates[0]?.date || "9999");
-      const db = new Date(b.confirmedDate?.date || b.dates[0]?.date || "9999");
-      return da - db;
-    });
-    return sorted[0] || null;
-  }, [upcoming, hosted]);
-  const photoFeed = useMemo(() => {
-    const myPartyIds = /* @__PURE__ */ new Set([...hosted.map((p) => p.id), ...upcoming.map((p) => p.id)]);
-    const photos = [];
-    parties.forEach((p) => {
-      if (myPartyIds.has(p.id) && p.photos.length > 0) {
-        p.photos.forEach((ph) => photos.push({ ...ph, partyTitle: p.title, partyId: p.id }));
-      }
-    });
-    return photos.sort((a, b) => b.timestamp - a.timestamp).slice(0, 20);
-  }, [parties, hosted, upcoming]);
-  return /* @__PURE__ */ React.createElement("div", { className: "screen", style: { background: bgGrad, paddingBottom: 80 } }, homeToast && /* @__PURE__ */ React.createElement(Toast, { msg: homeToast.msg, type: homeToast.type }), /* @__PURE__ */ React.createElement("div", { style: { background: headerBg, backdropFilter: "blur(20px)", padding: "50px 20px 16px", borderBottom: "1px solid " + headerBorder, position: "sticky", top: 0, zIndex: 50 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ React.createElement("img", { src: "https://partico.app/partico-logo.png", width: "36", height: "36", alt: "Partico", style: { borderRadius: 9, display: "block", boxShadow: "0 0 12px rgba(0,255,65,0.35)" } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 900, background: "linear-gradient(90deg,#00ff41,#00d944)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" } }, "Partico"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: secondaryText } }, "Hey ", currentUser?.firstName, "! Ready to party?"))), /* @__PURE__ */ React.createElement("button", { onClick: () => navigate("notifications"), style: { background: "var(--w08)", border: "1px solid var(--w10)", borderRadius: 12, width: 42, height: 42, fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" } }, "\u{1F514}", (pending.length + unreadPops.length + unreadMsgs) > 0 && /* @__PURE__ */ React.createElement("span", { style: { position: "absolute", top: -4, right: -4, background: "#00ff41", borderRadius: "50%", width: 18, height: 18, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" } }, pending.length + unreadPops.length + unreadMsgs)))), nextParty && /* @__PURE__ */ React.createElement("div", { style: { margin: "16px", padding: 20, background: "linear-gradient(135deg,rgba(0,255,65,0.15),rgba(124,58,237,0.15))", border: "1px solid rgba(0,255,65,0.3)", borderRadius: 20, animation: "fadeIn 0.4s ease" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: "var(--w50)", letterSpacing: 1, marginBottom: 4 } }, "NEXT PARTY"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 700, marginBottom: 12, color: "#00ff41", cursor: "pointer" }, onClick: () => navigate(nextParty.hostId === currentUser?.id ? "partyManage" : "partyDetail", { partyId: nextParty.id }) }, nextParty.title, " \u{1F38A}"), /* @__PURE__ */ React.createElement(Countdown, { dateStr: nextParty.confirmedDate?.date || nextParty.dates[0]?.date, timeStr: nextParty.confirmedDate?.time || nextParty.dates[0]?.time })), /* @__PURE__ */ React.createElement("div", { style: { margin: "0 16px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700 } }, "\u{1F4E8} Pending Invites ", pending.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, pending.length))), pending.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "card", style: { textAlign: "center", padding: 20, color: "var(--w40)", fontSize: 14 } }, "No pending invites \u{1F388}") : pending.map((p) => {
-    const host = getUser(p.hostId);
-    const dateStr = p.confirmedDate ? fmtDate(p.confirmedDate.date) : p.dates.length > 0 ? fmtDate(p.dates[0].date) : "Date TBD";
-    return /* @__PURE__ */ React.createElement("div", { key: p.id, className: "card", style: { marginBottom: 10, cursor: "pointer", animation: "fadeIn 0.3s ease" }, onClick: () => navigate("invitation", { partyId: p.id }) }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 16, marginBottom: 2 } }, p.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "var(--w50)" } }, "hosted by ", host?.firstName, " ", host?.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w40)", marginTop: 4 } }, "\u{1F4C5} ", dateStr)), /* @__PURE__ */ React.createElement(StatusBadge, { status: "pending" })), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { marginTop: 12, padding: "10px" }, onClick: (e) => {
-      e.stopPropagation();
-      navigate("invitation", { partyId: p.id });
-    } }, "View Invite \u{1F389}"));
-  })), /* @__PURE__ */ React.createElement("div", { style: { margin: "0 16px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700 } }, "\u{1F3A4} I'm Hosting ", hosted.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, hosted.length)), /* @__PURE__ */ React.createElement("span", { onClick: () => navigate("createParty"), style: { fontSize: 13, color: "#00ff41", cursor: "pointer", fontWeight: 600 } }, "+ New")), hosted.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "card", style: { textAlign: "center", padding: 20, color: "var(--w40)", fontSize: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 32, marginBottom: 8 } }, "\u{1F973}"), "Ready to host? ", /* @__PURE__ */ React.createElement("span", { onClick: () => navigate("createParty"), style: { color: "#00ff41", cursor: "pointer", fontWeight: 600 } }, "Create your first party")) : hosted.map((p) => {
-    const accepted = p.invites.filter((i) => i.status === "accepted").length;
-    const total = p.invites.length;
-    const headcount = accepted + p.invites.filter((i) => i.status === "accepted" && i.plusOneRequested && i.plusOneApproved).length;
-    const dateStr = p.confirmedDate ? fmtDate(p.confirmedDate.date) : p.dates.length > 0 ? fmtDate(p.dates[0].date) : "Date TBD";
-    return /* @__PURE__ */ React.createElement("div", { key: p.id, className: "card", style: { marginBottom: 10, cursor: "pointer", animation: "fadeIn 0.3s ease" }, onClick: () => navigate("partyManage", { partyId: p.id }) }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 16 } }, p.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w40)", marginTop: 2 } }, "\u{1F4C5} ", dateStr)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w50)", background: "var(--w07)", padding: "4px 10px", borderRadius: 20 } }, p.isPrivate ? "\u{1F512} Private" : (p.audience === "friends" ? "\u{1F465} Friends only" : p.audience === "mutual" ? "\u{1F91D} Mutual friends" : "\u{1F30D} Public"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, fontSize: 13, color: "var(--w60)" } }, /* @__PURE__ */ React.createElement("span", null, "\u{1F465} ", headcount, " going"), /* @__PURE__ */ React.createElement("span", null, "\u{1F4F8} ", p.photos.length, " photos")), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", style: { marginTop: 10, padding: "9px" }, onClick: (e) => {
-      e.stopPropagation();
-      navigate("partyManage", { partyId: p.id });
-    } }, "Manage Event \u2699\uFE0F"));
-  })), /* @__PURE__ */ React.createElement("div", { style: { margin: "0 16px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700, marginBottom: 10 } }, "\u{1F38A} Upcoming Parties ", upcoming.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, upcoming.length)), upcoming.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "card", style: { textAlign: "center", padding: 20, color: "var(--w40)", fontSize: 14 } }, "No upcoming parties yet \u{1F388}") : upcoming.map((p) => {
-    const host = getUser(p.hostId);
-    const dateStr = p.confirmedDate ? fmtDate(p.confirmedDate.date) : p.dates.length > 0 ? fmtDate(p.dates[0].date) : "Date TBD";
-    return /* @__PURE__ */ React.createElement("div", { key: p.id, className: "card", style: { marginBottom: 10, cursor: "pointer" }, onClick: () => navigate("partyDetail", { partyId: p.id }) }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, p.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w50)", marginTop: 2 } }, "by ", host?.firstName, " ", host?.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "var(--w40)", marginTop: 2 } }, "\u{1F4C5} ", dateStr)), /* @__PURE__ */ React.createElement(StatusBadge, { status: "accepted" })));
-  })), /* @__PURE__ */ React.createElement(PinBoard, { currentUser, parties, navigate }), photoFeed.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { margin: "0 16px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700, marginBottom: 10 } }, "\u{1F4F8} Party Memories"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 } }, photoFeed.map((ph) => /* @__PURE__ */ React.createElement("div", { key: ph.id, style: { position: "relative", paddingTop: "100%", borderRadius: 10, overflow: "hidden", background: "var(--w05)", cursor: "pointer" }, onClick: () => navigate("partyDetail", { partyId: ph.partyId, tab: "photos" }) }, /* @__PURE__ */ React.createElement("img", { src: ph.dataUrl, style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }, alt: "" }), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent,rgba(0,0,0,0.7))", padding: "8px 6px 4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "var(--w80)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, ph.partyTitle)))))), suggestions.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { margin: "0 16px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700, marginBottom: 10 } }, "\u{1F465} People You May Know"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8 } }, suggestions.map(({ user, mutualCount }) => /* @__PURE__ */ React.createElement("div", { key: user.id, style: { background: "var(--w07)", border: "1px solid var(--w12)", borderRadius: 16, padding: "14px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, minWidth: 120, flexShrink: 0 } }, /* @__PURE__ */ React.createElement(Avatar, { user, size: 50 }), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, textAlign: "center", lineHeight: 1.3 } }, user.firstName, " ", user.lastName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "var(--w45)", textAlign: "center" } }, mutualCount, " mutual ", mutualCount === 1 ? "friend" : "friends"), (() => { const { text, action } = followLabel(currentUser, user); return /* @__PURE__ */ React.createElement("button", { onClick: () => { if (action === "follow") { follow(user.id); showHomeToast("Done \u{1F44B}"); } else if (action === "unfollow") { unfollow(user.id); } }, disabled: action === "none", style: { background: "linear-gradient(135deg,#00ff41,#00d944)", color: "#fff", border: "none", borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: action === "none" ? "default" : "pointer", opacity: action === "none" ? 0.6 : 1, width: "100%" } }, text); })())))), /* @__PURE__ */ React.createElement(BottomNav, { screen: "home", navigate }));
+  // "now" refreshes every minute so the greeting, header line and "In N days" pills stay current.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 6e4); return () => clearInterval(t); }, []);
+  const nextParty = useMemo(() => H.nextParty(parties, me, now), [parties, me, now]);
+  const comingUp = useMemo(() => H.attending(parties, me, now).filter((p) => !nextParty || p.id !== nextParty.id), [parties, me, now, nextParty]);
+  const hosting = useMemo(() => H.hosting(parties, me, now), [parties, me, now]);
+  const invites = useMemo(() => pending.filter((p) => { const d = PL.partyDate(p); return !d || H.dayDiff(d, now) >= 0; }).sort((a, b) => (PL.partyDate(a) || 8e15) - (PL.partyDate(b) || 8e15)), [pending, now]);
+  // Collapsing header + hero parallax, driven by the .screen scroll container.
+  const scrollRef = useRef(null);
+  const coverRef = useRef(null);
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const y = el.scrollTop;
+        setCompact(y > 30);
+        if (coverRef.current && !reduce) coverRef.current.style.transform = "translateY(" + Math.min(y, 400) * 0.3 + "px) scale(" + (1 + Math.min(y, 300) / 1200) + ")";
+      });
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => { el.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, []);
+  const openParty = (p) => navigate(p.hostId === me ? "partyManage" : "partyDetail", { partyId: p.id });
+  const toggleChecklist = (p, id) => {
+    const wasDone = H.checklistProgress(p).allDone;
+    const next = H.toggleChecklistItem(p, id);
+    updateParty(p.id, { checklist: next });
+    if (!wasDone && next.every((c) => c.done)) { homeConfetti(); showHomeToast("Prep done for " + p.title + " \u{1F389}"); }
+  };
+  const secHead = (title, right) => React.createElement("div", { className: "rdh-sec-h" }, React.createElement("h3", { className: "rd-display" }, title), right || null);
+  const greet = H.greeting(now) + ", " + (currentUser?.firstName || "there");
+
+  // 1. Collapsing header
+  const header = React.createElement("header", { className: "rdh-appbar" + (compact ? " compact" : "") },
+    React.createElement("img", { src: "https://partico.app/partico-logo.png", alt: "Partico", className: "rdh-logo" }),
+    React.createElement("div", { className: "rdh-greet" },
+      React.createElement("small", null, H.headerLine(nextParty, now)),
+      React.createElement("b", { className: "rd-display" }, greet)
+    ),
+    React.createElement("button", { className: "rdh-iconbtn", "aria-label": "Notifications" + (notifCount ? " (" + notifCount + " new)" : ""), onClick: () => navigate("notifications") },
+      React.createElement("svg", { viewBox: "0 0 24 24", "aria-hidden": "true" }, React.createElement("path", { d: "M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" }), React.createElement("path", { d: "M10 21a2 2 0 0 0 4 0" })),
+      notifCount > 0 && React.createElement("i", { className: "rdh-badge" }, notifCount)
+    )
+  );
+
+  // 2. Hero: next party
+  let hero;
+  if (nextParty) {
+    const when = PL.partyDate(nextParty);
+    const b = H.rsvpBreakdown(nextParty);
+    const goers = (nextParty.invites || []).filter((i) => i.status === "accepted");
+    const place = nextParty.location?.address;
+    hero = React.createElement("section", { className: "rdh-sec" },
+      React.createElement("div", { className: "rdh-hero cover-dark", role: "button", tabIndex: 0, onClick: () => openParty(nextParty), onKeyDown: (e) => { if (e.key === "Enter") openParty(nextParty); } },
+        React.createElement("div", { ref: coverRef, className: "rdh-cover", style: homeCoverStyle(nextParty) }),
+        React.createElement("span", { className: "rdh-chip" }, React.createElement("span", { className: "rdh-dot" }), "Next up \xB7 ", nextParty.hostId === me ? "you're hosting" : "you're going"),
+        React.createElement("h2", { className: "rd-display" }, nextParty.title),
+        React.createElement("div", { className: "rdh-meta" }, [H.fmtShort(when), H.fmtTime(when), place].filter(Boolean).join(" \xB7 ")),
+        React.createElement(HomeCountdown, { target: when }),
+        React.createElement("div", { className: "rdh-goers" },
+          goers.length > 0 && React.createElement("div", { className: "rdh-stack" },
+            goers.slice(0, 4).map((i) => React.createElement("span", { key: i.userId, className: "rdh-stack-av" }, React.createElement(Avatar, { user: getUser(i.userId), size: 28 }))),
+            b.going > Math.min(4, goers.length) && React.createElement("span", { className: "rdh-stack-av rdh-more" }, "+" + (b.going - Math.min(4, goers.length)))
+          ),
+          React.createElement("small", null, b.going + " going" + (b.maybe ? " \xB7 " + b.maybe + " maybe" : "")),
+          React.createElement("button", { className: "rdh-btn rdh-btn-g", onClick: (e) => { e.stopPropagation(); openParty(nextParty); } }, "Open")
+        )
+      )
+    );
+  } else {
+    hero = React.createElement("section", { className: "rdh-sec" },
+      React.createElement("div", { className: "rdh-empty" },
+        React.createElement("b", { className: "rd-display" }, "Nothing on the horizon"),
+        React.createElement("span", { className: "rdh-dim" }, "Throw something together. It takes a minute."),
+        React.createElement("button", { className: "rdh-btn rdh-btn-g", onClick: () => navigate("createParty") }, "Create a party")
+      )
+    );
+  }
+
+  // 3. You've been invited
+  const invitedSec = invites.length > 0 && React.createElement(Reveal, { className: "rdh-sec" },
+    secHead("You've been invited", React.createElement("span", { className: "rdh-dim rdh-small" }, invites.length + " waiting")),
+    React.createElement("div", { className: "rdh-swipe" }, invites.map((p) => {
+      const host = getUser(p.hostId);
+      const d = PL.partyDate(p);
+      const dateLabel = !p.confirmedDate && (p.dates || []).length > 1 ? p.dates.length + " date options" : H.fmtShort(d);
+      const go = () => navigate("invitation", { partyId: p.id });
+      return React.createElement("div", { key: p.id, className: "rdh-inv cover-dark", role: "button", tabIndex: 0, onClick: go, onKeyDown: (e) => { if (e.key === "Enter") go(); } },
+        React.createElement("div", { className: "rdh-inv-cover", style: homeCoverStyle(p) }),
+        React.createElement("span", { className: "rdh-env", "aria-hidden": "true" }, "\u{1F48C}"),
+        React.createElement("div", { className: "rdh-from" }, React.createElement(Avatar, { user: host, size: 24 }), React.createElement("span", null, (host ? (host.firstName + " " + (host.lastName || "")).trim() : "Someone") + " invited you")),
+        React.createElement("div", null,
+          React.createElement("b", { className: "rd-display" }, p.title),
+          React.createElement("small", null, [dateLabel, p.location?.address].filter(Boolean).join(" \xB7 "))
+        ),
+        React.createElement("button", { className: "rdh-btn rdh-btn-g", onClick: (e) => { e.stopPropagation(); go(); } }, "Open invite")
+      );
+    }))
+  );
+
+  // 4. Coming up
+  const comingSec = comingUp.length > 0 && React.createElement(Reveal, { className: "rdh-sec" },
+    secHead("Coming up"),
+    React.createElement("div", { className: "rdh-list" }, comingUp.map((p) => React.createElement(HomePartyRow, { key: p.id, party: p, role: "going", host: getUser(p.hostId), onClick: () => openParty(p) })))
+  );
+
+  // 6. You're hosting
+  const hostSec = React.createElement(Reveal, { className: "rdh-sec" },
+    secHead("You're hosting", React.createElement("button", { className: "rdh-link", onClick: () => navigate("createParty") }, "+ New party")),
+    hosting.length === 0
+      ? React.createElement("div", { className: "rdh-empty rdh-empty-sm" },
+          React.createElement("span", { className: "rdh-dim" }, "You're not hosting anything yet."),
+          React.createElement("button", { className: "rdh-btn rdh-btn-g", onClick: () => navigate("createParty") }, "Host a party"))
+      : React.createElement("div", { className: "rdh-list" }, hosting.map((p) => React.createElement(HomeHostCard, { key: p.id, party: p, now, navigate, onToggle: toggleChecklist })))
+  );
+
+  // 8. People you may know
+  const peopleSec = suggestions.length > 0 && React.createElement(Reveal, { className: "rdh-sec" },
+    secHead("People you may know", React.createElement("button", { className: "rdh-link", onClick: () => navigate("friends") }, "Find friends")),
+    React.createElement("div", { className: "rdh-ppl" }, suggestions.map(({ user, mutualCount }) => {
+      const { text, action } = followLabel(currentUser, user);
+      return React.createElement("div", { key: user.id, className: "rdh-person" },
+        React.createElement(Avatar, { user, size: 48 }),
+        React.createElement("b", null, user.firstName, " ", user.lastName),
+        React.createElement("small", null, mutualCount, " mutual ", mutualCount === 1 ? "friend" : "friends"),
+        React.createElement("button", { className: "rdh-btn " + (action === "follow" ? "rdh-btn-g" : "rdh-btn-ghost"), disabled: action === "none", onClick: () => { if (action === "follow") { follow(user.id); showHomeToast("Done \u{1F44B}"); } else if (action === "unfollow") { unfollow(user.id); } } }, text)
+      );
+    }))
+  );
+
+  return React.createElement("div", { ref: scrollRef, className: "screen rdh-screen", style: { background: "var(--bg)" } },
+    homeToast && React.createElement(Toast, { msg: homeToast.msg, type: homeToast.type }),
+    header,
+    hero,
+    invitedSec,
+    comingSec,
+    React.createElement(Reveal, { className: "rdh-sec" }, React.createElement(HomeWeek, { parties, me, now, getUser, navigate, openParty, secHead })),
+    hostSec,
+    React.createElement(Reveal, null, React.createElement(MemoriesSection, { currentUser, parties, navigate })),
+    peopleSec,
+    React.createElement(BottomNav, { screen: "home", navigate })
+  );
+};
+// Cover photo, else the event type's gradient.
+const homeCoverStyle = (p) => p.coverImage ? { backgroundImage: "url(" + JSON.stringify(p.coverImage) + ")" } : { background: getEventTheme(p.eventType).grad };
+// Little burst of confetti when the host finishes their prep list. Skipped for reduced motion.
+const homeConfetti = () => {
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const box = document.createElement("div");
+  box.className = "rdh-confetti";
+  const cols = ["#00ff41", "#ffb020", "#8b5cf6", "#ff4d8d", "#60a5fa"];
+  for (let i = 0; i < 70; i++) {
+    const s = document.createElement("i");
+    s.style.left = Math.random() * 100 + "%";
+    s.style.background = cols[i % cols.length];
+    s.style.animationDelay = Math.random() * 0.3 + "s";
+    s.style.animationDuration = 1.2 + Math.random() * 0.9 + "s";
+    s.style.setProperty("--rdh-x", (Math.random() * 160 - 80) + "px");
+    s.style.setProperty("--rdh-r", Math.round(Math.random() * 720 - 360) + "deg");
+    box.appendChild(s);
+  }
+  document.body.appendChild(box);
+  setTimeout(() => box.remove(), 2600);
+};
+// Four boxes (days/hrs/min/sec) whose digits tick as they change.
+const HomeCountdown = ({ target }) => {
+  const H = window.PL.home;
+  const [cd, setCd] = useState(() => H.countdownParts(target, new Date()));
+  const t = target ? target.getTime() : 0;
+  useEffect(() => {
+    setCd(H.countdownParts(target, new Date()));
+    const iv = setInterval(() => setCd(H.countdownParts(target, new Date())), 1e3);
+    return () => clearInterval(iv);
+  }, [t]);
+  if (!cd) return React.createElement("div", { className: "rdh-now" }, "It's party time \u{1F389}");
+  const box = (v, l) => { const s = String(v).padStart(2, "0"); return React.createElement("div", { key: l }, React.createElement("b", { key: s, className: "rd-display" }, s), React.createElement("span", null, l)); };
+  return React.createElement("div", { className: "rdh-count", role: "timer", "aria-label": cd.d + " days " + cd.h + " hours " + cd.m + " minutes to go" }, box(cd.d, "days"), box(cd.h, "hrs"), box(cd.m, "min"), box(cd.s, "sec"));
+};
+// Compact party row: date box, title, date · time · host, status pill.
+const HomePartyRow = ({ party, role, host, onClick }) => {
+  const H = window.PL.home;
+  const d = PL.partyDate(party);
+  const by = role === "host" ? "you're hosting" : host ? "by " + host.firstName : "";
+  return React.createElement("div", { className: "rdh-row", role: "button", tabIndex: 0, onClick, onKeyDown: (e) => { if (e.key === "Enter") onClick(); } },
+    React.createElement("div", { className: "rdh-datebox" }, React.createElement("span", null, H.fmtMonth(d).toUpperCase() || "TBD"), React.createElement("b", { className: "rd-display" }, d ? d.getDate() : "?")),
+    React.createElement("div", { className: "rdh-row-tx" }, React.createElement("b", null, party.title), React.createElement("small", null, [H.fmtShort(d), H.fmtTime(d), by].filter(Boolean).join(" \xB7 "))),
+    React.createElement("span", { className: "rdh-st " + (role === "host" ? "host" : "going") }, role === "host" ? "Hosting" : "Going")
+  );
+};
+// Mon-Sun strip; tap a day to see what's on.
+const HomeWeek = ({ parties, me, now, getUser, navigate, openParty, secHead }) => {
+  const H = window.PL.home;
+  const week = H.weekStrip(parties, me, now);
+  const todayKey = (week.find((d) => d.isToday) || week[0]).key;
+  const [sel, setSel] = useState(todayKey);
+  const day = week.find((d) => d.key === sel) || week.find((d) => d.isToday) || week[0];
+  const label = day.isToday ? "today" : H.fmtShort(day.date);
+  return React.createElement(React.Fragment, null,
+    secHead("This week"),
+    React.createElement("div", { className: "rdh-week" }, week.map((d) => React.createElement("button", { key: d.key, className: "rdh-day" + (d.isToday ? " today" : "") + (d.key === day.key ? " sel" : ""), "aria-pressed": d.key === day.key, "aria-label": H.fmtShort(d.date) + (d.parties.length ? ", " + d.parties.length + " part" + (d.parties.length === 1 ? "y" : "ies") : ""), onClick: () => setSel(d.key) },
+      React.createElement("span", null, d.label),
+      React.createElement("b", { className: "rd-display" }, d.day),
+      React.createElement("i", null, d.parties.slice(0, 3).map((x) => React.createElement("em", { key: x.party.id, className: x.role === "host" ? "h" : "" })))
+    ))),
+    React.createElement("div", { className: "rdh-dayl" }, day.parties.length
+      ? day.parties.map((x) => React.createElement(HomePartyRow, { key: x.party.id, party: x.party, role: x.role, host: getUser(x.party.hostId), onClick: () => openParty(x.party) }))
+      : React.createElement("div", { className: "rdh-none" }, "Nothing on " + label + ". ", React.createElement("button", { className: "rdh-link", onClick: () => navigate("createParty") }, "Plan something?")))
+  );
+};
+// Segmented RSVP bar (going / maybe / no reply / can't go) that grows in when scrolled into view.
+const HomeRsvpBar = ({ party }) => {
+  const b = window.PL.home.rsvpBreakdown(party);
+  const ref = useRef(null);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !window.IntersectionObserver) { setShown(true); return; }
+    const io = new IntersectionObserver((ents) => { if (ents.some((en) => en.isIntersecting)) { setShown(true); io.disconnect(); } }, { threshold: 0.3 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  const total = Math.max(1, b.accepted + b.maybe + b.pending + b.declined);
+  const segs = [["accepted", "going", "rdh-c-going"], ["maybe", "maybe", "rdh-c-maybe"], ["pending", "no reply", "rdh-c-pending"], ["declined", "can't go", "rdh-c-declined"]];
+  return React.createElement(React.Fragment, null,
+    React.createElement("div", { ref, className: "rdh-seg", role: "img", "aria-label": segs.map((s) => b[s[0]] + " " + s[1]).join(", ") },
+      segs.filter((s) => b[s[0]] > 0).map((s) => React.createElement("div", { key: s[0], className: s[2], style: { width: shown ? (100 * b[s[0]] / total).toFixed(1) + "%" : 0 } }))),
+    React.createElement("div", { className: "rdh-legend" }, segs.map((s) => React.createElement("span", { key: s[0] }, React.createElement("i", { className: s[2] }), b[s[0]] + " " + s[1])))
+  );
+};
+// One card per upcoming hosted party: RSVPs, plus-one requests and a tap-to-tick prep list.
+const HomeHostCard = ({ party, now, navigate, onToggle }) => {
+  const H = window.PL.home;
+  const d = PL.partyDate(party);
+  const plus = H.pendingPlusOnes(party);
+  const prog = H.checklistProgress(party);
+  const manage = () => navigate("partyManage", { partyId: party.id });
+  return React.createElement("div", { className: "rdh-host" },
+    React.createElement("div", { className: "rdh-host-t", role: "button", tabIndex: 0, onClick: manage, onKeyDown: (e) => { if (e.key === "Enter") manage(); } },
+      React.createElement("div", null, React.createElement("b", null, party.title), React.createElement("small", null, H.fmtShort(d) + " \xB7 " + (party.invites || []).length + " invited")),
+      React.createElement("span", { className: "rdh-pill" }, H.relativeDays(d, now))
+    ),
+    React.createElement(HomeRsvpBar, { party }),
+    plus > 0 && React.createElement("button", { className: "rdh-pill amber rdh-plus", onClick: manage }, plus + " plus-one request" + (plus > 1 ? "s" : "") + " to review →"),
+    React.createElement("div", { className: "rdh-todo" }, prog.items.map((c) => React.createElement("button", { key: c.id, className: c.done ? "ok" : "", "aria-pressed": !!c.done, onClick: () => onToggle(party, c.id) }, c.text))),
+    React.createElement("div", { className: "rdh-prog" }, "Prep " + prog.done + "/" + prog.total + " done" + (prog.allDone ? " \u{1F389}" : ""))
+  );
 };
 // Cork Board Style Pinboard with Draggable Polaroids & Persistent Positions
 const PinBoard = ({ currentUser, parties, navigate }) => {
