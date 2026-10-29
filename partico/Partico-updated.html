@@ -184,7 +184,7 @@ input.input-field[type="date"],input.input-field[type="time"]{min-width:0;font-s
 </style>
 <style id="rd-nav">
 /* Floating glass tab bar. Sits ~58px tall, a little above the home indicator, so screens' 80-100px bottom padding still clears it. */
-.rdn-bar{position:fixed;z-index:100;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:560px;bottom:max(8px,calc(env(safe-area-inset-bottom,0px) - 12px));height:58px;display:grid;grid-template-columns:repeat(6,1fr);align-items:center;border-radius:22px;background:var(--bar);border:1px solid var(--w10);box-shadow:0 10px 30px rgba(0,0,0,.28);}
+.rdn-bar{position:fixed;z-index:100;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:560px;bottom:max(8px,calc(env(safe-area-inset-bottom,0px) - 12px));height:58px;display:grid;grid-template-columns:repeat(5,1fr);align-items:center;border-radius:22px;background:var(--bar);border:1px solid var(--w10);box-shadow:0 10px 30px rgba(0,0,0,.28);}
 @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
   .rdn-bar{background:color-mix(in srgb,var(--surface) 78%,transparent);-webkit-backdrop-filter:blur(20px) saturate(1.4);backdrop-filter:blur(20px) saturate(1.4);}
 }
@@ -299,6 +299,21 @@ input.input-field[type="date"],input.input-field[type="time"]{min-width:0;font-s
 .rdh-day.today span{--text:var(--bg);opacity:.6;}
 .rdh-day.sel{outline:2px solid #00ff41;outline-offset:1px;}
 .rdh-dayl{margin-top:10px;display:grid;gap:6px;}
+.rdh-expand{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:700;}
+.rdh-expand svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;transition:transform .25s ease;}
+.rdh-expand svg.up{transform:rotate(180deg);}
+.rdh-month{animation:rdFadeUp .35s ease both;}
+.rdh-month-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;text-align:center;}
+.rdh-month-h b{display:block;font-size:17px;font-weight:700;}
+.rdh-month-h small{font-size:12px;--text:var(--w50);}
+.rdh-mnav{width:36px;height:36px;border-radius:12px;background:var(--w05);border:1px solid var(--w10);font-size:22px;line-height:1;cursor:pointer;display:grid;place-items:center;}
+.rdh-mnav:active{transform:scale(.94);}
+.rdh-dow{margin-bottom:4px;}
+.rdh-dow span{text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.08em;--text:var(--w45);}
+.rdh-mgrid .rdh-day{padding:7px 0 5px;border-radius:12px;}
+.rdh-mgrid .rdh-day b{font-size:15px;}
+.rdh-day.out{opacity:.35;}
+.rdh-today{display:block;margin:10px auto 0;font-size:13px;}
 .rdh-none{font-size:13px;--text:var(--w60);}
 
 /* hosting */
@@ -338,7 +353,8 @@ input.input-field[type="date"],input.input-field[type="time"]{min-width:0;font-s
 
 @media (prefers-reduced-motion:reduce){
   .rdh-appbar,.rdh-logo,.rdh-greet b,.rdh-greet small,.rdh-seg div,.rdh-row,.rdh-day,.rdh-todo button,.rdh-btn{transition:none;}
-  .rdh-hero,.rdh-count b,.rdh-env,.rdh-dot,.rdh-badge{animation:none;}
+  .rdh-hero,.rdh-count b,.rdh-env,.rdh-dot,.rdh-badge,.rdh-month{animation:none;}
+  .rdh-expand svg{transition:none;}
 }
 </style>
 <style id="rd-invite">
@@ -924,18 +940,41 @@ PL.home = {};
     now = now || new Date();
     var today = startOfDay(now), mon = new Date(today.getTime());
     mon.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-    var mine = (parties || []).filter(function (p) { return p && userId && (p.hostId === userId || accepted(p, userId)); }).sort(bySoonest);
+    var on = partiesOnDay(parties, userId);
     var out = [];
     for (var i = 0; i < 7; i++) {
       var d = new Date(mon.getTime()); d.setDate(mon.getDate() + i);
       var key = ymd(d);
-      out.push({
-        key: key, date: d, label: DN[d.getDay()], day: d.getDate(), isToday: key === ymd(today),
-        parties: mine.filter(function (p) { var pd = PL.partyDate(p); return pd && ymd(pd) === key; })
-          .map(function (p) { return { party: p, role: p.hostId === userId ? "host" : "going" }; })
-      });
+      out.push({ key: key, date: d, label: DN[d.getDay()], day: d.getDate(), isToday: key === ymd(today), parties: on(key) });
     }
     return out;
+  };
+  // Returns key -> [{ party, role }] for the parties I host ("host") or have accepted ("going").
+  function partiesOnDay(parties, userId) {
+    var mine = (parties || []).filter(function (p) { return p && userId && (p.hostId === userId || accepted(p, userId)); }).sort(bySoonest);
+    return function (key) {
+      return mine.filter(function (p) { var pd = PL.partyDate(p); return pd && ymd(pd) === key; })
+        .map(function (p) { return { party: p, role: p.hostId === userId ? "host" : "going" }; });
+    };
+  }
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  // The month `offset` months from now's, as whole Mon-Sun weeks (days outside the month have inMonth: false).
+  H.monthGrid = function (parties, userId, now, offset) {
+    now = now || new Date();
+    var today = ymd(startOfDay(now));
+    var first = new Date(now.getFullYear(), now.getMonth() + (offset || 0), 1);
+    var month = first.getMonth();
+    var start = new Date(first.getTime()); start.setDate(1 - ((first.getDay() + 6) % 7));
+    var last = new Date(first.getFullYear(), month + 1, 0);
+    var cells = Math.ceil(((first.getDay() + 6) % 7 + last.getDate()) / 7) * 7;
+    var on = partiesOnDay(parties, userId), days = [], count = 0;
+    for (var i = 0; i < cells; i++) {
+      var d = new Date(start.getTime()); d.setDate(start.getDate() + i);
+      var key = ymd(d), inMonth = d.getMonth() === month, list = on(key);
+      if (inMonth) count += list.length;
+      days.push({ key: key, date: d, label: DN[d.getDay()], day: d.getDate(), inMonth: inMonth, isToday: key === today, parties: list });
+    }
+    return { title: MONTHS[month] + " " + first.getFullYear(), year: first.getFullYear(), month: month, days: days, count: count };
   };
   H.rsvpBreakdown = function (p) {
     var r = { accepted: 0, maybe: 0, pending: 0, declined: 0, total: 0, plusOnes: 0, going: 0 };
@@ -2891,12 +2930,11 @@ const PhotoAlbumTab = ({ party, addPhotos, removePhoto, requestPhotoRemoval, res
   );
 };
 const BottomNav = ({ screen, navigate }) => {
-  // Floating glass bar: six tabs, simple stroke icons, the Host tab is a raised green "+".
+  // Floating glass bar: five tabs, simple stroke icons, the Host tab is a raised green "+" in the middle.
   const tabs = [
     { id: "home", label: "Home", d: ["M3 10.5 12 3l9 7.5", "M5 9v12h5v-6h4v6h5V9"] },
-    { id: "calendar", label: "Calendar", d: ["M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z", "M3 10h18", "M8 3v4", "M16 3v4"] },
-    { id: "create", label: "Host", d: ["M12 5v14", "M5 12h14"] },
     { id: "friends", label: "Friends", d: ["M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", "M22 21v-2a4 4 0 0 0-3-3.87", "M16 3.13a4 4 0 0 1 0 7.75"] },
+    { id: "create", label: "Host", d: ["M12 5v14", "M5 12h14"] },
     { id: "discover", label: "Discover", d: ["M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z", "M21 21l-4.35-4.35"] },
     { id: "profile", label: "Profile", d: ["M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2", "M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"] }
   ];
@@ -3726,15 +3764,42 @@ const HomeWeek = ({ parties, me, now, getUser, navigate, openParty, secHead }) =
   const week = H.weekStrip(parties, me, now);
   const todayKey = (week.find((d) => d.isToday) || week[0]).key;
   const [sel, setSel] = useState(todayKey);
-  const day = week.find((d) => d.key === sel) || week.find((d) => d.isToday) || week[0];
+  const [expanded, setExpanded] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const month = expanded ? H.monthGrid(parties, me, now, offset) : null;
+  const cells = expanded ? month.days : week;
+  const day = cells.find((d) => d.key === sel) || cells.find((d) => d.isToday) || cells.find((d) => d.inMonth !== false) || cells[0];
   const label = day.isToday ? "today" : H.fmtShort(day.date);
+  const toggle = () => {
+    // Collapsing back to the week keeps the selection only if that day is in this week.
+    if (expanded && !week.some((d) => d.key === sel)) setSel(todayKey);
+    setOffset(0);
+    setExpanded(!expanded);
+  };
+  const step = (n) => {
+    const next = H.monthGrid(parties, me, now, offset + n);
+    setOffset(offset + n);
+    // Land on today in the current month, otherwise the first day with a party, otherwise the 1st.
+    const pick = next.days.find((d) => d.isToday && d.inMonth) || next.days.find((d) => d.inMonth && d.parties.length) || next.days.find((d) => d.inMonth);
+    setSel(pick.key);
+  };
+  const dayBtn = (d) => React.createElement("button", { key: d.key, className: "rdh-day" + (d.isToday ? " today" : "") + (d.key === day.key ? " sel" : "") + (d.inMonth === false ? " out" : ""), "aria-pressed": d.key === day.key, "aria-label": H.fmtShort(d.date) + (d.parties.length ? ", " + d.parties.length + " part" + (d.parties.length > 1 ? "ies" : "y") : ""), onClick: () => setSel(d.key) },
+    !expanded && React.createElement("span", null, d.label),
+    React.createElement("b", { className: "rd-display" }, d.day),
+    React.createElement("i", null, d.parties.slice(0, 3).map((x) => React.createElement("em", { key: x.party.id, className: x.role === "host" ? "h" : "" })))
+  );
   return React.createElement(React.Fragment, null,
-    secHead("This week"),
-    React.createElement("div", { className: "rdh-week" }, week.map((d) => React.createElement("button", { key: d.key, className: "rdh-day" + (d.isToday ? " today" : "") + (d.key === day.key ? " sel" : ""), "aria-pressed": d.key === day.key, "aria-label": H.fmtShort(d.date) + (d.parties.length ? ", " + d.parties.length + " part" + (d.parties.length === 1 ? "y" : "ies") : ""), onClick: () => setSel(d.key) },
-      React.createElement("span", null, d.label),
-      React.createElement("b", { className: "rd-display" }, d.day),
-      React.createElement("i", null, d.parties.slice(0, 3).map((x) => React.createElement("em", { key: x.party.id, className: x.role === "host" ? "h" : "" })))
-    ))),
+    secHead(expanded ? "This month" : "This week", React.createElement("button", { className: "rdh-link rdh-expand", "aria-expanded": expanded, onClick: toggle }, expanded ? "Show week" : "See month", React.createElement("svg", { viewBox: "0 0 24 24", "aria-hidden": "true", className: expanded ? "up" : "" }, React.createElement("path", { d: "M6 9l6 6 6-6" })))),
+    expanded
+      ? React.createElement("div", { className: "rdh-month" },
+          React.createElement("div", { className: "rdh-month-h" },
+            React.createElement("button", { className: "rdh-mnav", "aria-label": "Previous month", onClick: () => step(-1) }, "\u2039"),
+            React.createElement("div", null, React.createElement("b", { className: "rd-display" }, month.title), React.createElement("small", null, month.count ? month.count + " part" + (month.count > 1 ? "ies" : "y") : "Nothing planned yet")),
+            React.createElement("button", { className: "rdh-mnav", "aria-label": "Next month", onClick: () => step(1) }, "\u203A")),
+          React.createElement("div", { className: "rdh-week rdh-dow", "aria-hidden": "true" }, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((n) => React.createElement("span", { key: n }, n))),
+          React.createElement("div", { className: "rdh-week rdh-mgrid" }, month.days.map(dayBtn)),
+          offset !== 0 && React.createElement("button", { className: "rdh-link rdh-today", onClick: () => { setOffset(0); setSel(todayKey); } }, "Back to today"))
+      : React.createElement("div", { className: "rdh-week" }, week.map(dayBtn)),
     React.createElement("div", { className: "rdh-dayl" }, day.parties.length
       ? day.parties.map((x) => React.createElement(HomePartyRow, { key: x.party.id, party: x.party, role: x.role, host: getUser(x.party.hostId), onClick: () => openParty(x.party) }))
       : React.createElement("div", { className: "rdh-none" }, "Nothing on " + label + ". ", React.createElement("button", { className: "rdh-link", onClick: () => navigate("createParty") }, "Plan something?")))

@@ -101,6 +101,40 @@ test('weekStrip starts on Monday even when today is Sunday', () => {
   assert.strictEqual(week[6].isToday, true);
 });
 
+test('monthGrid lays out whole Mon-Sun weeks covering the month', () => {
+  const parties = [
+    party('first', '2026-10-01', { hostId: ME }),
+    party('go', '2026-10-30', { invites: [inv(ME, 'accepted')] }),
+    party('pend', '2026-10-12', { invites: [inv(ME, 'pending')] }),
+    party('nov', '2026-11-02', { invites: [inv(ME, 'accepted')] }),
+  ];
+  const m = H.monthGrid(parties, ME, NOW, 0);
+  assert.strictEqual(m.title, 'October 2026');
+  assert.strictEqual(m.days.length % 7, 0);
+  assert.strictEqual(m.days.length, 35, 'Oct 2026 spans five Mon-Sun weeks');
+  assert.strictEqual(m.days[0].key, '2026-09-28', 'starts on the Monday before the 1st');
+  assert.strictEqual(m.days[0].inMonth, false);
+  assert.strictEqual(m.days[3].key, '2026-10-01');
+  assert.strictEqual(m.days[3].inMonth, true);
+  assert.deepStrictEqual(plain(m.days[3].parties.map((x) => x.role)), ['host']);
+  assert.strictEqual(m.days.find((d) => d.key === '2026-10-12').parties.length, 0, 'pending invites are not shown');
+  assert.strictEqual(m.days.find((d) => d.key === '2026-10-28').isToday, true);
+  assert.strictEqual(m.days[m.days.length - 1].key, '2026-11-01');
+  assert.strictEqual(m.count, 2, 'counts parties inside the month only');
+});
+
+test('monthGrid steps between months and across the year end', () => {
+  const next = H.monthGrid([], ME, NOW, 1);
+  assert.strictEqual(next.title, 'November 2026');
+  assert.strictEqual(next.days[0].key, '2026-10-26');
+  assert.ok(next.days.every((d) => !d.isToday || d.key === '2026-10-28'));
+  const jan = H.monthGrid([], ME, NOW, 3);
+  assert.strictEqual(jan.title, 'January 2027');
+  const prev = H.monthGrid([], ME, NOW, -1);
+  assert.strictEqual(prev.title, 'September 2026');
+  assert.strictEqual(prev.days.length % 7, 0);
+});
+
 test('rsvpBreakdown counts each status and approved plus-ones', () => {
   const p = party('p', '2026-11-01', {
     invites: [
